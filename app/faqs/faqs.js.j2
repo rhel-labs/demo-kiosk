@@ -1,0 +1,37 @@
+// AUTO-GENERATED — do not edit directly.
+// Source:    content/faqs/*.yaml
+// Generator: build/build-faqs.py
+// Generated: {{ generated_at }}
+//
+// To add, remove, or reorder cards edit the .yaml files in content/faqs/
+// then run:  python3 build/build-faqs.py
+{% for entry in entries %}
+FAQ.register({
+  id:      {{ entry.id | tojson }},
+  title:   {{ entry.title | tojson }},
+  summary: {{ entry.summary | tojson }},
+  enabled: {{ entry.enabled | tojson }},
+  demo: {
+    type: {{ entry.demo.type | tojson }},
+{%- if 'src' in entry.demo %}
+    src:  {{ entry.demo.src | tojson }},
+{%- endif %}
+{%- if 'image' in entry.demo %}
+    image:   {{ entry.demo.image | tojson }},
+    caption: {{ entry.demo.caption | tojson }},
+{%- endif %}
+{%- if entry.demo.type in ('external-url', 'lab') %}
+    url:              {{ entry.demo.url | tojson }},
+    long_description: {{ entry.demo.long_description | tojson }},
+{%- if 'duration' in entry.demo %}
+    duration:         {{ entry.demo.duration | tojson }},
+{%- endif %}
+{%- endif %}
+{%- if entry.demo.type == 'arcade' %}
+    url:          {{ entry.demo.url | tojson }},
+    title:        {{ entry.demo.title | tojson }},
+    aspect_ratio: {{ entry.demo.aspect_ratio | tojson }},
+{%- endif %}
+  },
+});
+{% endfor %}

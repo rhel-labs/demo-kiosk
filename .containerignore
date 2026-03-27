@@ -1,0 +1,10 @@
+# Generated artefacts — rebuilt fresh by the builder stage every image build
+app/faqs/faqs.js
+content/faqs.js
+app/containerfile.html
+
+# Dev / authoring tooling — copied into builder stage for extras.tar.gz only
+# Removed from ignore so COPY instructions in the builder stage can reach them.
+# They are not present anywhere in /srv/faq (runtime filesystem).
+RESTRUCTURE-PLAN.md
+.containerignore

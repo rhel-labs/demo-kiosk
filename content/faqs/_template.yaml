@@ -1,0 +1,168 @@
+# ================================================================
+# FAQ ENTRY TEMPLATE
+# ================================================================
+# This file starts with _ so build-faqs.py ignores it.
+# It is an authoring reference — not a card.
+#
+# HOW TO CREATE A NEW FAQ ENTRY:
+#   1. Copy this file to a new name in content/faqs/
+#      Example:  cp content/faqs/_template.yaml content/faqs/my-topic.yaml
+#
+#   2. Fill in the required fields below.
+#
+#   3. Set `order` to control where this card appears on screen.
+#      Cards are sorted by this number (lowest first).
+#      Use multiples of 10 (10, 20, 30 …) so you can insert
+#      new cards between existing ones without renumbering.
+#
+#   4. Choose ONE demo type and fill in its fields.
+#      Delete the other demo sections.
+#
+#   5. Place any media files (video, PDF, image, .cast) in content/media/
+#      Reference them as:  content/media/your-file.mp4
+#
+#   6. Run:  python3 build/build-faqs.py
+#      This regenerates content/faqs.js — no index.html edits needed.
+# ================================================================
+
+# ── REQUIRED FIELDS ─────────────────────────────────────────────
+# Unique identifier — no spaces, use hyphens. Must differ per entry.
+id: my-topic
+
+# Controls position on the card grid. Lower numbers appear first.
+order: 100
+
+# The question shown on the card (keep it concise).
+title: "Your question goes here?"
+
+# One sentence shown under the title on the card.
+summary: "A brief description of what this answer covers."
+
+# Whether this card appears on the kiosk grid.
+# Set to false to hide by default. Can be overridden from the admin view.
+# If omitted, the card is shown (defaults to true).
+enabled: true
+
+
+# ── DEMO — choose ONE type, delete the rest ──────────────────────
+
+# ── Option 1: Video ─────────────────────────────────────────────
+# Use for: screen recordings, product walkthroughs, any MP4 file.
+# Place the video file in content/media/
+#
+demo:
+  type: video
+  src: content/media/your-video.mp4
+
+
+# ── Option 2: Slides (PDF) ───────────────────────────────────────
+# Use for: step-by-step walkthroughs, Google Slides exports.
+# Export from Google Slides: File → Download → PDF Document (.pdf)
+# Place the PDF in content/media/
+#
+# demo:
+#   type: slides
+#   src: content/media/your-presentation.pdf
+
+
+# ── Option 3: Terminal recording (asciinema) ─────────────────────
+# Use for: command-line demos, shell walkthroughs.
+# Record with:  asciinema rec content/media/your-recording.cast
+#               (Press Ctrl+D to stop)
+#
+# demo:
+#   type: asciinema
+#   src: content/media/your-recording.cast
+
+
+# ── Option 4: Image + caption ────────────────────────────────────
+# Use for: an annotated screenshot with explanatory text.
+# Place the image in content/media/
+#
+# demo:
+#   type: image-text
+#   image: content/media/your-screenshot.png
+#   caption: >
+#     Describe what is shown in the image.
+#     This text appears below it in the modal.
+
+
+# ── Option 5: External URL ───────────────────────────────────────
+# Use for: linking to a website, documentation portal, or any URL.
+# Clicking the card opens a modal with the description and an
+# "Open Link" button that opens the URL in a new browser tab.
+#
+# summary (above) = short text shown on the card.
+# long_description = full text shown in the modal (supports **bold**,
+#   [link text](https://url), and - bullet lists).
+#
+# demo:
+#   type: external-url
+#   url: https://example.com
+#   long_description: |
+#     Describe what the visitor will find at this link.
+#     You can use **bold text**, [hyperlinks](https://example.com),
+#     and bullet lists:
+#     - First item
+#     - Second item
+
+
+# ── Option 6: Hands-on lab (Red Hat Demo Platform) ──────────────
+# Use for: self-paced hands-on labs hosted on RHDP
+#          (https://zero.rhdp.net).
+#
+# Clicking the card opens a modal with the description, an optional
+# duration hint, and a "Launch Lab" button that opens the lab URL
+# in a new tab. Visitors will need a Red Hat account to proceed.
+#
+# url              = the full RHDP lab URL (required).
+# long_description = description shown in the modal (required).
+#                    Supports **bold**, [links](https://url), and
+#                    - bullet lists.
+# duration         = estimated completion time (optional —
+#                    displayed as "Estimated time: X" in the modal).
+#
+# demo:
+#   type: lab
+#   url: https://zero.rhdp.net/lab/your-lab-slug.prod
+#   long_description: |
+#     Describe what the visitor will do in this lab.
+#     You can use **bold text**, [links](https://example.com),
+#     and bullet lists:
+#     - Step one
+#     - Step two
+#   duration: "30 minutes"
+
+
+# ── Option 7: Arcade interactive demo ───────────────────────────
+# Use for: embedded interactive product demos created with Arcade
+#          (https://arcade.software).
+#
+# How to get the share_url:
+#   Option A — Red Hat branded link (easiest):
+#     Share your Arcade → copy the interact.redhat.com link, e.g.:
+#       https://interact.redhat.com/share/YOUR_FLOW_ID
+#
+#   Option B — Standard Arcade share link:
+#       https://app.arcade.software/share/YOUR_FLOW_ID
+#
+# The build script fetches the share page automatically to extract
+# the demo title and aspect ratio — no manual copy-paste needed.
+#
+# share_url    = the share link from Arcade (required).
+# title        = accessibility label for the iframe (optional —
+#                auto-fetched from Arcade if omitted).
+# aspect_ratio = percentage for the embed height ratio (optional —
+#                auto-fetched from Arcade if omitted; typically
+#                "56.25%" for 16:9 recordings).
+#
+# demo:
+#   type: arcade
+#   share_url: https://interact.redhat.com/share/YOUR_FLOW_ID
+#
+# With optional overrides (e.g. for offline builds):
+# demo:
+#   type: arcade
+#   share_url: https://interact.redhat.com/share/YOUR_FLOW_ID
+#   title: "Product walkthrough — getting started"
+#   aspect_ratio: "56.25%"

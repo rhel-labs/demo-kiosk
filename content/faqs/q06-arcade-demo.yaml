@@ -1,0 +1,8 @@
+id: q06-arcade-demo
+order: 60
+title: "See it in action — interactive demo"
+summary: "Step through the product yourself with a hands-on interactive walkthrough."
+
+demo:
+  type: arcade
+  share_url: https://interact.redhat.com/share/yjjKM29mmJB4eczCA9sg

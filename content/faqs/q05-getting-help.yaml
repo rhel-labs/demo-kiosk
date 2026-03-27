@@ -1,0 +1,14 @@
+id: q05-getting-help
+order: 50
+title: "Where can I get more help?"
+summary: "Resources, documentation, and contact options available to you."
+
+demo:
+  type: external-url
+  url: https://www.redhat.com/en/technologies/linux-platforms/enterprise-linux/hummingbird
+  long_description: |
+    Find documentation, release notes, and support resources for Red Hat Enterprise Linux.
+
+    - Product documentation and guides
+    - Knowledgebase articles and solutions
+    - Contact Red Hat support

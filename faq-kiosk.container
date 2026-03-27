@@ -1,0 +1,86 @@
+# ================================================================
+# faq-kiosk.container — Podman Quadlet unit (user install)
+# ================================================================
+# Runs the FAQ Kiosk SPA as a rootless systemd service via Podman
+# Quadlet. The container image must be built on the host first:
+#
+#   podman build -t faq-kiosk:latest /path/to/faq-spa
+#
+# INSTALL (no root required):
+#
+#   1. Build the image (once, or after any content change):
+#        podman build -t faq-kiosk:latest ~/faq-spa
+#
+#   2. Copy this file into the user Quadlet search path:
+#        mkdir -p ~/.config/containers/systemd
+#        cp faq-kiosk.container ~/.config/containers/systemd/
+#
+#   3. Reload the user systemd daemon:
+#        systemctl --user daemon-reload
+#
+#   4. Start the service:
+#        systemctl --user start faq-kiosk
+#
+#   5. Open in a browser:
+#        http://localhost:8181
+#        http://localhost:8181/#admin   ← usage statistics
+#
+# AUTO-START ON BOOT (optional — requires lingering session):
+#   The [Install] section below targets default.target, so the
+#   service starts automatically when the user's session starts.
+#   To also start it at boot before login, enable linger:
+#
+#        loginctl enable-linger
+#
+# USEFUL COMMANDS:
+#   systemctl --user status faq-kiosk
+#   systemctl --user stop   faq-kiosk
+#   systemctl --user restart faq-kiosk
+#   journalctl --user -u faq-kiosk -f
+#
+# UPDATING CONTENT:
+#   After editing FAQ files or running download-libs.sh, rebuild
+#   the image and restart the service:
+#
+#        podman build -t faq-kiosk:latest ~/faq-spa
+#        systemctl --user restart faq-kiosk
+#
+# ================================================================
+
+[Unit]
+Description=FAQ Kiosk — Red Hat Enterprise Linux interactive FAQ
+# Only requires the local filesystem; no network needed at runtime
+# because all assets are baked into the image.
+After=local-fs.target
+
+[Container]
+# Image must be built locally before starting the service.
+# Use Pull=never to fail fast with a clear error rather than
+# attempting (and failing) to pull from a registry.
+Image=localhost/faq-kiosk:latest
+Pull=never
+
+# Publish container port 8181 to the same port on all host interfaces.
+# Change the host side (left of :) to use a different port, e.g. 9090:8181
+PublishPort=8181:8181
+
+# Predictable container name for `podman exec` and `podman logs`
+ContainerName=faq-kiosk
+
+# Run as read-only — the SPA serves static files and writes nothing
+ReadOnly=true
+
+# Required by --read-only: allow tmpfs on /tmp and /run inside container
+ReadOnlyTmpfs=true
+
+[Service]
+# Restart automatically if the container exits unexpectedly
+Restart=on-failure
+
+# Give Podman time to start (image may need to be decompressed on first run)
+TimeoutStartSec=90
+
+[Install]
+# Start with the user's default systemd session target.
+# Enable linger (`loginctl enable-linger`) to also start at boot.
+WantedBy=default.target
