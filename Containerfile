@@ -71,7 +71,7 @@
 # purpose-built counterpart to the distroless runtime image.
 # Used only to run the generators — nothing else carries forward.
 # Uses default /tmp as working directory.
-FROM quay.io/hummingbird-hatchling/python:3.14-builder AS builder
+FROM quay.io/hummingbird/python:3.14-builder AS builder
 
 # Install build-time Python dependencies
 RUN pip3 install --quiet pyyaml jinja2
@@ -128,7 +128,7 @@ EOF
 # ── Stage 2: runtime ─────────────────────────────────────────────
 # hummingbird python:3.14 — distroless, no shell, no package manager.
 # Runs as UID 65532. WorkingDir defaults to /tmp; overridden below.
-FROM quay.io/hummingbird-hatchling/python:3.14
+FROM quay.io/hummingbird/python:3.14
 
 # Set WORKDIR before COPY so relative destinations resolve to /srv/faq.
 WORKDIR /srv/faq
