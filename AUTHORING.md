@@ -1,6 +1,6 @@
-# FAQ Kiosk — Authoring Guide
+# Demo Kiosk — Authoring Guide
 
-This guide covers everything an author needs to add, edit, and deploy FAQ content. No JavaScript knowledge is required.
+This guide covers everything an author needs to add, edit, and deploy demo content. No JavaScript knowledge is required.
 
 ---
 
@@ -10,12 +10,14 @@ Content lives entirely in the `content/` directory:
 
 ```
 content/
+  branding/       ← event branding (logos, colors, event name)
   faqs/           ← YAML files, one per FAQ card
   media/          ← videos, PDFs, images, terminal recordings
+  branding.js     ← compiled output (generated — do not edit)
   faqs.js         ← compiled output (generated — do not edit)
 ```
 
-The app files (`assets/`, `faqs/`, `serve.py`) are never touched by authors. `index.html` has a small `CONFIG` block at the bottom for customising the header — see [Customising the kiosk header](#customising-the-kiosk-header) below.
+The app files (`app/assets/`, `app/faqs/`, `serve.py`) are never touched by authors.
 
 When you are ready to publish, run:
 
@@ -23,7 +25,107 @@ When you are ready to publish, run:
 python3 build/build-faqs.py
 ```
 
-This reads `content/faqs/*.yaml`, validates them, sorts by `order`, and writes `content/faqs.js`. That file is what the browser loads.
+This reads `content/faqs/*.yaml` and `content/branding/branding.yaml`, validates them, and writes `content/faqs.js` and `content/branding.js`. Those files are what the browser loads.
+
+---
+
+## Getting Started (without cloning the repo)
+
+If you have a container image but not the source repository, you can extract all authoring tools directly from the image:
+
+```bash
+# Extract the authoring bundle from the image
+podman create --name faq-tmp demo-kiosk:latest
+podman cp faq-tmp:/extras/extras.tar.gz ./
+podman rm faq-tmp
+tar -xzf extras.tar.gz
+```
+
+The bundle contains:
+- `AUTHORING.md` — this guide
+- `build/` — build scripts
+- `content/faqs/` — sample FAQ cards and template
+- `app/faqs/` — Jinja2 templates
+- `download-libs.sh` — script to download third-party libraries
+- `start.sh` — local development server launcher
+- `demo-kiosk.container` — systemd Quadlet service definition
+
+After extraction, follow the standard authoring workflow starting with [Adding a FAQ card](#adding-a-faq-card).
+
+---
+
+## Rebranding for different events
+
+The kiosk can be easily rebranded for different Red Hat events (Summit, AnsibleFest, etc.) by editing one YAML file.
+
+### Quick rebrand using presets
+
+Preset configurations are available in `content/branding/presets/`:
+
+```bash
+# For Red Hat Summit:
+cp content/branding/presets/summit.yaml content/branding/branding.yaml
+
+# For AnsibleFest:
+cp content/branding/presets/ansiblefest.yaml content/branding/branding.yaml
+
+# Rebuild to apply changes:
+python3 build/build-faqs.py
+```
+
+### Custom branding
+
+Edit `content/branding/branding.yaml` to customize:
+
+```yaml
+# Event Information
+event:
+  name: Your Event Name 2026
+  subtitle: "Your Event: Frequently Asked Questions"
+  description: Event tagline or description
+
+# Logo Configuration
+logos:
+  # Left logo (typically Red Hat corporate logo)
+  primary:
+    file: content/branding/logo-redhat.svg
+    alt_text: Red Hat
+
+  # Right logo (event-specific logo)
+  secondary:
+    file: content/branding/logo-your-event.svg
+    alt_text: Your Event
+
+# Brand Colors (use hex codes)
+colors:
+  brand_primary: "#ee0000"    # Primary brand color (buttons, links)
+  brand_hover: "#c00000"      # Hover state
+  page_background: "#f2f2f2"  # Main page background
+  header_background: "#151515" # Header background
+
+# Display Settings
+layout:
+  card_columns: 3
+  idle_timeout_seconds: 30
+  countdown_seconds: 10
+
+# Footer
+footer:
+  copyright: Red Hat, Inc.
+```
+
+**Adding custom logos:**
+
+1. Download your event logo (SVG format recommended)
+2. Save it to `content/branding/` (e.g., `logo-your-event.svg`)
+3. Update the `logos.secondary.file` path in `branding.yaml`
+4. Run `python3 build/build-faqs.py`
+
+**YAML gotcha:** If your text contains a colon (`:`), wrap it in quotes:
+```yaml
+subtitle: "My Event: Frequently Asked Questions"  ← correct
+subtitle: My Event: Frequently Asked Questions    ← will fail
+```
 
 ---
 
@@ -317,20 +419,7 @@ To reorder: change the `order` value and re-run `python3 build/build-faqs.py`.
 
 ## Customising the kiosk header
 
-Two values in `index.html` control what appears in the masthead. Search for `const CONFIG = {` near the bottom of the file — the block looks like this:
-
-```js
-const CONFIG = {
-  title:    "Red Hat Enterprise Linux",   // alt text for the Red Hat logo image
-  subtitle: "Frequently Asked Questions", // large text shown in the masthead centre
-  ...
-};
-```
-
-- `subtitle` — the large text displayed in the centre of the header bar. Change this to match your product or event.
-- `title` — used as the accessible `alt` attribute on the Red Hat logo image in the header. Update this if you change the logo.
-
-These are the only lines in `index.html` authors need to touch.
+To customize logos, event names, and colors, edit `content/branding/branding.yaml` — see the [Rebranding for different events](#rebranding-for-different-events) section above for full details.
 
 ---
 
@@ -358,15 +447,42 @@ Options:
 ./download-libs.sh
 
 # Build the image
-podman build -t faq-kiosk:latest .
+podman build -t demo-kiosk:latest .
 ```
 
 The builder stage runs `build-faqs.py` automatically — you do not need to run it manually before a container build.
 
 ```bash
 # Run the container directly
-podman run --rm -p 8181:8181 faq-kiosk:latest
+podman run --rm -p 8181:8181 demo-kiosk:latest
 ```
+
+The kiosk serves on **port 8181** by default.
+
+---
+
+## Deploying as a systemd service
+
+For production deployments, use systemd Quadlet to run the kiosk as a persistent service:
+
+```bash
+# Install the Quadlet unit file (user service)
+mkdir -p ~/.config/containers/systemd
+cp demo-kiosk.container ~/.config/containers/systemd/
+
+# Reload systemd and start the service
+systemctl --user daemon-reload
+systemctl --user start demo-kiosk
+systemctl --user enable demo-kiosk  # auto-start on login
+```
+
+Check status:
+```bash
+systemctl --user status demo-kiosk
+journalctl --user -u demo-kiosk -f  # follow logs
+```
+
+See `demo-kiosk.container` for the full Quadlet configuration and customization options.
 
 ---
 
@@ -406,7 +522,7 @@ If you want to update content without rebuilding the image, mount your `content/
    ```bash
    podman run --rm -p 8181:8181 \
      -v /path/to/my-content:/srv/faq/content:ro \
-     faq-kiosk:latest
+     demo-kiosk:latest
    ```
 
 The image provides the app framework; the volume provides the content. The baked-in placeholder content in the image is replaced entirely by the volume mount.

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Containerfile — FAQ Kiosk</title>
+  <title>Containerfile — Red Hat Summit 2026 - Demo Kiosk</title>
 
   <link rel="stylesheet" href="patternfly.min.css" />
 
@@ -47,11 +47,17 @@
       align-items: center;
       gap: 0.3rem;
     }
-    #header-subtitle {
+    #header-title {
       font-size: 3rem;
       font-weight: 300;
       color: var(--pf-t--global--text--color--on-brand--default);
       opacity: 0.85;
+    }
+    #header-tagline {
+      font-size: 1rem;
+      font-weight: 300;
+      color: var(--pf-t--global--text--color--on-brand--default);
+      opacity: 0.7;
     }
     #header-logo-hummingbird {
       height: 3rem;
@@ -77,6 +83,28 @@
     .page-subtitle {
       color: var(--pf-t--global--text--color--subtle);
       margin-bottom: 2rem;
+      position: relative;
+      font-size: 1.35rem;
+      line-height: 1.55;
+    }
+
+    /* ── Hummingbird drop cap logo ── */
+    .hummingbird-dropcap {
+      float: left;
+      margin: 0.2rem 1rem 0.5rem 0;
+      display: block;
+    }
+
+    .hummingbird-dropcap img {
+      display: block;
+      width: auto;
+      height: 6.5rem;
+      opacity: 0.9;
+      transition: opacity 0.2s ease;
+    }
+
+    .hummingbird-dropcap:hover img {
+      opacity: 1;
     }
 
     /* ── Action bar ── */
@@ -131,110 +159,96 @@
 
   <header class="pf-v6-c-masthead pf-m-display-stack" id="site-header">
     <div class="pf-v6-c-masthead__main">
-      <img id="header-logo-rh" src="assets/logo-redhat.svg" alt="Red Hat Enterprise Linux" />
+      <img id="header-logo-rh" src="content/branding/logo-redhat.svg" alt="Red Hat" />
       <div id="header-centre">
-        <span id="header-subtitle">Frequently Asked Questions</span>
+        <span id="header-title">Red Hat Summit</span>
+        <span id="header-tagline">Navigate what's now. Unlock what's next.</span>
       </div>
-      <img id="header-logo-hummingbird" src="assets/logo-hummingbird.png" alt="Project Hummingbird" />
+      <img id="header-logo-hummingbird" src="content/branding/logo-summit.svg" alt="Red Hat Summit" />
     </div>
   </header>
 
   <main>
     <h2>Containerfile</h2>
     <p class="page-subtitle">
-      The container image definition for this FAQ kiosk. Built with
-      <a href="https://podman.io" target="_blank" rel="noopener">Podman</a> from
-      <code>quay.io/hummingbird-hatchling/python:3.14</code>.
+      <a href="https://images.redhat.com/" target="_blank" rel="noopener" class="hummingbird-dropcap" title="Built with Hummingbird — Red Hat's lightweight container images">
+        <img src="assets/logo-hummingbird.png" alt="Hummingbird" />
+      </a>
+      Container-native kiosk running on Red Hat's distroless Hummingbird images — hardened, minimal, and secure by design.<br>
+      Built with <a href="https://podman.io" target="_blank" rel="noopener">Podman</a> from
+      <code>registry.access.redhat.com/hi/python:3.14</code>.<br>
+      Styled with <a href="https://www.patternfly.org" target="_blank" rel="noopener">PatternFly</a>, Red Hat's enterprise design system.
     </p>
 
     <div class="page-actions">
-      <a class="pf-v6-c-button pf-m-primary" href="index.html">&#8592; Back to FAQ</a>
-      <span class="build-meta">Image built: 2026-03-26 15:24 UTC</span>
+      <a class="pf-v6-c-button pf-m-primary" href="index.html">&#8592; Back to Kiosk</a>
+      <span class="build-meta">Image built: 2026-04-15 21:29 UTC</span>
     </div>
 
     <div class="cf-code-wrap">
-      <pre><span class="cf-comment"># ================================================================</span>
-<span class="cf-comment"># Containerfile — FAQ Kiosk SPA</span>
-<span class="cf-comment"># ================================================================</span>
-<span class="cf-comment"># Builds a self-contained image that serves the FAQ as a static</span>
-<span class="cf-comment"># HTTP service on port 8181. All assets are baked in at build time;</span>
-<span class="cf-comment"># the container requires no network access at runtime.</span>
-<span class="cf-comment">#</span>
-<span class="cf-comment"># Directory layout inside the image:</span>
-<span class="cf-comment">#   /srv/faq/</span>
-<span class="cf-comment">#     index.html          — app shell</span>
-<span class="cf-comment">#     patternfly.min.css  — UI framework</span>
-<span class="cf-comment">#     assets/             — libraries, fonts, logos  (app, never edited)</span>
-<span class="cf-comment">#     faqs/               — faqs.js.j2 template      (app, never edited)</span>
-<span class="cf-comment">#     containerfile.html  — generated Containerfile viewer page</span>
-<span class="cf-comment">#     content/</span>
-<span class="cf-comment">#       faqs/             — *.yaml FAQ entry files    (author content)</span>
-<span class="cf-comment">#       media/            — videos, PDFs, images, .cast files (author content)</span>
-<span class="cf-comment">#       faqs.js           — compiled from *.yaml by build-faqs.py (generated)</span>
-<span class="cf-comment">#</span>
-<span class="cf-comment"># The content/ tree can be replaced at runtime by a volume mount:</span>
-<span class="cf-comment">#   podman run --rm -p 8181:8181 \</span>
-<span class="cf-comment">#     -v /path/to/my-content:/srv/faq/content:ro \</span>
-<span class="cf-comment">#     faq-kiosk:latest</span>
-<span class="cf-comment">#</span>
-<span class="cf-comment"># Multi-stage build:</span>
-<span class="cf-comment">#   Stage 1 (builder) — hummingbird python:3.14-builder: has shell</span>
-<span class="cf-comment">#     and pip; runs the generators to produce content/faqs.js and</span>
-<span class="cf-comment">#     app/containerfile.html.</span>
-<span class="cf-comment">#   Stage 2 (runtime) — hummingbird python:3.14: distroless, no</span>
-<span class="cf-comment">#     shell, no package manager, zero CVEs at ship time.</span>
-<span class="cf-comment">#     Runs as UID 65532 (non-root). Only /tmp is writable at runtime.</span>
-<span class="cf-comment">#</span>
-<span class="cf-comment"># PREREQUISITES:</span>
-<span class="cf-comment">#   Run ./download-libs.sh on the host before building so that all</span>
-<span class="cf-comment">#   third-party assets (PatternFly, fonts, PDF.js, asciinema, logos)</span>
-<span class="cf-comment">#   are present in app/assets/ and app/patternfly.min.css.</span>
-<span class="cf-comment">#   These files are copied into the image at build time.</span>
-<span class="cf-comment">#</span>
-<span class="cf-comment"># BUILD:</span>
-<span class="cf-comment">#   podman build -t faq-kiosk:latest .</span>
-<span class="cf-comment">#</span>
-<span class="cf-comment"># RUN (direct, with baked-in content):</span>
-<span class="cf-comment">#   podman run --rm -p 8181:8181 faq-kiosk:latest</span>
-<span class="cf-comment">#</span>
-<span class="cf-comment"># RUN (with custom content volume):</span>
-<span class="cf-comment">#   podman run --rm -p 8181:8181 \</span>
-<span class="cf-comment">#     -v /path/to/my-content:/srv/faq/content:ro \</span>
-<span class="cf-comment">#     faq-kiosk:latest</span>
-<span class="cf-comment">#</span>
-<span class="cf-comment"># SERVICE (recommended — via Quadlet):</span>
-<span class="cf-comment">#   See faq-kiosk.container for user-install instructions.</span>
-<span class="cf-comment"># ================================================================</span>
-
-<span class="cf-comment"># ── Stage 1: builder ─────────────────────────────────────────────</span>
+      <pre><span class="cf-comment"># ── Stage 1: builder ─────────────────────────────────────────────</span>
 <span class="cf-comment"># hummingbird python:3.14-builder has a shell and pip; it is the</span>
 <span class="cf-comment"># purpose-built counterpart to the distroless runtime image.</span>
 <span class="cf-comment"># Used only to run the generators — nothing else carries forward.</span>
 <span class="cf-comment"># Uses default /tmp as working directory.</span>
-<span class="cf-directive">FROM</span><span class="cf-value"> quay.io/hummingbird-hatchling/python:3.14-builder AS builder</span>
+<span class="cf-directive">FROM</span><span class="cf-value"> quay.io/hummingbird/python:3.14-builder AS builder</span>
 
 <span class="cf-comment"># Install build-time Python dependencies</span>
 <span class="cf-directive">RUN</span><span class="cf-value"> pip3 install --quiet pyyaml jinja2</span>
 
 <span class="cf-comment"># Build tools</span>
-<span class="cf-directive">COPY</span><span class="cf-value"> build/ ./build/</span>
+<span class="cf-directive">COPY</span><span class="cf-value"> --chown=65532:65532 build/ ./build/</span>
 <span class="cf-comment"># Jinja2 template (app machinery, read by build-faqs.py)</span>
-<span class="cf-directive">COPY</span><span class="cf-value"> app/faqs/ ./app/faqs/</span>
+<span class="cf-directive">COPY</span><span class="cf-value"> --chown=65532:65532 app/faqs/ ./app/faqs/</span>
 <span class="cf-comment"># Containerfile itself (read by generate-containerfile-page.py)</span>
-<span class="cf-directive">COPY</span><span class="cf-value"> Containerfile ./</span>
+<span class="cf-directive">COPY</span><span class="cf-value"> --chown=65532:65532 Containerfile ./</span>
 <span class="cf-comment"># Author content (YAML sources, read by build-faqs.py)</span>
-<span class="cf-directive">COPY</span><span class="cf-value"> content/ ./content/</span>
+<span class="cf-directive">COPY</span><span class="cf-value"> --chown=65532:65532 content/ ./content/</span>
 
 <span class="cf-comment"># generate-containerfile-page.py writes to app/containerfile.html</span>
 <span class="cf-comment"># build-faqs.py writes to content/faqs.js</span>
 <span class="cf-directive">RUN</span><span class="cf-value"> python3 build/generate-containerfile-page.py \</span>
 <span class="cf-value"> &amp;&amp; python3 build/build-faqs.py</span>
 
+<span class="cf-comment"># Author-facing files for the extras bundle.</span>
+<span class="cf-comment"># Copied here (builder only) so they are not present in the runtime stage</span>
+<span class="cf-comment"># except as part of the tarball — /srv/faq stays clean.</span>
+<span class="cf-directive">COPY</span><span class="cf-value"> --chown=65532:65532 AUTHORING.md        ./</span>
+<span class="cf-directive">COPY</span><span class="cf-value"> --chown=65532:65532 demo-kiosk.container ./</span>
+<span class="cf-directive">COPY</span><span class="cf-value"> --chown=65532:65532 download-libs.sh    ./</span>
+<span class="cf-directive">COPY</span><span class="cf-value"> --chown=65532:65532 start.sh            ./</span>
+
+<span class="cf-comment"># Bundle all author tooling into a single tarball for `podman cp` extraction.</span>
+<span class="cf-comment"># content/faqs.js is excluded — authors generate it themselves after editing.</span>
+<span class="cf-comment"># Uses python3 tarfile (stdlib) — tar is not available in this builder image.</span>
+<span class="cf-directive">RUN</span><span class="cf-value"> python3 - &lt;&lt; 'EOF'</span>
+<span class="cf-value">import tarfile, os</span>
+
+<span class="cf-directive">WORKDIR</span><span class="cf-value"> = <span class="cf-string">&quot;/tmp&quot;</span></span>
+<span class="cf-value">EXCLUDE = {&quot;content/faqs/faqs.js&quot;}</span>
+<span class="cf-value">MEMBERS = [</span>
+<span class="cf-value">    &quot;build&quot;,</span>
+<span class="cf-value">    &quot;app/faqs&quot;,</span>
+<span class="cf-value">    &quot;content/faqs&quot;,</span>
+<span class="cf-value">    &quot;AUTHORING.md&quot;,</span>
+<span class="cf-value">    &quot;demo-kiosk.container&quot;,</span>
+<span class="cf-value">    &quot;download-libs.sh&quot;,</span>
+<span class="cf-value">    &quot;start.sh&quot;,</span>
+<span class="cf-value">]</span>
+
+<span class="cf-value">def filter_fn(info):</span>
+<span class="cf-value">    return None if info.name in EXCLUDE else info</span>
+
+<span class="cf-value">with tarfile.open(os.path.join(WORKDIR, &quot;extras.tar.gz&quot;), &quot;w:gz&quot;) as tf:</span>
+<span class="cf-value">    for member in MEMBERS:</span>
+<span class="cf-value">        tf.add(os.path.join(WORKDIR, member), arcname=member, filter=filter_fn)</span>
+<span class="cf-value">EOF</span>
+
 
 <span class="cf-comment"># ── Stage 2: runtime ─────────────────────────────────────────────</span>
 <span class="cf-comment"># hummingbird python:3.14 — distroless, no shell, no package manager.</span>
 <span class="cf-comment"># Runs as UID 65532. WorkingDir defaults to /tmp; overridden below.</span>
-<span class="cf-directive">FROM</span><span class="cf-value"> quay.io/hummingbird-hatchling/python:3.14</span>
+<span class="cf-directive">FROM</span><span class="cf-value"> quay.io/hummingbird/python:3.14</span>
 
 <span class="cf-comment"># Set WORKDIR before COPY so relative destinations resolve to /srv/faq.</span>
 <span class="cf-directive">WORKDIR</span><span class="cf-value"> /srv/faq</span>
@@ -251,21 +265,23 @@
 <span class="cf-comment"># This entire tree can be replaced at runtime by a volume mount.</span>
 <span class="cf-directive">COPY</span><span class="cf-value"> --from=builder --chown=65532:65532 /tmp/content/ ./content/</span>
 
+<span class="cf-comment"># Extras bundle — not part of the served app; lives at /extras/ for `podman cp`.</span>
+<span class="cf-comment"># See AUTHORING.md for extraction instructions.</span>
+<span class="cf-directive">COPY</span><span class="cf-value"> --from=builder --chown=65532:65532 /tmp/extras.tar.gz /extras/extras.tar.gz</span>
+
 <span class="cf-directive">EXPOSE</span><span class="cf-value"> 8181</span>
 
-<span class="cf-comment"># python3 -m http.server does not handle SIGTERM; SIGKILL stops it immediately.</span>
+<span class="cf-comment"># serve.py (like python3 -m http.server) does not handle SIGTERM; SIGKILL stops it immediately.</span>
 <span class="cf-directive">STOPSIGNAL</span><span class="cf-value"> SIGKILL</span>
 
 <span class="cf-comment"># No shell in distroless — CMD must be JSON exec form.</span>
-<span class="cf-comment"># Bind to :: (dual-stack IPv4+IPv6) so the published port is reachable from the host.</span>
-<span class="cf-directive">CMD</span><span class="cf-value"> [<span class="cf-string">&quot;python3&quot;</span>, <span class="cf-string">&quot;-m&quot;</span>, <span class="cf-string">&quot;http.server&quot;</span>, <span class="cf-string">&quot;8181&quot;</span>, \</span>
-<span class="cf-value">     &quot;--bind&quot;, &quot;::&quot;, \</span>
+<span class="cf-directive">CMD</span><span class="cf-value"> [<span class="cf-string">&quot;python3&quot;</span>, <span class="cf-string">&quot;/srv/faq/serve.py&quot;</span>, <span class="cf-string">&quot;8181&quot;</span>, \</span>
 <span class="cf-value">     &quot;--directory&quot;, &quot;/srv/faq&quot;]</span></pre>
     </div>
   </main>
 
   <footer id="site-footer">
-    <a href="index.html">FAQ</a> &nbsp;&middot;&nbsp;
+    <a href="index.html">Kiosk</a> &nbsp;&middot;&nbsp;
     <a href="index.html#admin">Statistics</a> &nbsp;&middot;&nbsp;
     Containerfile &nbsp;&middot;&nbsp;
     &copy; Red Hat, Inc.

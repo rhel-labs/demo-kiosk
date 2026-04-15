@@ -68,6 +68,7 @@
       /* ensure masthead stretches full width */
       display: flex;
       align-items: stretch;
+      cursor: pointer;
     }
 
     #site-header .pf-v6-c-masthead__main {
@@ -91,11 +92,18 @@
       gap: 0.3rem;
     }
 
-    #header-subtitle {
+    #header-title {
       font-size: 3rem;
       font-weight: 300;
       color: var(--pf-t--global--text--color--on-brand--default);
       opacity: 0.85;
+    }
+
+    #header-tagline {
+      font-size: 1rem;
+      font-weight: 300;
+      color: var(--pf-t--global--text--color--on-brand--default);
+      opacity: 0.7;
     }
 
     #header-logo-hummingbird {
@@ -520,15 +528,16 @@
   <!-- ============================================================
        HEADER — edit CONFIG.subtitle below
        Logos: assets/logo-redhat.svg (run download-libs.sh once)
-               assets/logo-hummingbird.png (extracted from hummingbird-project.io)
+               assets/logo-summit.svg (Red Hat Summit 2026 logo)
        ============================================================ -->
   <header class="pf-v6-c-masthead pf-m-display-stack" id="site-header">
     <div class="pf-v6-c-masthead__main">
       <img id="header-logo-rh" src="assets/logo-redhat.svg" alt="Red Hat" />
       <div id="header-centre">
-        <span id="header-subtitle"></span>
+        <span id="header-title"></span>
+        <span id="header-tagline"></span>
       </div>
-      <img id="header-logo-hummingbird" src="assets/logo-hummingbird.png" alt="Project Hummingbird" />
+      <img id="header-logo-hummingbird" src="assets/logo-summit.svg" alt="Red Hat Summit" />
     </div>
   </header>
 
@@ -542,7 +551,7 @@
        ============================================================ -->
   <section id="admin-view" aria-label="Admin statistics">
     <h2>View Statistics</h2>
-    <p class="admin-subtitle">All interactions logged locally in this browser. Navigate to <code>index.html</code> to return to the FAQ.</p>
+    <p class="admin-subtitle">All interactions logged locally in this browser. Navigate to <code>index.html</code> to return to the kiosk.</p>
 
     <div class="pf-v6-l-gallery pf-m-gutter" id="admin-stats"></div>
 
@@ -564,7 +573,7 @@
     </div>
 
     <div class="admin-actions">
-      <button class="pf-v6-c-button pf-m-primary" id="btn-back-to-faq">&#8592; Back to FAQ</button>
+      <button class="pf-v6-c-button pf-m-primary" id="btn-back-to-faq">&#8592; Back to Kiosk</button>
       <button class="pf-v6-c-button pf-m-secondary" id="btn-download-csv">&#8681; Download CSV</button>
       <button class="pf-v6-c-button pf-m-danger pf-m-secondary" id="btn-clear-log">Clear Log</button>
     </div>
@@ -635,8 +644,8 @@
     // CONFIG — edit these values to customise the FAQ
     // ==========================================================
     const CONFIG = {
-      title:                "Red Hat Enterprise Linux",   // used as <img> alt text
-      subtitle:             "Frequently Asked Questions", // large text shown in the masthead centre
+      title:                "Red Hat Summit 2026",   // used as <img> alt text
+      subtitle:             "Red Hat Summit: Frequently Asked Questions", // large text shown in the masthead centre
       idleTimeoutSeconds:   30,   // seconds of inactivity before countdown starts
                                   // (does NOT count while video/asciinema is playing)
       countdownSeconds:     10,   // length of "Returning in..." countdown
@@ -1459,10 +1468,86 @@
     // BOOT
     // ==========================================================
     document.getElementById('header-logo-rh').alt         = CONFIG.title;
-    document.getElementById('header-subtitle').textContent = CONFIG.subtitle;
+    document.getElementById('header-title').textContent = CONFIG.subtitle;
+
+    // Make header clickable to return to main page
+    document.getElementById('site-header').addEventListener('click', () => {
+      closeModal();  // Close any open modal
+      showFaqView(); // Return to main FAQ view
+    });
 
     // Start idle timer immediately on page load (kiosk: return to home if abandoned)
     IdleTimer.reset();
+
+    // ==========================================================
+    // BRANDING
+    // ==========================================================
+    // Load branding configuration first, then apply it.
+    // content/branding.js is auto-generated from content/branding/branding.yaml
+    (function loadBranding() {
+      const script = document.createElement('script');
+      script.src = 'content/branding.js';
+      script.onload = () => {
+        if (window.BRANDING) {
+          applyBranding(window.BRANDING);
+        }
+        loadFaqsJs();
+      };
+      script.onerror = () => {
+        console.warn('[FAQ] Failed to load content/branding.js — using defaults');
+        loadFaqsJs();
+      };
+      document.head.appendChild(script);
+    })();
+
+    function applyBranding(branding) {
+      // Update logos
+      const logoPrimary = document.getElementById('header-logo-rh');
+      logoPrimary.src = branding.logos.primary.file;
+      logoPrimary.alt = branding.logos.primary.alt_text;
+
+      const logoSecondary = document.getElementById('header-logo-hummingbird');
+      logoSecondary.src = branding.logos.secondary.file;
+      logoSecondary.alt = branding.logos.secondary.alt_text;
+
+      // Update header and tagline
+      document.getElementById('header-title').textContent = branding.event.header;
+
+      // Update tagline if present
+      const taglineEl = document.getElementById('header-tagline');
+      if (branding.event.tagline) {
+        taglineEl.textContent = branding.event.tagline;
+        taglineEl.style.display = '';
+      } else {
+        taglineEl.style.display = 'none';
+      }
+
+      // Update browser tab title (use title if present, otherwise fall back to header)
+      document.title = branding.event.title || branding.event.header;
+
+      // Update colors
+      const root = document.documentElement;
+      root.style.setProperty('--pf-t--global--color--brand--default', branding.colors.brand_primary);
+      root.style.setProperty('--pf-t--global--color--brand--hover', branding.colors.brand_hover);
+      document.body.style.backgroundColor = branding.colors.page_background;
+      document.getElementById('site-header').style.setProperty('--pf-v6-c-masthead--BackgroundColor', branding.colors.header_background);
+
+      // Update CONFIG with layout settings
+      CONFIG.title = branding.event.title || branding.event.header;
+      CONFIG.subtitle = branding.event.header;
+      CONFIG.idleTimeoutSeconds = branding.layout.idle_timeout_seconds;
+      CONFIG.countdownSeconds = branding.layout.countdown_seconds;
+      CONFIG.columns = branding.layout.card_columns;
+
+      // Update footer
+      const footerCopyright = document.querySelector('#site-footer');
+      if (footerCopyright) {
+        const copyrightText = footerCopyright.lastChild;
+        if (copyrightText && copyrightText.nodeType === Node.TEXT_NODE) {
+          copyrightText.textContent = `\u00a9 ${branding.footer.copyright}`;
+        }
+      }
+    }
 
     // ==========================================================
     // FAQ ENTRIES
@@ -1476,7 +1561,7 @@
     //   2. Fill in the fields (set `order` to control position)
     //   3. Run:  python3 build-faqs.py
     //      This regenerates content/faqs.js — no edits here needed.
-    (function loadFaqsJs() {
+    function loadFaqsJs() {
       const script = document.createElement('script');
       script.src = 'content/faqs.js';
       script.onload = () => { buildGrid(); route(); };
@@ -1484,7 +1569,7 @@
         console.error('[FAQ] Failed to load content/faqs.js — run: python3 build-faqs.py');
       };
       document.head.appendChild(script);
-    })();
+    }
 
   </script>
 

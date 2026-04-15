@@ -1,7 +1,7 @@
 // AUTO-GENERATED — do not edit directly.
 // Source:    content/faqs/*.yaml
 // Generator: build/build-faqs.py
-// Generated: 2026-03-27 14:48 UTC
+// Generated: 2026-04-15 21:34 UTC
 //
 // To add, remove, or reorder cards edit the .yaml files in content/faqs/
 // then run:  python3 build/build-faqs.py

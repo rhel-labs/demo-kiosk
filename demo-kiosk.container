@@ -1,25 +1,25 @@
 # ================================================================
-# faq-kiosk.container — Podman Quadlet unit (user install)
+# demo-kiosk.container — Podman Quadlet unit (user install)
 # ================================================================
-# Runs the FAQ Kiosk SPA as a rootless systemd service via Podman
+# Runs the Demo Kiosk SPA as a rootless systemd service via Podman
 # Quadlet. The container image must be built on the host first:
 #
-#   podman build -t faq-kiosk:latest /path/to/faq-spa
+#   podman build -t demo-kiosk:latest /path/to/faq-spa
 #
 # INSTALL (no root required):
 #
 #   1. Build the image (once, or after any content change):
-#        podman build -t faq-kiosk:latest ~/faq-spa
+#        podman build -t demo-kiosk:latest ~/faq-spa
 #
 #   2. Copy this file into the user Quadlet search path:
 #        mkdir -p ~/.config/containers/systemd
-#        cp faq-kiosk.container ~/.config/containers/systemd/
+#        cp demo-kiosk.container ~/.config/containers/systemd/
 #
 #   3. Reload the user systemd daemon:
 #        systemctl --user daemon-reload
 #
 #   4. Start the service:
-#        systemctl --user start faq-kiosk
+#        systemctl --user start demo-kiosk
 #
 #   5. Open in a browser:
 #        http://localhost:8181
@@ -33,22 +33,22 @@
 #        loginctl enable-linger
 #
 # USEFUL COMMANDS:
-#   systemctl --user status faq-kiosk
-#   systemctl --user stop   faq-kiosk
-#   systemctl --user restart faq-kiosk
-#   journalctl --user -u faq-kiosk -f
+#   systemctl --user status demo-kiosk
+#   systemctl --user stop   demo-kiosk
+#   systemctl --user restart demo-kiosk
+#   journalctl --user -u demo-kiosk -f
 #
 # UPDATING CONTENT:
 #   After editing FAQ files or running download-libs.sh, rebuild
 #   the image and restart the service:
 #
-#        podman build -t faq-kiosk:latest ~/faq-spa
-#        systemctl --user restart faq-kiosk
+#        podman build -t demo-kiosk:latest ~/faq-spa
+#        systemctl --user restart demo-kiosk
 #
 # ================================================================
 
 [Unit]
-Description=FAQ Kiosk — Red Hat Enterprise Linux interactive FAQ
+Description=Demo Kiosk — Red Hat interactive demo platform
 # Only requires the local filesystem; no network needed at runtime
 # because all assets are baked into the image.
 After=local-fs.target
@@ -57,7 +57,7 @@ After=local-fs.target
 # Image must be built locally before starting the service.
 # Use Pull=never to fail fast with a clear error rather than
 # attempting (and failing) to pull from a registry.
-Image=localhost/faq-kiosk:latest
+Image=localhost/demo-kiosk:latest
 Pull=never
 
 # Publish container port 8181 to the same port on all host interfaces.
@@ -65,7 +65,7 @@ Pull=never
 PublishPort=8181:8181
 
 # Predictable container name for `podman exec` and `podman logs`
-ContainerName=faq-kiosk
+ContainerName=demo-kiosk
 
 # Run as read-only — the SPA serves static files and writes nothing
 ReadOnly=true

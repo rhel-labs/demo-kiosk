@@ -45,12 +45,15 @@ except ImportError:
     sys.exit(1)
 
 # ── Paths ─────────────────────────────────────────────────────────
-SCRIPT_DIR   = Path(__file__).parent.resolve()   # build/
-PROJECT_ROOT = SCRIPT_DIR.parent
-CONTENT_DIR  = PROJECT_ROOT / "content"
-FAQS_DIR     = CONTENT_DIR / "faqs"              # author YAML lives here
-TEMPLATE     = PROJECT_ROOT / "app" / "faqs" / "faqs.js.j2"  # app machinery
-OUTPUT       = CONTENT_DIR / "faqs.js"           # generated output
+SCRIPT_DIR        = Path(__file__).parent.resolve()   # build/
+PROJECT_ROOT      = SCRIPT_DIR.parent
+CONTENT_DIR       = PROJECT_ROOT / "content"
+FAQS_DIR          = CONTENT_DIR / "faqs"              # author YAML lives here
+BRANDING_FILE     = CONTENT_DIR / "branding" / "branding.yaml"  # branding config
+TEMPLATE          = PROJECT_ROOT / "app" / "faqs" / "faqs.js.j2"  # app machinery
+BRANDING_TEMPLATE = PROJECT_ROOT / "app" / "faqs" / "branding.js.j2"
+OUTPUT            = CONTENT_DIR / "faqs.js"           # generated output
+BRANDING_OUTPUT   = CONTENT_DIR / "branding.js"
 
 # ── Valid demo types ──────────────────────────────────────────────
 VALID_TYPES = {"video", "slides", "asciinema", "image-text", "external-url", "arcade", "lab"}
@@ -309,6 +312,38 @@ def load_entries():
 
     return entries, errors
 
+# ── Load and validate branding YAML ───────────────────────────────
+def load_branding():
+    """Load branding configuration from content/branding/branding.yaml."""
+    if not BRANDING_FILE.exists():
+        warn(f"Branding file not found: {BRANDING_FILE.relative_to(PROJECT_ROOT)}")
+        warn("Using default branding. Create content/branding/branding.yaml to customize.")
+        return None, []
+
+    try:
+        with open(BRANDING_FILE, encoding="utf-8") as fh:
+            branding = yaml.safe_load(fh)
+    except yaml.YAMLError as exc:
+        return None, [f"Branding YAML parse error: {exc}"]
+    except OSError as exc:
+        return None, [f"Cannot read branding file: {exc}"]
+
+    if not isinstance(branding, dict):
+        return None, ["Branding file must contain a YAML mapping"]
+
+    errors = []
+    # Validate structure (basic check for required keys)
+    required_sections = {"event", "logos", "colors", "layout", "footer"}
+    missing = required_sections - branding.keys()
+    if missing:
+        errors.append(f"Branding file missing sections: {', '.join(sorted(missing))}")
+
+    if errors:
+        return None, errors
+
+    ok(f"Loaded branding: {branding['event']['header']}")
+    return branding, []
+
 # ── Main ──────────────────────────────────────────────────────────
 def main():
     print()
@@ -345,6 +380,23 @@ def main():
 
     print()
     ok(f"Wrote {OUTPUT.relative_to(PROJECT_ROOT)}  ({len(entries)} card(s))")
+
+    # Generate branding.js
+    branding, branding_errors = load_branding()
+    if branding_errors:
+        print()
+        err(f"{len(branding_errors)} branding error(s) found — content/branding.js was NOT written:")
+        for e in branding_errors:
+            err(f"  {e}")
+        print()
+        sys.exit(1)
+
+    if branding:
+        branding_template = env.get_template("branding.js.j2")
+        branding_output = branding_template.render(branding=branding, generated_at=generated_at)
+        BRANDING_OUTPUT.write_text(branding_output, encoding="utf-8")
+        ok(f"Wrote {BRANDING_OUTPUT.relative_to(PROJECT_ROOT)}")
+
     print()
 
 if __name__ == "__main__":

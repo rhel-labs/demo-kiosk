@@ -1,5 +1,5 @@
 # ================================================================
-# serve.py — Cache-busting HTTP server for the FAQ Kiosk
+# serve.py — Cache-busting HTTP server for the Demo Kiosk
 # ================================================================
 # Wraps Python's built-in http.server with one addition:
 # every response includes "Cache-Control: no-store" so that

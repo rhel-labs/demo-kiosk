@@ -1,0 +1,48 @@
+# ============================================================
+# Event Branding Configuration
+# ============================================================
+# Edit this file to rebrand the demo kiosk for different events.
+# After making changes, refresh the page to see updates.
+
+# Event Information
+event:
+  # Optional: Browser tab title (if omitted, uses header)
+  title: Red Hat Summit 2026 - Demo Kiosk
+
+  # Required: Main header display (large centered text)
+  header: Red Hat Summit
+
+  # Optional: Marketing tagline (appears below header)
+  tagline: Navigate what's now. Unlock what's next.
+
+# Logo Configuration
+logos:
+  # Left logo (typically Red Hat corporate logo)
+  primary:
+    file: content/branding/logo-redhat.svg
+    alt_text: Red Hat
+
+  # Right logo (event-specific logo)
+  secondary:
+    file: content/branding/logo-summit.svg
+    alt_text: Red Hat Summit
+
+# Brand Colors (use hex codes like #ee0000)
+colors:
+  # Primary brand color (buttons, links, accents)
+  brand_primary: "#ee0000"
+  brand_hover: "#c00000"
+
+  # Backgrounds
+  page_background: "#f2f2f2"
+  header_background: "#151515"
+
+# Display Settings
+layout:
+  card_columns: 3
+  idle_timeout_seconds: 30
+  countdown_seconds: 10
+
+# Footer
+footer:
+  copyright: Red Hat, Inc.

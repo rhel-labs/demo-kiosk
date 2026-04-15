@@ -4,7 +4,7 @@ generate-containerfile-page.py
 ================================
 Build-time script: reads Containerfile from the current directory,
 syntax-highlights it, and writes containerfile.html — a standalone
-page styled to match the FAQ kiosk app (PatternFly 6, Red Hat brand).
+page styled to match the demo kiosk app (PatternFly 6, Red Hat brand).
 
 Run automatically during `podman build` inside the hummingbird builder
 stage (quay.io/hummingbird-hatchling/python:3.14-builder), which has a
@@ -18,12 +18,19 @@ import sys
 from pathlib import Path
 from datetime import datetime, timezone
 
+try:
+    import yaml
+except ImportError:
+    print("ERROR: PyYAML is not installed. Run: pip3 install pyyaml", file=sys.stderr)
+    sys.exit(1)
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
 SCRIPT_DIR    = Path(__file__).parent.resolve()   # build/
 PROJECT_ROOT  = SCRIPT_DIR.parent
 CONTAINERFILE = PROJECT_ROOT / "Containerfile"
+BRANDING_FILE = PROJECT_ROOT / "content" / "branding" / "branding.yaml"
 OUTPUT        = PROJECT_ROOT / "app" / "containerfile.html"
 
 if not CONTAINERFILE.exists():
@@ -31,6 +38,41 @@ if not CONTAINERFILE.exists():
     sys.exit(1)
 
 raw = CONTAINERFILE.read_text(encoding="utf-8")
+
+# ---------------------------------------------------------------------------
+# Load branding configuration
+# ---------------------------------------------------------------------------
+def load_branding():
+    """Load branding from content/branding/branding.yaml or use defaults."""
+    if not BRANDING_FILE.exists():
+        print(f"  WARNING: {BRANDING_FILE} not found, using defaults", file=sys.stderr)
+        return {
+            "event": {
+                "title": "Demo Kiosk",
+                "header": "Demo Kiosk",
+                "tagline": None
+            },
+            "logos": {
+                "primary": {"file": "assets/logo-redhat.svg", "alt_text": "Red Hat"},
+                "secondary": {"file": "assets/logo-hummingbird.png", "alt_text": "Project Hummingbird"}
+            },
+            "colors": {
+                "brand_primary": "#ee0000",
+                "brand_hover": "#c00000",
+                "page_background": "#f2f2f2",
+                "header_background": "#151515"
+            },
+            "footer": {"copyright": "Red Hat, Inc."}
+        }
+
+    try:
+        with open(BRANDING_FILE, encoding="utf-8") as fh:
+            return yaml.safe_load(fh)
+    except Exception as e:
+        print(f"  WARNING: Error loading branding ({e}), using defaults", file=sys.stderr)
+        return load_branding.__defaults__[0]
+
+branding = load_branding()
 
 # ---------------------------------------------------------------------------
 # Syntax highlighter
@@ -119,15 +161,15 @@ html = f"""<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Containerfile — FAQ Kiosk</title>
+  <title>Containerfile — {branding['event'].get('title') or branding['event']['header']}</title>
 
   <link rel="stylesheet" href="patternfly.min.css" />
 
   <style>
     /* ── Brand tokens ── */
     :root {{
-      --pf-t--global--color--brand--default: #ee0000;
-      --pf-t--global--color--brand--hover:   #c00000;
+      --pf-t--global--color--brand--default: {branding['colors']['brand_primary']};
+      --pf-t--global--color--brand--hover:   {branding['colors']['brand_hover']};
     }}
 
     /* ── Page chrome ── */
@@ -135,12 +177,12 @@ html = f"""<!DOCTYPE html>
       display: flex;
       flex-direction: column;
       min-height: 100vh;
-      background-color: #f2f2f2;
+      background-color: {branding['colors']['page_background']};
     }}
 
     /* ── Masthead — three-zone layout matching index.html ── */
     #site-header {{
-      --pf-v6-c-masthead--BackgroundColor: #151515;
+      --pf-v6-c-masthead--BackgroundColor: {branding['colors']['header_background']};
       padding-block: 1.2rem;
       padding-inline: 2rem;
       display: flex;
@@ -163,11 +205,17 @@ html = f"""<!DOCTYPE html>
       align-items: center;
       gap: 0.3rem;
     }}
-    #header-subtitle {{
+    #header-title {{
       font-size: 3rem;
       font-weight: 300;
       color: var(--pf-t--global--text--color--on-brand--default);
       opacity: 0.85;
+    }}
+    #header-tagline {{
+      font-size: 1rem;
+      font-weight: 300;
+      color: var(--pf-t--global--text--color--on-brand--default);
+      opacity: 0.7;
     }}
     #header-logo-hummingbird {{
       height: 3rem;
@@ -193,6 +241,28 @@ html = f"""<!DOCTYPE html>
     .page-subtitle {{
       color: var(--pf-t--global--text--color--subtle);
       margin-bottom: 2rem;
+      position: relative;
+      font-size: 1.35rem;
+      line-height: 1.55;
+    }}
+
+    /* ── Hummingbird drop cap logo ── */
+    .hummingbird-dropcap {{
+      float: left;
+      margin: 0.2rem 1rem 0.5rem 0;
+      display: block;
+    }}
+
+    .hummingbird-dropcap img {{
+      display: block;
+      width: auto;
+      height: 6.5rem;
+      opacity: 0.9;
+      transition: opacity 0.2s ease;
+    }}
+
+    .hummingbird-dropcap:hover img {{
+      opacity: 1;
     }}
 
     /* ── Action bar ── */
@@ -247,24 +317,29 @@ html = f"""<!DOCTYPE html>
 
   <header class="pf-v6-c-masthead pf-m-display-stack" id="site-header">
     <div class="pf-v6-c-masthead__main">
-      <img id="header-logo-rh" src="assets/logo-redhat.svg" alt="Red Hat Enterprise Linux" />
+      <img id="header-logo-rh" src="{branding['logos']['primary']['file']}" alt="{branding['logos']['primary']['alt_text']}" />
       <div id="header-centre">
-        <span id="header-subtitle">Frequently Asked Questions</span>
+        <span id="header-title">{branding['event']['header']}</span>
+        {'<span id="header-tagline">' + branding['event']['tagline'] + '</span>' if branding['event'].get('tagline') else ''}
       </div>
-      <img id="header-logo-hummingbird" src="assets/logo-hummingbird.png" alt="Project Hummingbird" />
+      <img id="header-logo-hummingbird" src="{branding['logos']['secondary']['file']}" alt="{branding['logos']['secondary']['alt_text']}" />
     </div>
   </header>
 
   <main>
     <h2>Containerfile</h2>
     <p class="page-subtitle">
-      The container image definition for this FAQ kiosk. Built with
-      <a href="https://podman.io" target="_blank" rel="noopener">Podman</a> from
-      <code>quay.io/hummingbird-hatchling/python:3.14</code>.
+      <a href="https://images.redhat.com/" target="_blank" rel="noopener" class="hummingbird-dropcap" title="Built with Hummingbird — Red Hat's lightweight container images">
+        <img src="assets/logo-hummingbird.png" alt="Hummingbird" />
+      </a>
+      Container-native kiosk running on Red Hat's distroless Hummingbird images — hardened, minimal, and secure by design.<br>
+      Built with <a href="https://podman.io" target="_blank" rel="noopener">Podman</a> from
+      <code>registry.access.redhat.com/hi/python:3.14</code>.<br>
+      Styled with <a href="https://www.patternfly.org" target="_blank" rel="noopener">PatternFly</a>, Red Hat's enterprise design system.
     </p>
 
     <div class="page-actions">
-      <a class="pf-v6-c-button pf-m-primary" href="index.html">&#8592; Back to FAQ</a>
+      <a class="pf-v6-c-button pf-m-primary" href="index.html">&#8592; Back to Kiosk</a>
       <span class="build-meta">Image built: {built_at}</span>
     </div>
 
@@ -274,10 +349,10 @@ html = f"""<!DOCTYPE html>
   </main>
 
   <footer id="site-footer">
-    <a href="index.html">FAQ</a> &nbsp;&middot;&nbsp;
+    <a href="index.html">Kiosk</a> &nbsp;&middot;&nbsp;
     <a href="index.html#admin">Statistics</a> &nbsp;&middot;&nbsp;
     Containerfile &nbsp;&middot;&nbsp;
-    &copy; Red Hat, Inc.
+    &copy; {branding['footer']['copyright']}
   </footer>
 
 </body>

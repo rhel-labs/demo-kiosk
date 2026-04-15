@@ -1,0 +1,39 @@
+// AUTO-GENERATED — do not edit directly.
+// Source:    content/branding/branding.yaml
+// Generator: build/build-faqs.py
+// Generated: {{ generated_at }}
+//
+// To customize branding, edit content/branding/branding.yaml
+// then run:  python3 build/build-faqs.py
+
+window.BRANDING = {
+  event: {
+    title: {{ branding.event.title | tojson }},
+    header: {{ branding.event.header | tojson }},
+    tagline: {{ branding.event.tagline | tojson }},
+  },
+  logos: {
+    primary: {
+      file: {{ branding.logos.primary.file | tojson }},
+      alt_text: {{ branding.logos.primary.alt_text | tojson }},
+    },
+    secondary: {
+      file: {{ branding.logos.secondary.file | tojson }},
+      alt_text: {{ branding.logos.secondary.alt_text | tojson }},
+    },
+  },
+  colors: {
+    brand_primary: {{ branding.colors.brand_primary | tojson }},
+    brand_hover: {{ branding.colors.brand_hover | tojson }},
+    page_background: {{ branding.colors.page_background | tojson }},
+    header_background: {{ branding.colors.header_background | tojson }},
+  },
+  layout: {
+    card_columns: {{ branding.layout.card_columns | tojson }},
+    idle_timeout_seconds: {{ branding.layout.idle_timeout_seconds | tojson }},
+    countdown_seconds: {{ branding.layout.countdown_seconds | tojson }},
+  },
+  footer: {
+    copyright: {{ branding.footer.copyright | tojson }},
+  },
+};
