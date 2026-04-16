@@ -513,13 +513,6 @@
       padding: 3rem;
     }
 
-    /* --- Video loop launch button (in masthead) ----------------- */
-    #loop-launch-btn {
-      margin-left: auto;    /* push to far right within the masthead flex row */
-      align-self: center;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
 
     /* --- Footer ------------------------------------------------- */
     #site-footer {
@@ -1222,13 +1215,26 @@
       const video = document.createElement('video');
       video.muted    = true;
       video.autoplay = true;
+      video.controls = true;
       video.preload  = 'auto';
+
+      // Preload all clips immediately — local serving means no network cost,
+      // and having everything buffered eliminates inter-clip stalls entirely.
+      const preloaders = demo.videos.slice(1).map(src => {
+        const el = document.createElement('video');
+        el.muted   = true;
+        el.preload = 'auto';
+        el.src     = src;
+        el.style.display = 'none';
+        el.load();
+        return el;
+      });
 
       let index = 0;
 
       function loadNext() {
         video.src = demo.videos[index];
-        video.play().catch(() => {}); // suppress NotAllowedError in restrictive browser contexts
+        video.play().catch(() => {});
       }
 
       video.addEventListener('ended', () => {
@@ -1243,12 +1249,13 @@
       });
 
       // Suppress idle timer for the full loop session.
-      // cleanupRenderers() handles video.pause() + video.src = '' on modal close.
+      // cleanupRenderers() handles teardown via the video selector on modal close.
       state.isPlaying = true;
       IdleTimer.pause();
 
       loadNext();
       container.appendChild(video);
+      preloaders.forEach(el => container.appendChild(el));
     }
 
     // ---- Markdown renderer (bold, links, lists, paragraphs) ----
@@ -1352,20 +1359,6 @@
         });
       }
 
-      // Inject the loop launch button into the masthead if a video-loop card exists.
-      // Uses the first video-loop entry found. Idempotent — safe to call on every buildGrid().
-      const loopEntry = FAQ.all().find(e => e.demo?.type === 'video-loop');
-      const existing  = document.getElementById('loop-launch-btn');
-      if (existing) existing.remove();
-
-      if (loopEntry) {
-        const btn = document.createElement('button');
-        btn.id        = 'loop-launch-btn';
-        btn.className = 'pf-v6-c-button pf-m-secondary';
-        btn.textContent = loopEntry.title || 'Watch Demo';
-        btn.addEventListener('click', () => openModal(loopEntry));
-        document.querySelector('#site-header .pf-v6-c-masthead__main').appendChild(btn);
-      }
     }
 
     function escHtml(str) {
@@ -1540,9 +1533,19 @@
     document.getElementById('header-title').textContent = CONFIG.subtitle;
 
     // Make header clickable to return to main page
-    document.getElementById('site-header').addEventListener('click', () => {
-      closeModal();  // Close any open modal
-      showFaqView(); // Return to main FAQ view
+    document.getElementById('site-header').addEventListener('click', (e) => {
+      // Don't intercept clicks on links inside the header (e.g. event logo link)
+      if (e.target.closest('a')) return;
+      // If a video-loop card is configured, the header launches it.
+      // Otherwise fall back to closing any open modal and returning to the grid.
+      const loopEntry = FAQ.all().find(en => en.demo?.type === 'video-loop');
+      if (loopEntry) {
+        closeModal();
+        openModal(loopEntry);
+      } else {
+        closeModal();
+        showFaqView();
+      }
     });
 
     // Start idle timer immediately on page load (kiosk: return to home if abandoned)
@@ -1578,6 +1581,20 @@
       const logoSecondary = document.getElementById('header-logo-hummingbird');
       logoSecondary.src = branding.logos.secondary.file;
       logoSecondary.alt = branding.logos.secondary.alt_text;
+      if (branding.logos.secondary.url) {
+        const link = document.createElement('a');
+        link.href   = branding.logos.secondary.url;
+        link.target = '_blank';
+        link.rel    = 'noopener noreferrer';
+        // Move the grid-positioning ID to the <a> so CSS layout is unchanged.
+        link.id = logoSecondary.id;
+        logoSecondary.removeAttribute('id');
+        logoSecondary.style.height = '100%';
+        logoSecondary.style.width  = 'auto';
+        logoSecondary.style.display = 'block';
+        logoSecondary.parentNode.replaceChild(link, logoSecondary);
+        link.appendChild(logoSecondary);
+      }
 
       // Update header and tagline
       document.getElementById('header-title').textContent = branding.event.header;
