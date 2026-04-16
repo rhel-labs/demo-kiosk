@@ -56,7 +56,7 @@ OUTPUT            = CONTENT_DIR / "faqs.js"           # generated output
 BRANDING_OUTPUT   = CONTENT_DIR / "branding.js"
 
 # ── Valid demo types ──────────────────────────────────────────────
-VALID_TYPES = {"video", "slides", "asciinema", "image-text", "external-url", "arcade", "lab"}
+VALID_TYPES = {"video", "slides", "asciinema", "image-text", "external-url", "arcade", "lab", "video-loop"}
 
 # ── Required top-level fields ─────────────────────────────────────
 REQUIRED_FIELDS = {"id", "order", "title", "summary", "demo"}
@@ -301,6 +301,23 @@ def load_entries():
                                     f"demo type 'lab' requires a '{key}' field"
                                 )
                         # 'duration' is optional — no validation needed
+                    elif dtype == "video-loop":
+                        if "videos" not in demo:
+                            file_errors.append(
+                                "demo type 'video-loop' requires a 'videos' field "
+                                "(a list of one or more media file paths)"
+                            )
+                        elif not isinstance(demo["videos"], list) or len(demo["videos"]) == 0:
+                            file_errors.append(
+                                "demo type 'video-loop': 'videos' must be a non-empty list"
+                            )
+                        else:
+                            for i, v in enumerate(demo["videos"]):
+                                if not isinstance(v, str):
+                                    file_errors.append(
+                                        f"demo type 'video-loop': videos[{i}] must be a string path, "
+                                        f"got {type(v).__name__}"
+                                    )
 
         if file_errors:
             for e in file_errors:
