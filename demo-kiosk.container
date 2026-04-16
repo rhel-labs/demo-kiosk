@@ -45,6 +45,14 @@
 #        podman build -t demo-kiosk:latest ~/faq-spa
 #        systemctl --user restart demo-kiosk
 #
+# VOLUME MOUNTING (alternative to rebuilding):
+#   To update content without rebuilding, mount a content directory:
+#
+#     1. Uncomment the Volume= line below
+#     2. Build content: python3 ~/faq-spa/build/build-faqs.py
+#     3. Reload: systemctl --user daemon-reload
+#     4. Restart: systemctl --user restart demo-kiosk
+#
 # ================================================================
 
 [Unit]
@@ -72,6 +80,9 @@ ReadOnly=true
 
 # Required by --read-only: allow tmpfs on /tmp and /run inside container
 ReadOnlyTmpfs=true
+
+# Uncomment to mount local content directory (update path as needed):
+# Volume=%h/faq-spa/content:/srv/faq/content:ro
 
 [Service]
 # Restart automatically if the container exits unexpectedly

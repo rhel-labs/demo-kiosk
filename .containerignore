@@ -1,7 +1,19 @@
 # Generated artefacts — rebuilt fresh by the builder stage every image build
 app/faqs/faqs.js
 content/faqs.js
+content/branding.js
 app/containerfile.html
+
+# Downloaded libraries — fetched fresh by download-libs.sh during container build
+# Exclude from build context to ensure container always uses freshly downloaded versions
+app/patternfly.min.css
+app/assets/fonts/
+app/assets/pficon/
+app/assets/asciinema-player.*
+app/assets/pdf*.js
+app/assets/pdf*.mjs
+app/assets/logo-redhat.svg
+app/assets/logo-hummingbird.png
 
 # Dev / authoring tooling — copied into builder stage for extras.tar.gz only
 # Removed from ignore so COPY instructions in the builder stage can reach them.

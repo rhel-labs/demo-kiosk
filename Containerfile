@@ -5,13 +5,23 @@
 # Uses default /tmp as working directory.
 FROM quay.io/hummingbird/python:3.14-builder AS builder
 
-# Install build-time Python dependencies
+# Install build-time dependencies (curl for download-libs.sh, PyYAML/Jinja2 for generators)
+USER root
+RUN dnf install -y curl && dnf clean all
+
+USEr 65532
 RUN pip3 install --quiet pyyaml jinja2
+
+# Download third-party libraries (PatternFly, fonts, asciinema, PDF.js)
+# This runs once during image build - no host dependencies required
+COPY --chown=65532:65532 download-libs.sh ./
+RUN ./download-libs.sh
+
+# Now copy the rest of the app source (overlays on top of downloaded assets)
+COPY --chown=65532:65532 app/ ./app/
 
 # Build tools
 COPY --chown=65532:65532 build/ ./build/
-# Jinja2 template (app machinery, read by build-faqs.py)
-COPY --chown=65532:65532 app/faqs/ ./app/faqs/
 # Containerfile itself (read by generate-containerfile-page.py)
 COPY --chown=65532:65532 Containerfile ./
 # Author content (YAML sources, read by build-faqs.py)

@@ -1,10 +1,18 @@
-# Demo Kiosk — Authoring Guide
+# Demo Kiosk — Guide
 
-This guide covers everything an author needs to add, edit, and deploy demo content. No JavaScript knowledge is required.
+This guide covers creating demo content, rebranding for events, and deploying the kiosk.
+
+## Pick Your Role
+
+| Role | You want to... | Start here |
+|------|----------------|------------|
+| 📝 **Content Author** | Add/edit FAQ cards and media files | [Content Authoring](#content-authoring) |
+| 🎨 **Event Coordinator** | Rebrand for Summit, AnsibleFest, etc. | [Event Branding](#event-branding) |
+| 🚀 **Platform Operator** | Build, deploy, and run the kiosk | [Deployment & Operations](#deployment--operations) |
 
 ---
 
-## How it works
+## How It Works
 
 Content lives entirely in the `content/` directory:
 
@@ -17,9 +25,9 @@ content/
   faqs.js         ← compiled output (generated — do not edit)
 ```
 
-The app files (`app/assets/`, `app/faqs/`, `serve.py`) are never touched by authors.
+The app files (`app/assets/`, `app/faqs/`, `serve.py`) are never touched by content authors or event coordinators.
 
-When you are ready to publish, run:
+When you are ready to publish changes, run:
 
 ```bash
 python3 build/build-faqs.py
@@ -29,126 +37,22 @@ This reads `content/faqs/*.yaml` and `content/branding/branding.yaml`, validates
 
 ---
 
-## Getting Started (without cloning the repo)
+# Content Authoring
 
-If you have a container image but not the source repository, you can extract all authoring tools directly from the image:
-
-```bash
-# Extract the authoring bundle from the image
-podman create --name faq-tmp demo-kiosk:latest
-podman cp faq-tmp:/extras/extras.tar.gz ./
-podman rm faq-tmp
-tar -xzf extras.tar.gz
-```
-
-The bundle contains:
-- `AUTHORING.md` — this guide
-- `build/` — build scripts
-- `content/faqs/` — sample FAQ cards and template
-- `app/faqs/` — Jinja2 templates
-- `download-libs.sh` — script to download third-party libraries
-- `start.sh` — local development server launcher
-- `demo-kiosk.container` — systemd Quadlet service definition
-
-After extraction, follow the standard authoring workflow starting with [Adding a FAQ card](#adding-a-faq-card).
+**Audience:** Content authors creating FAQ cards and managing media files  
+**Skills needed:** Basic YAML editing, file management  
+**No coding or container knowledge required**
 
 ---
 
-## Rebranding for different events
-
-The kiosk can be easily rebranded for different Red Hat events (Summit, AnsibleFest, etc.) by editing one YAML file.
-
-### Quick rebrand using presets
-
-Preset configurations are available in `content/branding/presets/`:
-
-```bash
-# For Red Hat Summit:
-cp content/branding/presets/summit.yaml content/branding/branding.yaml
-
-# For AnsibleFest:
-cp content/branding/presets/ansiblefest.yaml content/branding/branding.yaml
-
-# Rebuild to apply changes:
-python3 build/build-faqs.py
-```
-
-### Custom branding
-
-Edit `content/branding/branding.yaml` to customize:
-
-```yaml
-# Event Information
-event:
-  name: Your Event Name 2026
-  subtitle: "Your Event: Frequently Asked Questions"
-  description: Event tagline or description
-
-# Logo Configuration
-logos:
-  # Left logo (typically Red Hat corporate logo)
-  primary:
-    file: content/branding/logo-redhat.svg
-    alt_text: Red Hat
-
-  # Right logo (event-specific logo)
-  secondary:
-    file: content/branding/logo-your-event.svg
-    alt_text: Your Event
-
-# Brand Colors (use hex codes)
-colors:
-  brand_primary: "#ee0000"    # Primary brand color (buttons, links)
-  brand_hover: "#c00000"      # Hover state
-  page_background: "#f2f2f2"  # Main page background
-  header_background: "#151515" # Header background
-
-# Display Settings
-layout:
-  card_columns: 3
-  idle_timeout_seconds: 30
-  countdown_seconds: 10
-
-# Footer
-footer:
-  copyright: Red Hat, Inc.
-```
-
-**Adding custom logos:**
-
-1. Download your event logo (SVG format recommended)
-2. Save it to `content/branding/` (e.g., `logo-your-event.svg`)
-3. Update the `logos.secondary.file` path in `branding.yaml`
-4. Run `python3 build/build-faqs.py`
-
-**YAML gotcha:** If your text contains a colon (`:`), wrap it in quotes:
-```yaml
-subtitle: "My Event: Frequently Asked Questions"  ← correct
-subtitle: My Event: Frequently Asked Questions    ← will fail
-```
-
----
-
-## Requirements
-
-`build-faqs.py` requires Python 3 with two libraries:
-
-```bash
-pip3 install pyyaml jinja2
-```
-
-These are build-time dependencies only — nothing is installed in the container.
-
----
-
-## Adding a FAQ card
+## Adding a FAQ Card
 
 1. Copy the template:
    ```bash
    cp content/faqs/_template.yaml content/faqs/my-topic.yaml
    ```
 
-2. Edit the file — fill in the required fields and choose a demo type (see below).
+2. Edit the file — fill in the required fields and choose a demo type (see [Demo Types](#demo-types) below).
 
 3. Place any media files in `content/media/`.
 
@@ -157,14 +61,14 @@ These are build-time dependencies only — nothing is installed in the container
    python3 build/build-faqs.py
    ```
 
-5. Start the local server to preview:
+5. Start the local server to preview (or see [Previewing Locally](#previewing-locally)):
    ```bash
    ./start.sh
    ```
 
 ---
 
-## YAML file format
+## YAML File Format
 
 Every file in `content/faqs/` (except those starting with `_`) becomes a card.
 
@@ -199,7 +103,7 @@ demo:
 
 ---
 
-## Demo types
+## Demo Types
 
 ### `video` — MP4 screen recording
 
@@ -388,19 +292,7 @@ demo:
 
 ---
 
-## Hiding and showing cards
-
-Set `enabled: false` in a card's YAML file to hide it from the kiosk grid by default:
-
-```yaml
-enabled: false   # card exists in the catalog but does not appear on screen
-```
-
-Cards can also be toggled without a rebuild from the admin view (`#admin`). Admin toggles are stored in the browser and override the YAML default immediately — no page reload required. Use **Reset all to defaults** to clear overrides and restore the YAML state.
-
----
-
-## Ordering cards
+## Ordering Cards
 
 Cards appear in ascending `order` value. Lower numbers appear first (top-left).
 
@@ -417,13 +309,156 @@ To reorder: change the `order` value and re-run `python3 build/build-faqs.py`.
 
 ---
 
-## Customising the kiosk header
+## Hiding and Showing Cards
 
-To customize logos, event names, and colors, edit `content/branding/branding.yaml` — see the [Rebranding for different events](#rebranding-for-different-events) section above for full details.
+Set `enabled: false` in a card's YAML file to hide it from the kiosk grid by default:
+
+```yaml
+enabled: false   # card exists in the catalog but does not appear on screen
+```
+
+Cards can also be toggled without a rebuild from the admin view (`#admin`). Admin toggles are stored in the browser and override the YAML default immediately — no page reload required. Use **Reset all to defaults** to clear overrides and restore the YAML state.
 
 ---
 
-## Previewing locally
+# Event Branding
+
+**Audience:** Event coordinators rebranding the kiosk for different Red Hat events  
+**Skills needed:** Basic YAML editing, file management  
+**No coding or container knowledge required**
+
+---
+
+The kiosk can be easily rebranded for different Red Hat events (Summit, AnsibleFest, etc.) by editing one YAML file.
+
+## Quick Rebrand Using Presets
+
+Preset configurations are available in `content/branding/presets/`:
+
+```bash
+# For Red Hat Summit:
+cp content/branding/presets/summit.yaml content/branding/branding.yaml
+
+# For AnsibleFest:
+cp content/branding/presets/ansiblefest.yaml content/branding/branding.yaml
+
+# Rebuild to apply changes:
+python3 build/build-faqs.py
+```
+
+---
+
+## Custom Branding
+
+Edit `content/branding/branding.yaml` to customize all event branding:
+
+```yaml
+# Event Information
+event:
+  # Browser tab title (optional — if omitted, uses header)
+  title: Your Event 2026 - Demo Kiosk
+  
+  # Main header display (required — large centered text in masthead)
+  header: Your Event
+  
+  # Marketing tagline (optional — appears below header)
+  tagline: Your event tagline or description
+
+# Logo Configuration
+logos:
+  # Left logo (typically Red Hat corporate logo)
+  primary:
+    file: content/branding/logo-redhat.svg
+    alt_text: Red Hat
+
+  # Right logo (event-specific logo)
+  secondary:
+    file: content/branding/logo-your-event.svg
+    alt_text: Your Event
+
+# Brand Colors (use hex codes)
+colors:
+  brand_primary: "#ee0000"    # Primary brand color (buttons, links)
+  brand_hover: "#c00000"      # Hover state
+  page_background: "#f2f2f2"  # Main page background
+  header_background: "#151515" # Header background
+
+# Display Settings
+layout:
+  card_columns: 3
+  idle_timeout_seconds: 30
+  countdown_seconds: 10
+
+# Footer
+footer:
+  copyright: Red Hat, Inc.
+```
+
+**Field guide:**
+
+| Field | Required? | Purpose |
+|-------|-----------|---------|
+| `event.title` | Optional | Browser tab title. Falls back to `header` if omitted. |
+| `event.header` | **Required** | Large text shown in masthead center. |
+| `event.tagline` | Optional | Smaller text shown below header. Hidden if omitted. |
+
+---
+
+## Adding Custom Logos
+
+1. Download your event logo (SVG format recommended for scalability)
+2. Save it to `content/branding/` (e.g., `logo-your-event.svg`)
+3. Update the `logos.secondary.file` path in `branding.yaml`
+4. Run `python3 build/build-faqs.py`
+
+**Supported formats:** SVG (recommended), PNG
+
+---
+
+## YAML Gotcha
+
+If your text contains a colon (`:`), wrap it in quotes:
+
+```yaml
+title: "Your Event 2026: Demo Kiosk"  ← correct
+title: Your Event 2026: Demo Kiosk    ← will fail (YAML parse error)
+```
+
+---
+
+# Deployment & Operations
+
+**Audience:** Platform operators building, deploying, and maintaining the kiosk  
+**Skills needed:** Containers (Podman), systemd, Linux system administration
+
+---
+
+## Getting Started (Extracting from Container)
+
+If you have a container image but not the source repository, you can extract all authoring tools directly from the image:
+
+```bash
+# Extract the authoring bundle from the image
+podman create --name faq-tmp demo-kiosk:latest
+podman cp faq-tmp:/extras/extras.tar.gz ./
+podman rm faq-tmp
+tar -xzf extras.tar.gz
+```
+
+The bundle contains:
+- `AUTHORING.md` — this guide
+- `build/` — build scripts
+- `content/faqs/` — sample FAQ cards and template
+- `app/faqs/` — Jinja2 templates
+- `download-libs.sh` — script to download third-party libraries
+- `start.sh` — local development server launcher
+- `demo-kiosk.container` — systemd Quadlet service definition
+
+After extraction, content authors can proceed with [Adding a FAQ card](#adding-a-faq-card).
+
+---
+
+## Previewing Locally
 
 ```bash
 ./start.sh
@@ -440,28 +475,36 @@ Options:
 
 ---
 
-## Building the container image
+## Building the Container Image
+
+The container build is **fully self-contained** — all dependencies (libraries, fonts, build tools) are downloaded and built inside the container. No host setup required beyond `podman`.
 
 ```bash
-# Download third-party libraries (first time only)
-./download-libs.sh
-
-# Build the image
+# Build the image (downloads libraries and builds content automatically)
 podman build -t demo-kiosk:latest .
+
+# Or use the Makefile
+make build
 ```
 
-The builder stage runs `build-faqs.py` automatically — you do not need to run it manually before a container build.
+The builder stage automatically:
+1. Downloads third-party libraries (PatternFly, fonts, asciinema-player, PDF.js)
+2. Builds content from YAML sources (`build-faqs.py`)
+3. Generates the Containerfile viewer page
 
 ```bash
-# Run the container directly
+# Run the container
 podman run --rm -p 8181:8181 demo-kiosk:latest
+
+# Or use the Makefile
+make test
 ```
 
 The kiosk serves on **port 8181** by default.
 
 ---
 
-## Deploying as a systemd service
+## Deploying as a systemd Service
 
 For production deployments, use systemd Quadlet to run the kiosk as a persistent service:
 
@@ -486,7 +529,7 @@ See `demo-kiosk.container` for the full Quadlet configuration and customization 
 
 ---
 
-## Deploying with a volume mount
+## Deploying with a Volume Mount
 
 If you want to update content without rebuilding the image, mount your `content/` directory into the container at runtime.
 
@@ -494,18 +537,20 @@ If you want to update content without rebuilding the image, mount your `content/
 
 1. Prepare your content directory:
    ```bash
-   mkdir -p /path/to/my-content/faqs /path/to/my-content/media
+   mkdir -p /path/to/my-content/faqs /path/to/my-content/media /path/to/my-content/branding
    ```
 
-2. Copy the template and create your FAQ entries:
+2. Copy the template and branding config:
    ```bash
    cp content/faqs/_template.yaml /path/to/my-content/faqs/my-topic.yaml
-   # edit my-topic.yaml ...
+   cp content/branding/branding.yaml /path/to/my-content/branding/
+   # edit my-topic.yaml and branding.yaml ...
    ```
 
-3. Place all media files in the `media/` subdirectory **before** running the build — the build script embeds the paths verbatim and does not copy files:
+3. Place all media files and logos in their respective subdirectories **before** running the build — the build script embeds paths verbatim and does not copy files:
    ```bash
    cp my-video.mp4 /path/to/my-content/media/
+   cp logo-event.svg /path/to/my-content/branding/
    ```
 
 4. Symlink or copy your content directory into the project so the build script can find it, then run the build:
@@ -513,10 +558,10 @@ If you want to update content without rebuilding the image, mount your `content/
    # From the project root (where build/ lives):
    ln -sfn /path/to/my-content content   # or copy it
    python3 build/build-faqs.py
-   # Reads  content/faqs/*.yaml
-   # Writes content/faqs.js
+   # Reads  content/faqs/*.yaml and content/branding/branding.yaml
+   # Writes content/faqs.js and content/branding.js
    ```
-   > **Note:** `build/build-faqs.py` always reads and writes `content/` relative to the project root. The generated `content/faqs.js` must be present in your content directory before you start the container.
+   > **Note:** `build/build-faqs.py` always reads and writes `content/` relative to the project root. The generated `content/faqs.js` and `content/branding.js` must be present in your content directory before you start the container.
 
 5. Run the container with the volume:
    ```bash
@@ -527,11 +572,29 @@ If you want to update content without rebuilding the image, mount your `content/
 
 The image provides the app framework; the volume provides the content. The baked-in placeholder content in the image is replaced entirely by the volume mount.
 
-### Updating content
+### Updating Content
 
 1. Edit your YAML files and ensure any new media files are in `content/media/`.
-2. Run `python3 build/build-faqs.py` (from the project root) to regenerate `content/faqs.js`.
-3. Restart the container (or reload the browser — the server serves files directly, so a browser refresh picks up the new `faqs.js` immediately).
+2. Run `python3 build/build-faqs.py` (from the project root) to regenerate `content/faqs.js` and `content/branding.js`.
+3. Restart the container (or reload the browser — the server serves files directly, so a browser refresh picks up the new files immediately).
+
+---
+
+# Shared Resources
+
+**Audience:** All roles
+
+---
+
+## Requirements
+
+`build-faqs.py` requires Python 3 with two libraries:
+
+```bash
+pip3 install pyyaml jinja2
+```
+
+These are build-time dependencies only — nothing is installed in the container.
 
 ---
 
@@ -545,6 +608,11 @@ The image provides the app framework; the volume provides the content. The baked
 **Media file does not load**
 - Check the `src` or `image` path in your YAML exactly matches the filename in `content/media/` (paths are case-sensitive).
 - Verify the file was copied to `content/media/` before running the build.
+
+**Branding does not apply**
+- Verify `content/branding.js` exists and is not empty.
+- Check that `content/branding/branding.yaml` has no YAML syntax errors.
+- Open the browser console — a `[FAQ]` warning will indicate if branding failed to load.
 
 **Build script errors**
 - `Missing required field` — add the missing field to your YAML file.
