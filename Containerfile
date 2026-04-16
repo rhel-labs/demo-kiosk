@@ -83,6 +83,12 @@ COPY --chown=65532:65532 app/ ./
 # Generated Containerfile viewer page (derived from app source, belongs with app layer)
 COPY --from=builder --chown=65532:65532 /tmp/app/containerfile.html ./
 
+# Third-party libraries downloaded by download-libs.sh during the builder stage.
+# patternfly.min.css must sit at the app root (its @font-face paths are relative to here).
+# assets/ contains fonts, icons, asciinema player, and PDF.js.
+COPY --from=builder --chown=65532:65532 /tmp/app/patternfly.min.css ./
+COPY --from=builder --chown=65532:65532 /tmp/app/assets/ ./assets/
+
 # Author content — separate layer so different xattrs can be applied independently.
 # This entire tree can be replaced at runtime by a volume mount.
 COPY --from=builder --chown=65532:65532 /tmp/content/ ./content/
