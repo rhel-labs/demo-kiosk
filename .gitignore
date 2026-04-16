@@ -1,0 +1,4 @@
+# Local dev symlink — mirrors the container's /srv/faq layout so
+# content/ is reachable when serve.py serves from app/.
+# Not a source file; not present in the container image.
+app/content
