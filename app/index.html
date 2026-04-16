@@ -513,6 +513,14 @@
       padding: 3rem;
     }
 
+    /* --- Video loop launch button (in masthead) ----------------- */
+    #loop-launch-btn {
+      margin-left: auto;    /* push to far right within the masthead flex row */
+      align-self: center;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
     /* --- Footer ------------------------------------------------- */
     #site-footer {
       text-align: center;
@@ -912,6 +920,7 @@
         case 'external-url': renderExternalUrl(demo, container); break;
         case 'lab':          renderLab(demo, container);         break;
         case 'arcade':       renderArcade(demo, container);      break;
+        case 'video-loop':   renderVideoLoop(demo, container);   break;
         default:
           container.appendChild(missingAsset(null, `Unknown demo type: "${demo.type}"`));
       }
@@ -1199,6 +1208,49 @@
       IdleTimer.pause();
     }
 
+    // ---- Video loop ----
+    // Plays a playlist of videos sequentially, looping forever.
+    // Always muted — designed for ambient/attract use at a conference booth.
+    // Idle timer is suppressed for the full session; the loop is the kiosk resting state.
+    // No play state is retained between opens — index always resets to 0.
+    function renderVideoLoop(demo, container) {
+      if (!demo.videos || demo.videos.length === 0) {
+        container.appendChild(missingAsset(null, 'video-loop requires at least one entry in the videos list'));
+        return;
+      }
+
+      const video = document.createElement('video');
+      video.muted    = true;
+      video.autoplay = true;
+      video.preload  = 'auto';
+
+      let index = 0;
+
+      function loadNext() {
+        video.src = demo.videos[index];
+        video.play().catch(() => {}); // suppress NotAllowedError in restrictive browser contexts
+      }
+
+      video.addEventListener('ended', () => {
+        index = (index + 1) % demo.videos.length;
+        loadNext();
+      });
+
+      video.addEventListener('error', () => {
+        // skip unloadable files silently rather than stopping the loop
+        index = (index + 1) % demo.videos.length;
+        loadNext();
+      });
+
+      // Suppress idle timer for the full loop session.
+      // cleanupRenderers() handles video.pause() + video.src = '' on modal close.
+      state.isPlaying = true;
+      IdleTimer.pause();
+
+      loadNext();
+      container.appendChild(video);
+    }
+
     // ---- Markdown renderer (bold, links, lists, paragraphs) ----
     // XSS-safe: HTML is escaped BEFORE markdown patterns are applied,
     // so injected HTML in source text cannot survive.
@@ -1271,32 +1323,49 @@
     function buildGrid() {
       const grid = document.getElementById('faq-grid');
       grid.innerHTML = '';
-      const entries = FAQ.all().filter(e => Visibility.get(e));
+
+      // video-loop cards are never shown in the grid — they are launched from the
+      // header button. Filter them out regardless of their enabled/visibility state.
+      const entries = FAQ.all().filter(e => Visibility.get(e) && e.demo?.type !== 'video-loop');
 
       if (entries.length === 0) {
         const msg = document.createElement('p');
         msg.className = 'faq-grid-empty';
         msg.textContent = 'No FAQ entries to display. Enable cards from the admin view.';
         grid.appendChild(msg);
-        return;
+      } else {
+        entries.forEach(entry => {
+          const card = document.createElement('article');
+          card.className = 'pf-v6-c-card pf-m-clickable faq-card';
+          card.setAttribute('tabindex', '0');
+          card.setAttribute('aria-label', entry.title);
+          card.innerHTML =
+            `<div class="pf-v6-c-card__title">` +
+              `<h2 class="pf-v6-c-card__title-text">${escHtml(entry.title)}</h2>` +
+            `</div>` +
+            (entry.summary
+              ? `<div class="pf-v6-c-card__body">${escHtml(entry.summary)}</div>`
+              : '');
+          card.addEventListener('click', () => openModal(entry));
+          card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') openModal(entry); });
+          grid.appendChild(card);
+        });
       }
 
-      entries.forEach(entry => {
-        const card = document.createElement('article');
-        card.className = 'pf-v6-c-card pf-m-clickable faq-card';
-        card.setAttribute('tabindex', '0');
-        card.setAttribute('aria-label', entry.title);
-        card.innerHTML =
-          `<div class="pf-v6-c-card__title">` +
-            `<h2 class="pf-v6-c-card__title-text">${escHtml(entry.title)}</h2>` +
-          `</div>` +
-          (entry.summary
-            ? `<div class="pf-v6-c-card__body">${escHtml(entry.summary)}</div>`
-            : '');
-        card.addEventListener('click', () => openModal(entry));
-        card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') openModal(entry); });
-        grid.appendChild(card);
-      });
+      // Inject the loop launch button into the masthead if a video-loop card exists.
+      // Uses the first video-loop entry found. Idempotent — safe to call on every buildGrid().
+      const loopEntry = FAQ.all().find(e => e.demo?.type === 'video-loop');
+      const existing  = document.getElementById('loop-launch-btn');
+      if (existing) existing.remove();
+
+      if (loopEntry) {
+        const btn = document.createElement('button');
+        btn.id        = 'loop-launch-btn';
+        btn.className = 'pf-v6-c-button pf-m-secondary';
+        btn.textContent = loopEntry.title || 'Watch Demo';
+        btn.addEventListener('click', () => openModal(loopEntry));
+        document.querySelector('#site-header .pf-v6-c-masthead__main').appendChild(btn);
+      }
     }
 
     function escHtml(str) {
