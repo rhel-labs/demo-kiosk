@@ -26,6 +26,8 @@ logos:
   secondary:
     file: content/branding/logo-summit.svg
     alt_text: Red Hat Summit
+    # Optional: URL to open when the event logo is clicked (opens in a new tab)
+    url: https://www.redhat.com/en/summit
 
 # Brand Colors (use hex codes like #ee0000)
 colors:

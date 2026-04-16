@@ -20,6 +20,7 @@ window.BRANDING = {
     secondary: {
       file: {{ branding.logos.secondary.file | tojson }},
       alt_text: {{ branding.logos.secondary.alt_text | tojson }},
+      url: {{ branding.logos.secondary.url | default('') | tojson }},
     },
   },
   colors: {
