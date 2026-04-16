@@ -2,3 +2,12 @@
 # content/ is reachable when serve.py serves from app/.
 # Not a source file; not present in the container image.
 app/content
+
+# Video files — large binaries, not stored in git.
+# Videos are downloaded/provided separately at runtime.
+*.mp4
+*.mov
+*.avi
+*.webm
+*.mkv
+*.m4v
