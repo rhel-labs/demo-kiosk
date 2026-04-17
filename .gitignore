@@ -3,6 +3,15 @@
 # Not a source file; not present in the container image.
 app/content
 
-# Media files — large binaries, not stored in git.
-# Media is provided at container build time.
-content/media/
+# Large media files — provided by event teams via Google Drive
+# Binary assets excluded from git; YAML configs tracked for version control
+content/media/*.mp4
+content/media/*.mov
+content/media/*.avi
+content/media/*.webm
+content/media/*.mkv
+content/media/*.m4v
+
+# Google Drive download bundles (auto-generated filenames)
+# Contains media files to overlay onto content/media/ during build
+kiosk*.zip
