@@ -93,16 +93,21 @@ systemctl --user status demo-kiosk
 
 If event team provides updated content bundle on-site, serve it via volume mount.
 
-### **Setup**
+**Note:** Some content types (Arcade demos, external URLs, labs) require internet access to load. If on-site internet is limited, verify the content bundle uses primarily offline demo types (video, slides, asciinema, image-text).
+
+### **Setup (extract from running container)**
+
+No internet required — all tools are bundled in the container image.
 
 ```bash
 # Create working directory
 mkdir -p ~/demo-kiosk
 cd ~/demo-kiosk
 
-# Download build script
-curl -o build-faqs.py \
-  https://raw.githubusercontent.com/rhel-labs/demo-kiosk/main/build/build-faqs.py
+# Extract build tools from running container
+podman cp demo-kiosk:/extras/extras.tar.gz ./
+tar -xzf extras.tar.gz
+# Extracts: build/, content/, AUTHORING.md, start.sh, etc.
 ```
 
 ### **Use Updated Content Bundle**
@@ -118,7 +123,7 @@ unzip kiosk-*.zip
 mv kiosk content
 
 # 3. Build compiled JavaScript from YAML
-python3 build-faqs.py
+python3 build/build-faqs.py
 # Outputs: content/faqs.js and content/branding.js
 
 # 4. Enable volume mount in quadlet
