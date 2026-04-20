@@ -489,8 +489,9 @@ make build
 
 The builder stage automatically:
 1. Downloads third-party libraries (PatternFly, fonts, asciinema-player, PDF.js)
-2. Builds content from YAML sources (`build-faqs.py`)
-3. Generates the Containerfile viewer page
+2. Validates all YAML content (`lint-content.py`) — the build fails here if content has errors
+3. Builds content from YAML sources (`build-faqs.py`)
+4. Generates the Containerfile viewer page
 
 ```bash
 # Run the container
@@ -501,6 +502,16 @@ make test
 ```
 
 The kiosk serves on **port 8181** by default.
+
+### Local build dependencies
+
+The `make lint` and `make test-volume` targets run the build scripts directly on the host. They require Python 3 and the build dependencies:
+
+```bash
+pip3 install -r build/requirements.txt
+```
+
+The container build has no host requirements beyond `podman` — dependencies are installed inside the builder stage automatically.
 
 ---
 
@@ -553,13 +564,12 @@ If you want to update content without rebuilding the image, mount your `content/
    cp logo-event.svg /path/to/my-content/branding/
    ```
 
-4. Symlink or copy your content directory into the project so the build script can find it, then run the build:
+4. Symlink or copy your content directory into the project so the build scripts can find it, then lint and build:
    ```bash
    # From the project root (where build/ lives):
    ln -sfn /path/to/my-content content   # or copy it
-   python3 build/build-faqs.py
-   # Reads  content/faqs/*.yaml and content/branding/branding.yaml
-   # Writes content/faqs.js and content/branding.js
+   make lint                              # validate YAML before building
+   python3 build/build-faqs.py           # writes content/faqs.js and content/branding.js
    ```
    > **Note:** `build/build-faqs.py` always reads and writes `content/` relative to the project root. The generated `content/faqs.js` and `content/branding.js` must be present in your content directory before you start the container.
 
@@ -575,8 +585,8 @@ The image provides the app framework; the volume provides the content. The baked
 ### Updating Content
 
 1. Edit your YAML files and ensure any new media files are in `content/media/`.
-2. Run `python3 build/build-faqs.py` (from the project root) to regenerate `content/faqs.js` and `content/branding.js`.
-3. Restart the container (or reload the browser — the server serves files directly, so a browser refresh picks up the new files immediately).
+2. Run `make test-volume` to lint, rebuild, and restart the container with the updated content.
+3. A browser refresh picks up changes immediately — the server serves files directly from the mounted directory.
 
 ---
 
@@ -586,22 +596,10 @@ The image provides the app framework; the volume provides the content. The baked
 
 ---
 
-## Requirements
-
-`build-faqs.py` requires Python 3 with two libraries:
-
-```bash
-pip3 install pyyaml jinja2
-```
-
-These are build-time dependencies only — nothing is installed in the container.
-
----
-
 ## Troubleshooting
 
 **Cards do not appear**
-- Check that `python3 build/build-faqs.py` ran without errors.
+- Run `make lint` to check for content errors before building.
 - Verify `content/faqs.js` exists and is not empty.
 - Open the browser console — a `[FAQ]` error message will indicate the problem.
 
@@ -614,10 +612,14 @@ These are build-time dependencies only — nothing is installed in the container
 - Check that `content/branding/branding.yaml` has no YAML syntax errors.
 - Open the browser console — a `[FAQ]` warning will indicate if branding failed to load.
 
-**Build script errors**
+**Content errors during build**
+
+Errors are caught early — during the lint step — before any output is written. The error message will identify the file and the problem:
+
 - `Missing required field` — add the missing field to your YAML file.
 - `Duplicate id` or `Duplicate order` — each file must have a unique `id` and `order` value.
 - `Unknown demo type` — valid types are `video`, `slides`, `asciinema`, `image-text`, `external-url`, `lab`, `arcade`.
+- `file not found` — the `src`, `image`, or logo `file` path does not exist. Check the path and ensure the file is in `content/media/` or `content/branding/`.
 - `YAML parse error` — check for incorrect indentation or unquoted special characters. YAML is indentation-sensitive.
 
 **YAML special characters**
