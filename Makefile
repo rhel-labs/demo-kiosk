@@ -1,4 +1,4 @@
-.PHONY: build test test-volume clean push help
+.PHONY: build test test-volume lint clean push help
 
 # Configuration
 IMAGE_REGISTRY ?=
@@ -20,7 +20,12 @@ build: ## Build container image (downloads all dependencies internally)
 test: build ## Build and test container locally
 	podman run --rm -p $(PORT):8181 $(IMAGE)
 
+lint: ## Lint YAML content files (requires: pip3 install -r build/requirements.txt)
+	python3 build/lint-content.py
+
 test-volume: build ## Test with local content volume mount
+	@echo "Linting content..."
+	@python3 build/lint-content.py
 	@echo "Building content locally..."
 	@python3 build/build-faqs.py
 	@echo "Starting container with volume mount: $(CONTENT_DIR)"
