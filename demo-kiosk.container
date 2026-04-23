@@ -65,7 +65,7 @@ After=local-fs.target
 # Image must be built locally before starting the service.
 # Use Pull=never to fail fast with a clear error rather than
 # attempting (and failing) to pull from a registry.
-Image=localhost/demo-kiosk:latest
+Image=quay.io/mmicene/demo-kiosk:latest
 Pull=never
 
 # Publish container port 8181 to the same port on all host interfaces.
