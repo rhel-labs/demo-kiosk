@@ -56,45 +56,44 @@ COPY --chown=65532:65532 app/ ./app/
 # Build tools
 COPY --chown=65532:65532 build/ ./build/
 
-# Content acquisition — YAML sources and branding needed by lint + generators.
-# Copied before generators so they can read the author content.
-# Containerfile is copied here (not earlier) so an edit to this file does not
-# invalidate the content COPY layers above it.
+# generate-containerfile-page.py reads only the Containerfile — run it early
+# so Containerfile edits don't invalidate the content layers that follow.
+# Writes to app/containerfile.html.
+COPY --chown=65532:65532 Containerfile ./
+RUN python3 build/generate-containerfile-page.py
+
+# Content acquisition — local YAML, branding, and media.
+# The kiosk zip (Google Drive bundle) overlays the full content/ tree, so
+# build-faqs.py and lint must run after the bundle extraction to see the
+# final YAML and media rather than local placeholders.
 #
-# Media is intentionally copied AFTER the generators: a video swap does not
-# invalidate lint or generation. The kiosk zip (Google Drive bundle) overlays
-# real media files onto content/media/ and is also placed after generators for
-# the same reason.
-#
-# Zip format: event teams provide kiosk-*.zip containing a nested kiosk/media/
-# directory. cp -r kiosk/* content/ overlays media into the existing tree.
+# Zip format: Google Drive exports kiosk-*.zip with a timestamped wrapper
+# directory (kiosk-<timestamp>/kiosk/). find locates kiosk/ at any depth so
+# both that layout and a flat kiosk/ at the zip root are handled.
 COPY --chown=65532:65532 content/faqs/     ./content/faqs/
 COPY --chown=65532:65532 content/branding/ ./content/branding/
-COPY --chown=65532:65532 Containerfile ./
-
-# Lint all YAML content before generating JS — fails the build fast on content errors
-RUN python3 build/lint-content.py
-
-# generate-containerfile-page.py writes to app/containerfile.html
-# build-faqs.py writes to content/faqs.js and content/branding.js
-RUN python3 build/generate-containerfile-page.py \
- && python3 build/build-faqs.py
-
-# Media and Google Drive bundle — after generators, decoupled from lint/generation.
-COPY --chown=65532:65532 content/media/ ./content/media/
-COPY --chown=65532:65532 kiosk*.zip ./kiosk-bundle.zip
+COPY --chown=65532:65532 content/media/    ./content/media/
+RUN --mount=type=bind,source=.,target=/buildctx \
+    ZIP=$(ls /buildctx/kiosk*.zip 2>/dev/null | head -1); \
+    if [ -n "$ZIP" ]; then cp "$ZIP" ./kiosk-bundle.zip; else touch kiosk-bundle.zip; fi
 
 RUN if [ -f kiosk-bundle.zip ] && [ -s kiosk-bundle.zip ]; then \
-      echo "Overlaying media from Google Drive bundle..."; \
+      echo "Overlaying content from Google Drive bundle..."; \
       unzip -q kiosk-bundle.zip && \
-      cp -r kiosk/* content/ && \
-      rm -rf kiosk kiosk-bundle.zip; \
-      echo "Media overlay complete"; \
+      KIOSK_DIR=$(find . -maxdepth 2 -name kiosk -type d | head -1) && \
+      cp -r "$KIOSK_DIR"/* content/ && \
+      rm -rf kiosk kiosk-* kiosk-bundle.zip; \
+      echo "Bundle overlay complete"; \
     else \
-      echo "No media bundle found - using local media files"; \
+      echo "No bundle found - using local content files"; \
       rm -f kiosk-bundle.zip; \
     fi && \
     echo "Content loaded: $(find content/faqs -name '*.yaml' ! -name '_*' | wc -l) FAQ files"
+
+# Generate faqs.js and branding.js from the final content state, then lint.
+# Both steps see bundle-provided YAML and media if a bundle was present.
+RUN python3 build/build-faqs.py
+RUN python3 build/lint-content.py
 
 # Author-facing files for the extras bundle.
 # Copied here (builder only) so they are not present in the runtime stage
@@ -143,16 +142,20 @@ WORKDIR /srv/faq
 
 # Python packages needed by lint-content.py.
 # Copied from the builder stage — distroless has no pip or package manager.
-# pip3 install in the builder stage writes to /usr/local/lib/python3.14/site-packages.
+# pip3 install runs as UID 65532 (home=/tmp), so packages land in
+# /tmp/.local/lib/python3.14/site-packages — the user site dir for both stages.
 COPY --from=builder --chown=65532:65532 \
-     /usr/local/lib/python3.14/site-packages/yaml \
-     /usr/local/lib/python3.14/site-packages/yaml
+     /tmp/.local/lib/python3.14/site-packages/yaml \
+     /tmp/.local/lib/python3.14/site-packages/yaml
 COPY --from=builder --chown=65532:65532 \
-     /usr/local/lib/python3.14/site-packages/yamllint \
-     /usr/local/lib/python3.14/site-packages/yamllint
+     /tmp/.local/lib/python3.14/site-packages/_yaml \
+     /tmp/.local/lib/python3.14/site-packages/_yaml
 COPY --from=builder --chown=65532:65532 \
-     /usr/local/lib/python3.14/site-packages/pathspec \
-     /usr/local/lib/python3.14/site-packages/pathspec
+     /tmp/.local/lib/python3.14/site-packages/yamllint \
+     /tmp/.local/lib/python3.14/site-packages/yamllint
+COPY --from=builder --chown=65532:65532 \
+     /tmp/.local/lib/python3.14/site-packages/pathspec \
+     /tmp/.local/lib/python3.14/site-packages/pathspec
 
 # Linter script — available for manual invocation against a mounted content directory.
 # Usage: podman run --rm -v ./content:/mnt/content:ro IMAGE \
