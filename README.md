@@ -2,51 +2,49 @@
 
 Interactive kiosk application for demos and FAQs, designed for Red Hat events.
 
+## Content Management
+
+**Event teams** manage all content (FAQs, branding, media) in Google Drive.  
+**Platform team** downloads bundles and builds container images.
+
+Content structure tracked in git, large media files (videos) provided via Google Drive.
+
 ## Quick Start
 
-```bash
-make build  # Build container image
-make test   # Run locally on port 8181
-```
-
-Or using `podman` directly:
+### **Build with Google Drive Content**
 
 ```bash
+# 1. Download content bundle from Google Drive
+#    (Event team provides shared folder link)
+#    Right-click folder → Download → saves as kiosk-*.zip
+
+# 2. Move to project root
+mv ~/Downloads/kiosk-*.zip ./
+
+# 3. Build container
 podman build -t demo-kiosk:latest .
+
+# 4. Run locally
 podman run --rm -p 8181:8181 demo-kiosk:latest
 ```
 
 Visit http://localhost:8181
 
-**Zero host dependencies** — everything (libraries, fonts, build tools) is downloaded and built inside the container.
+### **Development (Local Content)**
 
-## Volume Mounting for Development
-
-Update content without rebuilding the image by mounting a local content directory:
+If you have content already extracted locally:
 
 ```bash
-# Build content locally
+# Build content from YAML
 python3 build/build-faqs.py
 
-# Run with mounted content
-podman run --rm -p 8181:8181 \
-  -v ./content:/srv/faq/content:ro \
-  demo-kiosk:latest
+# Run with local content
+./start.sh
 ```
 
-This separates the app framework (in the image) from content (on your host).
+**Zero host dependencies** — libraries, fonts, and build tools are downloaded and built inside the container.
 
 ## Documentation
 
-See **[AUTHORING.md](AUTHORING.md)** for complete documentation on:
-- Creating and editing FAQ content
-- Event branding customization
-- Deployment options
-
-## Local Development
-
-For iterative content development:
-
-```bash
-./start.sh  # Local Python server with auto-rebuild
-```
+- **[PLATFORM-TEAM.md](PLATFORM-TEAM.md)** — Build, publish, and deploy kiosk images
+- **[AUTHORING.md](AUTHORING.md)** — Create FAQ content and customize branding

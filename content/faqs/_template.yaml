@@ -166,3 +166,37 @@ demo:
 #   share_url: https://interact.redhat.com/share/YOUR_FLOW_ID
 #   title: "Product walkthrough — getting started"
 #   aspect_ratio: "56.25%"
+
+
+# ── Option 8: Video loop ─────────────────────────────────────────
+# Use for: ambient/attract content that plays continuously at the booth.
+#
+# The video loop does NOT appear as a card in the grid.
+# Instead, a button labelled with the card's title is injected into
+# the kiosk header. Staff click it to launch the loop; visitors browse
+# the card grid while the loop plays between conversations.
+#
+# Behaviour:
+#   - Videos play sequentially and repeat indefinitely.
+#   - Always muted — no audio.
+#   - Idle timer is suppressed while the loop is open (the loop is the
+#     resting state, not an abandonment signal).
+#   - Play state is not retained between opens — always restarts from
+#     the first video.
+#   - Staff exit with Escape or by clicking outside the modal.
+#   - Only the first video-loop card found is used; the header button
+#     takes its title as the label.
+#
+# The `order` field is accepted but has no effect on grid placement.
+# The `enabled` field is accepted but has no effect on loop visibility.
+# Only one video-loop card per configuration is supported.
+#
+# videos = ordered list of media file paths (required, non-empty).
+#          Place all video files in content/media/
+#
+# demo:
+#   type: video-loop
+#   videos:
+#     - content/media/clip1.mp4
+#     - content/media/clip2.mp4
+#     - content/media/clip3.mp4

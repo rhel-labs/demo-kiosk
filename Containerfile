@@ -5,9 +5,9 @@
 # Uses default /tmp as working directory.
 FROM quay.io/hummingbird/python:3.14-builder AS builder
 
-# Install build-time dependencies (curl for download-libs.sh, PyYAML/Jinja2 for generators)
+# Install build-time dependencies (curl for download-libs.sh, unzip for content bundles, PyYAML/Jinja2 for generators)
 USER root
-RUN dnf install -y curl && dnf clean all
+RUN dnf install -y curl unzip && dnf clean all
 
 USEr 65532
 RUN pip3 install --quiet pyyaml jinja2
@@ -24,8 +24,43 @@ COPY --chown=65532:65532 app/ ./app/
 COPY --chown=65532:65532 build/ ./build/
 # Containerfile itself (read by generate-containerfile-page.py)
 COPY --chown=65532:65532 Containerfile ./
-# Author content (YAML sources, read by build-faqs.py)
+
+# Content acquisition: Git repository + Google Drive media overlay
+#
+# Structure:
+#   - content/ directory tracked in git (YAML configs, branding, directory structure)
+#   - Large media files excluded from git (see .gitignore)
+#   - Event teams provide media via Google Drive as kiosk-*.zip bundle
+#
+# Build modes:
+#   1. Production: content/ (from git) + kiosk-*.zip (media from Drive)
+#      - Git provides: YAML configs, branding, empty media/ structure
+#      - Zip overlays: video/image files into content/media/
+#   2. Development: content/ with local media files (no zip needed)
+#      - All files present locally, no overlay required
+#
+# Google Drive zip format: contains nested kiosk/ directory with media files
+
+# Copy content structure from git (always present)
 COPY --chown=65532:65532 content/ ./content/
+
+# Copy Google Drive media bundle if present (production builds)
+# COPY with wildcard doesn't fail if no match - will just not copy anything
+COPY --chown=65532:65532 kiosk*.zip ./kiosk-bundle.zip
+
+# Extract media bundle and overlay onto content/
+# If no zip (development mode), this is a no-op
+RUN if [ -f kiosk-bundle.zip ] && [ -s kiosk-bundle.zip ]; then \
+      echo "Overlaying media from Google Drive bundle..."; \
+      unzip -q kiosk-bundle.zip && \
+      cp -r kiosk/* content/ && \
+      rm -rf kiosk kiosk-bundle.zip; \
+      echo "Media overlay complete"; \
+    else \
+      echo "No media bundle found - using local media files"; \
+      rm -f kiosk-bundle.zip; \
+    fi && \
+    echo "Content loaded: $(find content/faqs -name '*.yaml' ! -name '_*' | wc -l) FAQ files"
 
 # generate-containerfile-page.py writes to app/containerfile.html
 # build-faqs.py writes to content/faqs.js
@@ -82,6 +117,12 @@ COPY --chown=65532:65532 app/ ./
 
 # Generated Containerfile viewer page (derived from app source, belongs with app layer)
 COPY --from=builder --chown=65532:65532 /tmp/app/containerfile.html ./
+
+# Third-party libraries downloaded by download-libs.sh during the builder stage.
+# patternfly.min.css must sit at the app root (its @font-face paths are relative to here).
+# assets/ contains fonts, icons, asciinema player, and PDF.js.
+COPY --from=builder --chown=65532:65532 /tmp/app/patternfly.min.css ./
+COPY --from=builder --chown=65532:65532 /tmp/app/assets/ ./assets/
 
 # Author content — separate layer so different xattrs can be applied independently.
 # This entire tree can be replaced at runtime by a volume mount.

@@ -32,6 +32,9 @@ FAQ.register({
     title:        {{ entry.demo.title | tojson }},
     aspect_ratio: {{ entry.demo.aspect_ratio | tojson }},
 {%- endif %}
+{%- if entry.demo.type == 'video-loop' %}
+    videos: {{ entry.demo.videos | tojson }},
+{%- endif %}
   },
 });
 {% endfor %}

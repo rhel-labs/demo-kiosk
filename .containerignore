@@ -10,10 +10,14 @@ app/patternfly.min.css
 app/assets/fonts/
 app/assets/pficon/
 app/assets/asciinema-player.*
-app/assets/pdf*.js
-app/assets/pdf*.mjs
+app/assets/pdf.min.js
+app/assets/pdf.min.mjs
+app/assets/pdf.worker.min.mjs
 app/assets/logo-redhat.svg
 app/assets/logo-hummingbird.png
+
+# Local dev symlink — not a source file, must not enter the build context
+app/content
 
 # Dev / authoring tooling — copied into builder stage for extras.tar.gz only
 # Removed from ignore so COPY instructions in the builder stage can reach them.
