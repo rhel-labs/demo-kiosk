@@ -15,3 +15,19 @@ content/media/*.m4v
 # Google Drive download bundles (auto-generated filenames)
 # Contains media files to overlay onto content/media/ during build
 kiosk*.zip
+
+# npm-managed third-party libraries — installed by the asset-builder stage.
+# Do not commit; update versions in package.json and regenerate package-lock.json.
+node_modules/
+app/patternfly.min.css
+app/assets/fonts/
+app/assets/pficon/
+app/assets/asciinema-player.css
+app/assets/asciinema-player.min.js
+app/assets/pdf.min.js
+app/assets/pdf.min.mjs
+app/assets/pdf.worker.min.mjs
+
+# Brand/event assets — delivered via the kiosk bundle, not stored in git.
+app/assets/logo-redhat.svg
+app/assets/logo-hummingbird.png

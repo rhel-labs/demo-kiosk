@@ -1,0 +1,9 @@
+{
+  "name": "demo-kiosk-assets",
+  "private": true,
+  "dependencies": {
+    "@patternfly/patternfly": "6.4.0",
+    "asciinema-player": "3.15.1",
+    "pdfjs-dist": "4.10.38"
+  }
+}
