@@ -57,16 +57,11 @@
 
 [Unit]
 Description=Demo Kiosk — Red Hat interactive demo platform
-# Only requires the local filesystem; no network needed at runtime
-# because all assets are baked into the image.
 After=local-fs.target
 
 [Container]
-# Image must be built locally before starting the service.
-# Use Pull=never to fail fast with a clear error rather than
-# attempting (and failing) to pull from a registry.
 Image=quay.io/mmicene/demo-kiosk:latest
-Pull=never
+Pull=newer
 
 # Publish container port 8181 to the same port on all host interfaces.
 # Change the host side (left of :) to use a different port, e.g. 9090:8181
