@@ -5,12 +5,14 @@
 # Uses default /tmp as working directory.
 FROM quay.io/hummingbird/python:3.14-builder AS builder
 
-# Install build-time dependencies (curl for download-libs.sh, unzip for content bundles, PyYAML/Jinja2 for generators)
+# Install build-time dependencies (curl for download-libs.sh, unzip for content bundles, PyYAML/Jinja2/yamllint for generators)
 USER root
 RUN dnf install -y curl unzip && dnf clean all
 
 USEr 65532
-RUN pip3 install --quiet pyyaml jinja2
+# Copy requirements first so pip install is a separate cached layer
+COPY --chown=65532:65532 build/requirements.txt ./build/
+RUN pip3 install --quiet -r build/requirements.txt
 
 # Download third-party libraries (PatternFly, fonts, asciinema, PDF.js)
 # This runs once during image build - no host dependencies required
@@ -20,7 +22,7 @@ RUN ./download-libs.sh
 # Now copy the rest of the app source (overlays on top of downloaded assets)
 COPY --chown=65532:65532 app/ ./app/
 
-# Build tools
+# Remaining build tools
 COPY --chown=65532:65532 build/ ./build/
 # Containerfile itself (read by generate-containerfile-page.py)
 COPY --chown=65532:65532 Containerfile ./
@@ -61,6 +63,9 @@ RUN if [ -f kiosk-bundle.zip ] && [ -s kiosk-bundle.zip ]; then \
       rm -f kiosk-bundle.zip; \
     fi && \
     echo "Content loaded: $(find content/faqs -name '*.yaml' ! -name '_*' | wc -l) FAQ files"
+
+# Lint all YAML content before generating JS — fails the build fast on content errors
+RUN python3 build/lint-content.py
 
 # generate-containerfile-page.py writes to app/containerfile.html
 # build-faqs.py writes to content/faqs.js
@@ -109,6 +114,24 @@ FROM quay.io/hummingbird/python:3.14
 
 # Set WORKDIR before COPY so relative destinations resolve to /srv/faq.
 WORKDIR /srv/faq
+
+# Python packages needed by lint-content.py (pyyaml, yamllint, pathspec).
+# Copied from the builder stage — distroless has no pip or package manager.
+# pip3 install in the builder stage writes to /usr/local/lib/python3.14/site-packages.
+COPY --from=builder --chown=65532:65532 \
+     /usr/local/lib/python3.14/site-packages/yaml \
+     /usr/local/lib/python3.14/site-packages/yaml
+COPY --from=builder --chown=65532:65532 \
+     /usr/local/lib/python3.14/site-packages/yamllint \
+     /usr/local/lib/python3.14/site-packages/yamllint
+COPY --from=builder --chown=65532:65532 \
+     /usr/local/lib/python3.14/site-packages/pathspec \
+     /usr/local/lib/python3.14/site-packages/pathspec
+
+# Linter script — available for manual invocation against a mounted content directory.
+# Usage: podman run --rm -v ./content:/mnt/content:ro IMAGE \
+#          python3 /srv/faq/lint-content.py --content-dir /mnt/content
+COPY --from=builder --chown=65532:65532 /tmp/build/lint-content.py ./lint-content.py
 
 # App source — framework, styles, libraries, templates.
 # Single COPY; all files owned by runtime UID.

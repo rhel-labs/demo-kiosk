@@ -35,11 +35,17 @@ Visit http://localhost:8181
 If you have content already extracted locally:
 
 ```bash
-# Build content from YAML
-python3 build/build-faqs.py
+make test-volume
+```
 
-# Run with local content
-./start.sh
+This lints and builds the content locally, then starts the container with `./content` mounted in. The app framework stays in the image; only the content directory is replaced.
+
+Or manually:
+
+```bash
+podman run --rm -p 8181:8181 \
+  -v ./content:/srv/faq/content:ro \
+  demo-kiosk:latest
 ```
 
 **Zero host dependencies** — libraries, fonts, and build tools are downloaded and built inside the container.

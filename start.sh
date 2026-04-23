@@ -77,6 +77,13 @@ fi
 PYTHON_VERSION=$(python3 --version 2>&1)
 success "Found ${PYTHON_VERSION}"
 
+# ── Lint YAML content before building ────────────────────────────
+info "Linting YAML content ..."
+if ! python3 "${SCRIPT_DIR}/build/lint-content.py"; then
+  error "lint-content.py failed — fix the errors above and try again."
+  exit 1
+fi
+
 # ── Build FAQ JS from YAML sources ────────────────────────────────
 info "Building content/faqs.js from YAML sources ..."
 if ! python3 "${SCRIPT_DIR}/build/build-faqs.py"; then

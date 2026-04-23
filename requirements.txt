@@ -1,0 +1,4 @@
+# Runtime Python dependencies (used by lint-content.py when run from the container)
+# Install with: pip3 install -r requirements.txt
+pyyaml
+yamllint
