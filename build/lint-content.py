@@ -56,7 +56,7 @@ def warn(msg): print(f"{YELLOW}  !{RESET} {msg}")
 def err(msg):  print(f"{RED}  ✗{RESET} {msg}")
 
 # ── Valid FAQ demo types ──────────────────────────────────────────
-VALID_TYPES = {"video", "slides", "asciinema", "image-text", "external-url", "arcade", "lab"}
+VALID_TYPES = {"video", "slides", "asciinema", "image-text", "external-url", "arcade", "lab", "video-loop"}
 REQUIRED_FAQ_FIELDS = {"id", "order", "title", "summary", "demo"}
 
 # ── Arcade share URL patterns ─────────────────────────────────────
@@ -247,6 +247,19 @@ def _validate_demo(demo, path, content_dir):
                 errors.append(
                     f"demo 'src' file not found: {demo['src']!r}"
                 )
+
+    elif dtype == "video-loop":
+        if "videos" not in demo:
+            errors.append("demo type 'video-loop' requires a 'videos' field")
+        else:
+            videos = demo["videos"]
+            if not isinstance(videos, list) or not videos:
+                errors.append("demo 'videos' must be a non-empty list")
+            else:
+                for entry in videos:
+                    p = resolve_path(entry, content_dir)
+                    if not p.exists():
+                        errors.append(f"demo 'videos' file not found: {entry!r}")
 
     elif dtype == "image-text":
         for key in ("image", "caption"):

@@ -4,8 +4,8 @@ content/faqs.js
 content/branding.js
 app/containerfile.html
 
-# Downloaded libraries — fetched fresh by download-libs.sh during container build
-# Exclude from build context to ensure container always uses freshly downloaded versions
+# npm-managed libraries — installed by the asset-builder stage during container build.
+# Excluded from build context so the npm stage is the authoritative source.
 app/patternfly.min.css
 app/assets/fonts/
 app/assets/pficon/
@@ -13,8 +13,9 @@ app/assets/asciinema-player.*
 app/assets/pdf.min.js
 app/assets/pdf.min.mjs
 app/assets/pdf.worker.min.mjs
-app/assets/logo-redhat.svg
-app/assets/logo-hummingbird.png
+
+# Safety net — node_modules should never be in the build context
+node_modules/
 
 # Local dev symlink — not a source file, must not enter the build context
 app/content
