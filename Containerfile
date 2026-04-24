@@ -175,6 +175,7 @@ COPY --from=builder --chown=65532:65532 /tmp/content/media/ ./content/media/
 # First-party app source — feature cadence.
 # (.containerignore excludes library files; logo-summit.svg and pdf-init.mjs come through here)
 COPY --chown=65532:65532 app/ ./
+COPY --chown=65532:65532 healthcheck.py ./
 COPY --from=builder --chown=65532:65532 /tmp/app/containerfile.html ./
 
 # FAQ content — changes with demo updates.
@@ -193,6 +194,10 @@ EXPOSE 8181
 
 # serve.py (like python3 -m http.server) does not handle SIGTERM; SIGKILL stops it immediately.
 STOPSIGNAL SIGKILL
+
+# Container healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD ["python3", "/srv/faq/healthcheck.py"]
 
 # No shell in distroless — CMD must be JSON exec form.
 CMD ["python3", "/srv/faq/serve.py", "8181", \
