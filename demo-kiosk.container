@@ -79,6 +79,17 @@ ReadOnlyTmpfs=true
 # Uncomment to mount local content directory (update path as needed):
 # Volume=%h/faq-spa/content:/srv/faq/content:ro
 
+# Healthcheck configuration for systemd integration
+HealthCmd=python3 /srv/faq/healthcheck.py
+HealthInterval=30s
+HealthTimeout=5s
+HealthStartPeriod=15s
+HealthRetries=3
+HealthOnFailure=kill
+
+# Wait for health before marking service started
+Notify=healthy
+
 [Service]
 # Restart automatically if the container exits unexpectedly
 Restart=on-failure
