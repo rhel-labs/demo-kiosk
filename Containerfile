@@ -195,10 +195,6 @@ EXPOSE 8181
 # serve.py (like python3 -m http.server) does not handle SIGTERM; SIGKILL stops it immediately.
 STOPSIGNAL SIGKILL
 
-# Container healthcheck
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD ["python3", "/srv/faq/healthcheck.py"]
-
 # No shell in distroless — CMD must be JSON exec form.
 CMD ["python3", "/srv/faq/serve.py", "8181", \
      "--directory", "/srv/faq"]

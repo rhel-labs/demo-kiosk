@@ -36,7 +36,7 @@ def healthcheck():
                 return 1
 
             # Validate FAQ application architecture is loaded
-            content = response.read().decode("utf-8", errors="ignore")[:4096]
+            content = response.read().decode("utf-8", errors="ignore")
 
             # Check stable functional components
             required_components = [

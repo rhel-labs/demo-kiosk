@@ -53,9 +53,17 @@ podman push quay.io/rhel-labs/demo-kiosk:summit2026
 
 ## Event Staff Deployment
 
-Event staff deploys using Podman Quadlet (systemd integration).
+### **Installer (recommended)**
 
-### **Setup on Event Machine**
+On the event laptop:
+
+```bash
+curl -fsSL red.ht/demo-kiosk-install | bash
+```
+
+The installer checks for Podman, installs the quadlet, starts the service, and verifies the healthcheck. Opens at http://localhost:8181.
+
+### **Manual setup (fallback)**
 
 ```bash
 # 1. Create systemd directory
@@ -201,9 +209,7 @@ systemctl --user restart demo-kiosk
 - [ ] Share image URL and quadlet with event staff
 
 **Event Staff (On-Site):**
-- [ ] Download quadlet to `~/.config/containers/systemd/`
-- [ ] Edit quadlet: `Image=quay.io/rhel-labs/demo-kiosk:summit2026`
-- [ ] Start: `systemctl --user enable --now demo-kiosk`
+- [ ] Run: `curl -fsSL red.ht/demo-kiosk-install | bash`
 - [ ] Verify: http://localhost:8181
 
 **Post-Event:**
