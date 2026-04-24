@@ -27,11 +27,14 @@ if podman quadlet list 2>/dev/null | grep -q demo-kiosk; then
         echo "If content is wrong, re-run installer and choose 'y' to replace."
         exit 0
     fi
+    # Remove existing installation before reinstalling
+    systemctl --user stop demo-kiosk 2>/dev/null || true
+    podman quadlet rm demo-kiosk 2>/dev/null || true
 fi
 
 # Install quadlet (suppress errors for internal script logic)
-if ! podman quadlet install https://raw.githubusercontent.com/rhel-labs/demo-kiosk/refs/heads/main/demo-kiosk.container >/dev/null 2>&1; then
-    # Check if it actually installed despite error (existing file case)
+if ! podman quadlet install https://raw.githubusercontent.com/rhel-labs/demo-kiosk/refs/heads/fix/healthcheck-oci-cleanup/demo-kiosk.container >/dev/null 2>&1; then
+    # Check if it actually installed despite error
     if ! podman quadlet list 2>/dev/null | grep -q demo-kiosk; then
         error "Installation failed - try a different laptop"
         exit 1
@@ -79,7 +82,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     systemctl --user stop demo-kiosk 2>/dev/null || true
     podman quadlet rm demo-kiosk 2>/dev/null || true
     
-    if podman quadlet install https://raw.githubusercontent.com/rhel-labs/demo-kiosk/refs/heads/main/demo-kiosk.container >/dev/null 2>&1; then
+    if podman quadlet install https://raw.githubusercontent.com/rhel-labs/demo-kiosk/refs/heads/fix/healthcheck-oci-cleanup/demo-kiosk.container >/dev/null 2>&1; then
         systemctl --user start demo-kiosk 2>/dev/null
         sleep 10
         if podman healthcheck run demo-kiosk >/dev/null 2>&1; then

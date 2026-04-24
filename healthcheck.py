@@ -24,7 +24,7 @@ def timeout(seconds):
 def healthcheck():
     try:
         with timeout(5):
-            conn = http.client.HTTPConnection("localhost", 8181, timeout=3)
+            conn = http.client.HTTPConnection("127.0.0.1", 8181, timeout=3)
             conn.request("GET", "/")
             response = conn.getresponse()
 

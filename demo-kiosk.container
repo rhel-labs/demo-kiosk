@@ -80,7 +80,7 @@ ReadOnlyTmpfs=true
 # Volume=%h/faq-spa/content:/srv/faq/content:ro
 
 # Healthcheck configuration for systemd integration
-HealthCmd=python3 /srv/faq/healthcheck.py
+HealthCmd=["python3", "/srv/faq/healthcheck.py"]
 HealthInterval=30s
 HealthTimeout=5s
 HealthStartPeriod=15s
