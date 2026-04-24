@@ -18,7 +18,7 @@ fi
 if podman quadlet list 2>/dev/null | grep -q demo-kiosk; then
     echo "Demo Kiosk is already installed. This may be a working installation."
     echo ""
-    read -p "Replace with latest version? [y/N]: " -n 1 -r
+    read -p "Replace with latest version? [y/N]: " -n 1 -r </dev/tty
     echo ""
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo "Installation cancelled."
@@ -70,7 +70,7 @@ else
 fi
 
 echo ""
-read -p "Try reinstalling? [y/N]: " -n 1 -r
+read -p "Try reinstalling? [y/N]: " -n 1 -r </dev/tty
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "Reinstalling..."

@@ -1,7 +1,7 @@
 .PHONY: build test test-volume lint clean push help
 
 # Configuration
-IMAGE_REGISTRY ?=
+IMAGE_REGISTRY ?= quay.io/mmicene
 IMAGE_NAME := demo-kiosk
 IMAGE_TAG ?= latest
 PORT := 8181
