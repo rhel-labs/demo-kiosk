@@ -18,7 +18,7 @@ fi
 if podman quadlet list 2>/dev/null | grep -q demo-kiosk; then
     echo "Demo Kiosk is already installed. This may be a working installation."
     echo ""
-    read -p "Replace with latest version? [y/N]: " -n 1 -r
+    read -p "Replace with latest version? [y/N]: " -n 1 -r </dev/tty
     echo ""
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo "Installation cancelled."
@@ -27,11 +27,14 @@ if podman quadlet list 2>/dev/null | grep -q demo-kiosk; then
         echo "If content is wrong, re-run installer and choose 'y' to replace."
         exit 0
     fi
+    # Remove existing installation before reinstalling
+    systemctl --user stop demo-kiosk 2>/dev/null || true
+    podman quadlet rm demo-kiosk 2>/dev/null || true
 fi
 
 # Install quadlet (suppress errors for internal script logic)
 if ! podman quadlet install https://raw.githubusercontent.com/rhel-labs/demo-kiosk/refs/heads/main/demo-kiosk.container >/dev/null 2>&1; then
-    # Check if it actually installed despite error (existing file case)
+    # Check if it actually installed despite error
     if ! podman quadlet list 2>/dev/null | grep -q demo-kiosk; then
         error "Installation failed - try a different laptop"
         exit 1
@@ -70,7 +73,7 @@ else
 fi
 
 echo ""
-read -p "Try reinstalling? [y/N]: " -n 1 -r
+read -p "Try reinstalling? [y/N]: " -n 1 -r </dev/tty
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "Reinstalling..."

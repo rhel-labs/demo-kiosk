@@ -24,7 +24,7 @@ def timeout(seconds):
 def healthcheck():
     try:
         with timeout(5):
-            conn = http.client.HTTPConnection("localhost", 8181, timeout=3)
+            conn = http.client.HTTPConnection("127.0.0.1", 8181, timeout=3)
             conn.request("GET", "/")
             response = conn.getresponse()
 
@@ -36,7 +36,7 @@ def healthcheck():
                 return 1
 
             # Validate FAQ application architecture is loaded
-            content = response.read().decode("utf-8", errors="ignore")[:4096]
+            content = response.read().decode("utf-8", errors="ignore")
 
             # Check stable functional components
             required_components = [

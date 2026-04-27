@@ -9,6 +9,18 @@ Interactive kiosk application for demos and FAQs, designed for Red Hat events.
 
 Content structure tracked in git, large media files (videos) provided via Google Drive.
 
+## Event Staff Installation
+
+On an event laptop with Podman:
+
+```bash
+curl -fsSL red.ht/demo-kiosk-install | bash
+```
+
+Opens at http://localhost:8181
+
+---
+
 ## Quick Start
 
 ### **Build with Google Drive Content**
