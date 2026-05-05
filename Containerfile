@@ -166,7 +166,7 @@ WORKDIR /srv/faq
 
 # Layers ordered stable → volatile to minimise bytes pulled on update.
 
-# Python packages needed by lint-content.py.
+# Python packages needed by lint-content.py and build-faqs.py.
 # Copied from the builder stage — distroless has no pip or package manager.
 # pip3 install runs as UID 65532 (home=/tmp), so packages land in
 # /tmp/.local/lib/python3.14/site-packages — the user site dir for both stages.
@@ -182,11 +182,24 @@ COPY --from=builder --chown=65532:65532 \
 COPY --from=builder --chown=65532:65532 \
      /tmp/.local/lib/python3.14/site-packages/pathspec \
      /tmp/.local/lib/python3.14/site-packages/pathspec
+# Jinja2 + MarkupSafe — required by build-faqs.py for runtime rebuild after uploads.
+COPY --from=builder --chown=65532:65532 \
+     /tmp/.local/lib/python3.14/site-packages/jinja2 \
+     /tmp/.local/lib/python3.14/site-packages/jinja2
+COPY --from=builder --chown=65532:65532 \
+     /tmp/.local/lib/python3.14/site-packages/markupsafe \
+     /tmp/.local/lib/python3.14/site-packages/markupsafe
 
 # Linter script — available for manual invocation against a mounted content directory.
 # Usage: podman run --rm -v ./content:/mnt/content:ro IMAGE \
 #          python3 /srv/faq/lint-content.py --content-dir /mnt/content
 COPY --from=builder --chown=65532:65532 /tmp/build/lint-content.py ./lint-content.py
+
+# FAQ generator and its Jinja2 templates — used by serve.py to rebuild faqs.js
+# after runtime uploads via /manage. build-faqs.py resolves paths from its own
+# location, so it must live at ./build/build-faqs.py and templates at ./app/faqs/.
+COPY --from=builder --chown=65532:65532 /tmp/build/build-faqs.py  ./build/build-faqs.py
+COPY --from=builder --chown=65532:65532 /tmp/app/faqs/             ./app/faqs/
 
 # Third-party libraries from the asset-builder npm stage.
 # These change only when package.json version pins are bumped — stable across

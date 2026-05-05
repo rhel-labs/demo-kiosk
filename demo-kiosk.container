@@ -23,7 +23,8 @@
 #
 #   5. Open in a browser:
 #        http://localhost:8181
-#        http://localhost:8181/#admin   ← usage statistics
+#        http://localhost:8181/#admin    ← usage statistics
+#        http://localhost:8181/manage    ← upload content / edit cards
 #
 # AUTO-START ON BOOT (optional — requires lingering session):
 #   The [Install] section below targets default.target, so the
@@ -45,13 +46,34 @@
 #        podman build -t demo-kiosk:latest ~/faq-spa
 #        systemctl --user restart demo-kiosk
 #
-# VOLUME MOUNTING (alternative to rebuilding):
-#   To update content without rebuilding, mount a content directory:
+# ── VOLUME OPTIONS FOR RUNTIME UPLOADS ───────────────────────────
 #
-#     1. Uncomment the Volume= line below
-#     2. Build content: python3 ~/faq-spa/build/build-faqs.py
-#     3. Reload: systemctl --user daemon-reload
-#     4. Restart: systemctl --user restart demo-kiosk
+# The /manage page lets you upload content and edit cards while the
+# container is running.  Uploads require a writable content directory.
+# Without a volume, uploads are rejected (the baked-in content is
+# on the read-only container filesystem).  Two options:
+#
+# OPTION A — Named volume (recommended for runtime upload use):
+#   Data lives in a Podman-managed volume; survives container restarts
+#   and image rebuilds.  Create the volume once, then uncomment the
+#   named Volume= line below.
+#
+#     podman volume create kiosk-content
+#     # Uncomment:  Volume=kiosk-content:/srv/faq/content
+#
+#   Note: ReadOnly=true (below) only makes the container root filesystem
+#   read-only. Named volumes are writable regardless of that setting.
+#
+# OPTION B — Bind mount (for local content authoring workflow):
+#   The host directory is mounted directly into the container.
+#   Use :rw so uploads can write back to the host directory.
+#   Run build-faqs.py locally first to generate faqs.js.
+#
+#     # Uncomment:  Volume=%h/faq-spa/content:/srv/faq/content:rw
+#
+#   To keep the original read-only behaviour (no uploads, content
+#   baked at build time), use :ro instead — uploads will be rejected
+#   with a clear error in the /manage UI.
 #
 # ================================================================
 
@@ -79,8 +101,10 @@ ReadOnly=true
 # Required by --read-only: allow tmpfs on /tmp and /run inside container
 ReadOnlyTmpfs=true
 
-# Uncomment to mount local content directory (update path as needed):
-# Volume=%h/faq-spa/content:/srv/faq/content:ro
+# Volume mount — uncomment ONE of the following (see header comments for details):
+# Volume=kiosk-content:/srv/faq/content          ← named volume (option A, runtime uploads)
+# Volume=%h/faq-spa/content:/srv/faq/content:rw  ← rw bind mount (option B, local authoring)
+# Volume=%h/faq-spa/content:/srv/faq/content:ro  ← ro bind mount (no uploads, read-only)
 
 # Healthcheck configuration for systemd integration
 HealthCmd=["python3", "/srv/faq/healthcheck.py"]
