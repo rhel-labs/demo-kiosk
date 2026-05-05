@@ -38,7 +38,7 @@
       gap: 1.5rem;
     }
 
-    /* ── Cards / sections ── */
+    /* ── Sections ── */
     .km-section {
       background: #fff;
       border: 1px solid #d2d2d2;
@@ -48,16 +48,8 @@
       padding: 1rem 1.25rem 0.75rem;
       border-bottom: 1px solid #d2d2d2;
     }
-    .km-section-header h2 {
-      margin: 0;
-      font-size: 1rem;
-      font-weight: 600;
-    }
-    .km-section-header p {
-      margin: 0.25rem 0 0;
-      font-size: 0.875rem;
-      color: #6a6e73;
-    }
+    .km-section-header h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+    .km-section-header p  { margin: 0.25rem 0 0; font-size: 0.875rem; color: #6a6e73; }
     .km-section-body { padding: 1.25rem; }
 
     /* ── Alerts ── */
@@ -86,12 +78,7 @@
     }
 
     /* ── Status banner ── */
-    #writable-banner {
-      font-size: 0.875rem;
-      padding: 0.6rem 1.25rem;
-      border-radius: 3px;
-      display: none;
-    }
+    #writable-banner { font-size: 0.875rem; padding: 0.6rem 1.25rem; border-radius: 3px; display: none; }
     #writable-banner.show { display: block; }
 
     /* ── Forms ── */
@@ -101,15 +88,8 @@
       gap: 0.35rem;
       margin-bottom: 1rem;
     }
-    .km-form-row label {
-      font-size: 0.875rem;
-      font-weight: 600;
-    }
-    .km-form-row .km-hint {
-      font-size: 0.8rem;
-      color: #6a6e73;
-      margin: 0;
-    }
+    .km-form-row label { font-size: 0.875rem; font-weight: 600; }
+    .km-form-row .km-hint { font-size: 0.8rem; color: #6a6e73; margin: 0; }
     .km-form-row input[type="text"],
     .km-form-row input[type="number"],
     .km-form-row input[type="url"],
@@ -130,18 +110,9 @@
       border-color: #2b9af3;
     }
     .km-form-row textarea { resize: vertical; min-height: 80px; }
-    .km-form-row.km-inline {
-      flex-direction: row;
-      align-items: center;
-      gap: 0.5rem;
-    }
+    .km-form-row.km-inline { flex-direction: row; align-items: center; gap: 0.5rem; }
     .km-form-row.km-inline label { font-weight: normal; margin: 0; }
-
-    .km-form-row input[readonly] {
-      background: #f5f5f5;
-      color: #6a6e73;
-      cursor: default;
-    }
+    .km-form-row input[readonly] { background: #f5f5f5; color: #6a6e73; cursor: default; }
 
     .km-demo-fields { display: none; }
     .km-demo-fields.active { display: contents; }
@@ -157,8 +128,17 @@
       display: flex;
       gap: 0.5rem;
       align-items: center;
+      margin-top: 0.35rem;
     }
     .km-file-row input[type="file"] { flex: 1; font-size: 0.875rem; }
+
+    .km-uploaded-file {
+      font-size: 0.8rem;
+      color: #3e8635;
+      font-weight: 600;
+      padding: 0.1rem 0;
+      display: none;
+    }
 
     /* ── Buttons ── */
     .km-btn {
@@ -176,20 +156,13 @@
       white-space: nowrap;
     }
     .km-btn:disabled { opacity: 0.5; cursor: default; }
-    .km-btn-primary  { background: #ee0000; color: #fff; border-color: #c9190b; }
-    .km-btn-primary:hover:not(:disabled)  { background: #c9190b; }
+    .km-btn-primary   { background: #ee0000; color: #fff; border-color: #c9190b; }
+    .km-btn-primary:hover:not(:disabled)   { background: #c9190b; }
     .km-btn-secondary { background: #fff; color: #151515; border-color: #8a8d90; }
     .km-btn-secondary:hover:not(:disabled) { background: #f5f5f5; }
     .km-btn-sm { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
-    .km-btn-plain { background: none; border: none; color: #0066cc; cursor: pointer; padding: 0; font-size: 0.875rem; }
-    .km-btn-plain:hover { text-decoration: underline; }
 
-    .km-btn-row {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      margin-top: 1rem;
-    }
+    .km-btn-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; }
 
     /* ── Card table ── */
     .km-table {
@@ -203,7 +176,8 @@
       border-bottom: 1px solid #d2d2d2;
     }
     .km-table th { font-weight: 600; background: #f5f5f5; }
-    .km-table tr:hover td { background: #fafafa; }
+    .km-table tr[data-row-id]:hover > td { background: #fafafa; }
+    .km-table tr[data-row-id].km-row-editing > td { background: #e7f1fa; }
     .km-table .km-type-badge {
       display: inline-block;
       padding: 0.1rem 0.4rem;
@@ -216,6 +190,13 @@
 
     .km-empty { text-align: center; color: #6a6e73; padding: 2rem; font-size: 0.875rem; }
 
+    /* ── Inline edit panel ── */
+    .km-edit-panel {
+      padding: 1.25rem;
+      background: #f0f4f8;
+      border-top: 3px solid #2b9af3;
+    }
+
     /* ── Misc ── */
     .km-spinner {
       display: inline-block;
@@ -226,17 +207,10 @@
       animation: spin 0.7s linear infinite;
       vertical-align: middle;
     }
-    .km-spinner-dark {
-      border-color: rgba(0,0,0,0.2);
-      border-top-color: #151515;
-    }
+    .km-spinner-dark { border-color: rgba(0,0,0,0.2); border-top-color: #151515; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .km-separator {
-      border: none;
-      border-top: 1px solid #d2d2d2;
-      margin: 1.25rem 0;
-    }
+    .km-separator { border: none; border-top: 1px solid #d2d2d2; margin: 1.25rem 0; }
   </style>
 </head>
 <body>
@@ -268,28 +242,11 @@
     </div>
   </section>
 
-  <!-- ── Upload media file ── -->
+  <!-- ── Add Card ── -->
   <section class="km-section">
     <div class="km-section-header">
-      <h2>Upload Media File</h2>
-      <p>Upload a video, PDF, image, or terminal recording. A card creation form
-         will appear after upload so you can add it to the kiosk grid.</p>
-    </div>
-    <div class="km-section-body">
-      <div id="media-alert" class="km-alert"></div>
-      <div class="km-file-row">
-        <input type="file" id="media-file"
-               accept=".mp4,.webm,.pdf,.cast,.png,.jpg,.jpeg,.svg,.webp">
-        <button class="km-btn km-btn-primary" id="media-upload-btn" onclick="uploadMedia()">Upload</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── Card form (create / edit) ── -->
-  <section class="km-section" id="card-section">
-    <div class="km-section-header">
-      <h2 id="card-section-title">Add Card</h2>
-      <p id="card-section-desc">Create a new card for the kiosk grid.</p>
+      <h2>Add Card</h2>
+      <p>Create a new card for the kiosk grid. To edit existing cards, use the table below.</p>
     </div>
     <div class="km-section-body">
       <div id="card-alert" class="km-alert"></div>
@@ -302,8 +259,8 @@
         </div>
         <div class="km-form-row">
           <label for="f-order">Order <span style="color:#c9190b">*</span></label>
-          <input type="number" id="f-order" placeholder="10" min="0" step="10">
-          <p class="km-hint">Lower numbers appear first. Use multiples of 10.</p>
+          <input type="number" id="f-order" placeholder="10" min="0" step="1">
+          <p class="km-hint">Lower numbers appear first.</p>
         </div>
       </div>
 
@@ -342,18 +299,28 @@
       <!-- video / slides / asciinema -->
       <div class="km-demo-fields" id="df-src">
         <div class="km-form-row">
-          <label for="f-src">Media path <span style="color:#c9190b">*</span></label>
-          <input type="text" id="f-src" placeholder="content/media/my-file.mp4">
-          <p class="km-hint">Relative path from the server root. Upload a file above to fill this automatically.</p>
+          <label>Media file <span style="color:#c9190b">*</span></label>
+          <div class="km-file-row">
+            <input type="file" id="media-file-src">
+            <button class="km-btn km-btn-secondary km-btn-sm" id="media-upload-src-btn"
+                    onclick="uploadAddMedia('src')">Upload</button>
+          </div>
+          <p id="media-src-status" class="km-uploaded-file"></p>
+          <div id="media-src-alert" class="km-alert" style="margin-top:0.5rem;margin-bottom:0"></div>
         </div>
       </div>
 
       <!-- image-text -->
       <div class="km-demo-fields" id="df-image-text">
         <div class="km-form-row">
-          <label for="f-image">Image path <span style="color:#c9190b">*</span></label>
-          <input type="text" id="f-image" placeholder="content/media/my-image.png">
-          <p class="km-hint">PNG, JPG, SVG, or WebP. Upload a file above to fill this automatically.</p>
+          <label>Image file <span style="color:#c9190b">*</span></label>
+          <div class="km-file-row">
+            <input type="file" id="media-file-image" accept=".png,.jpg,.jpeg,.svg,.webp">
+            <button class="km-btn km-btn-secondary km-btn-sm" id="media-upload-image-btn"
+                    onclick="uploadAddMedia('image')">Upload</button>
+          </div>
+          <p id="media-image-status" class="km-uploaded-file"></p>
+          <div id="media-image-alert" class="km-alert" style="margin-top:0.5rem;margin-bottom:0"></div>
         </div>
         <div class="km-form-row">
           <label for="f-caption">Caption <span style="color:#c9190b">*</span></label>
@@ -391,12 +358,12 @@
           <div class="km-form-row">
             <label for="f-arcade-title">Title override</label>
             <input type="text" id="f-arcade-title" placeholder="Fetched from Arcade if blank">
-            <p class="km-hint">Optional. Leave blank to use the Arcade flow name.</p>
+            <p class="km-hint">Optional.</p>
           </div>
           <div class="km-form-row">
             <label for="f-arcade-ratio">Aspect ratio override</label>
             <input type="text" id="f-arcade-ratio" placeholder="e.g. 56.25%">
-            <p class="km-hint">Optional. Leave blank to auto-detect.</p>
+            <p class="km-hint">Optional.</p>
           </div>
         </div>
       </div>
@@ -404,30 +371,33 @@
       <!-- video-loop -->
       <div class="km-demo-fields" id="df-video-loop">
         <div class="km-form-row">
-          <label for="f-videos">Video paths <span style="color:#c9190b">*</span></label>
-          <textarea id="f-videos" rows="3" placeholder="content/media/reel-1.mp4&#10;content/media/reel-2.mp4"></textarea>
-          <p class="km-hint">One path per line. These play as a muted ambient loop from the header button.</p>
+          <label>Video files <span style="color:#c9190b">*</span></label>
+          <div class="km-file-row">
+            <input type="file" id="media-file-video-loop" accept=".mp4,.webm" multiple>
+            <button class="km-btn km-btn-secondary km-btn-sm" id="media-upload-loop-btn"
+                    onclick="uploadAddMedia('video-loop')">Upload</button>
+          </div>
+          <p id="media-loop-status" class="km-uploaded-file"></p>
+          <div id="media-loop-alert" class="km-alert" style="margin-top:0.5rem;margin-bottom:0"></div>
+          <p class="km-hint">Hold Ctrl / ⌘ to select multiple files. These play as a muted ambient loop.</p>
         </div>
       </div>
 
       <div class="km-btn-row">
-        <button class="km-btn km-btn-primary" id="card-save-btn" onclick="saveCard()">Save Card</button>
+        <button class="km-btn km-btn-primary" id="card-save-btn" onclick="saveCard()">Add Card</button>
         <button class="km-btn km-btn-secondary" onclick="resetCardForm()">Clear</button>
-        <span id="card-edit-mode" style="font-size:0.8rem;color:#6a6e73;display:none">
-          Editing existing card — <button class="km-btn-plain" onclick="resetCardForm()">cancel</button>
-        </span>
       </div>
     </div>
   </section>
 
-  <!-- ── Card list ── -->
+  <!-- ── Manage Cards ── -->
   <section class="km-section">
     <div class="km-section-header" style="display:flex;align-items:center;justify-content:space-between">
       <div>
         <h2 style="margin:0">Manage Cards</h2>
         <p style="margin:0.25rem 0 0;font-size:0.875rem;color:#6a6e73">
-          Click <strong>Edit</strong> to modify a card, or <strong>Delete</strong> to remove it.
-          Changes take effect after rebuild.
+          Click <strong>Edit</strong> to expand an inline editor below the row.
+          Click <strong>Delete</strong> to remove a card permanently.
         </p>
       </div>
       <button class="km-btn km-btn-secondary km-btn-sm" onclick="loadCards()">↻ Refresh</button>
@@ -447,14 +417,17 @@
 
 // ── State ──────────────────────────────────────────────────────────────
 
-let editingCardId = null;    // null = create mode, string = edit mode
-let uploadedMediaPath = null; // path filled in after media upload
+let editingCardId    = null;  // id of card expanded for inline edit
+let pendingMediaPath = null;  // uploaded path for Add Card (single-file types)
+let pendingVideoPaths = [];   // uploaded paths for Add Card video-loop
+let mediaFiles       = [];   // cached /api/media result
+let cardMap          = {};   // id → card object
 
 // ── Init ───────────────────────────────────────────────────────────────
 
 (async function init() {
   await checkWritable();
-  await loadCards();
+  await Promise.all([loadCards(), loadMedia()]);
 })();
 
 // ── Writable status ────────────────────────────────────────────────────
@@ -472,9 +445,33 @@ async function checkWritable() {
         'see <a href="https://github.com/rhel-labs/demo-kiosk#runtime-uploads" ' +
         'target="_blank">README</a> for instructions.';
     }
-  } catch (e) {
-    // Silently ignore — server might not support /api/status yet
+  } catch (e) { /* ignore */ }
+}
+
+// ── Media list ─────────────────────────────────────────────────────────
+
+async function loadMedia() {
+  try {
+    const r = await fetch('/api/media');
+    if (r.ok) mediaFiles = await r.json();
+  } catch (e) { /* non-fatal */ }
+}
+
+function populateMediaSelect(selectId, demoTypes, currentPath) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  let relevant = mediaFiles.filter(f => demoTypes.includes(f.demo_type));
+  // Always include the currently-assigned file even if it doesn't match the expected type
+  if (currentPath && !relevant.find(f => f.path === currentPath)) {
+    const current = mediaFiles.find(f => f.path === currentPath);
+    if (current) relevant = [{ ...current, _wrongType: true }, ...relevant];
   }
+  sel.innerHTML = relevant.length
+    ? relevant.map(f =>
+        `<option value="${esc(f.path)}"${f.path === currentPath ? ' selected' : ''}>${esc(f.filename)}${f._wrongType ? ' ⚠ wrong type' : ''}</option>`
+      ).join('')
+    : '<option value="" disabled>No files found</option>';
+  if (!currentPath && relevant.length) sel.value = relevant[0].path;
 }
 
 // ── Card list ──────────────────────────────────────────────────────────
@@ -493,6 +490,13 @@ async function loadCards() {
   }
 }
 
+document.getElementById('card-list-container').addEventListener('click', e => {
+  const editBtn   = e.target.closest('.km-edit-btn');
+  const deleteBtn = e.target.closest('.km-delete-btn');
+  if (editBtn)   startEdit(editBtn.dataset.id);
+  if (deleteBtn) deleteCard(deleteBtn.dataset.id);
+});
+
 function renderCardTable(cards) {
   const container = document.getElementById('card-list-container');
   if (!cards.length) {
@@ -500,22 +504,24 @@ function renderCardTable(cards) {
     return;
   }
   cards.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  cardMap = {};
+  cards.forEach(c => { cardMap[c.id] = c; });
   const rows = cards.map(c => {
     const enabled = c.enabled !== false
       ? '<span style="color:#3e8635">✓ visible</span>'
       : '<span style="color:#6a6e73">hidden</span>';
     const type = c.demo?.type ?? '—';
-    return `<tr>
+    return `<tr data-row-id="${esc(c.id)}">
       <td>${c.order ?? '—'}</td>
       <td><code>${esc(c.id)}</code></td>
       <td>${esc(c.title)}</td>
       <td><span class="km-type-badge">${esc(type)}</span></td>
       <td>${enabled}</td>
       <td>
-        <button class="km-btn km-btn-secondary km-btn-sm"
-                onclick="startEdit(${JSON.stringify(JSON.stringify(c))})">Edit</button>
-        <button class="km-btn km-btn-secondary km-btn-sm" style="margin-left:4px;color:#c9190b"
-                onclick="deleteCard(${JSON.stringify(c.id)})">Delete</button>
+        <button class="km-btn km-btn-secondary km-btn-sm km-edit-btn"
+                data-id="${esc(c.id)}">Edit</button>
+        <button class="km-btn km-btn-secondary km-btn-sm km-delete-btn"
+                data-id="${esc(c.id)}" style="margin-left:4px;color:#c9190b">Delete</button>
       </td>
     </tr>`;
   }).join('');
@@ -526,6 +532,227 @@ function renderCardTable(cards) {
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
+}
+
+// ── Inline edit ────────────────────────────────────────────────────────
+
+function startEdit(cardId) {
+  closeEditPanel();
+  const card = cardMap[cardId];
+  if (!card) return;
+  editingCardId = cardId;
+
+  const row = document.querySelector(`tr[data-row-id="${CSS.escape(cardId)}"]`);
+  if (!row) return;
+  row.classList.add('km-row-editing');
+
+  const editRow = document.createElement('tr');
+  editRow.id = 'edit-panel-row';
+  editRow.innerHTML = `<td colspan="6" style="padding:0">
+    <div class="km-edit-panel">
+      <div id="edit-alert" class="km-alert" style="margin-bottom:1rem"></div>
+      <div class="km-form-grid">
+        <div class="km-form-row">
+          <label>ID</label>
+          <input type="text" value="${esc(card.id)}" readonly>
+        </div>
+        <div class="km-form-row">
+          <label for="edit-f-order">Order</label>
+          <input type="number" id="edit-f-order" value="${esc(String(card.order ?? ''))}" min="0" step="1">
+          <p class="km-hint">Lower numbers appear first.</p>
+        </div>
+      </div>
+      <div class="km-form-row">
+        <label for="edit-f-title">Title</label>
+        <input type="text" id="edit-f-title" value="${esc(card.title ?? '')}">
+      </div>
+      <div class="km-form-row">
+        <label for="edit-f-summary">Summary</label>
+        <input type="text" id="edit-f-summary" value="${esc(card.summary ?? '')}">
+      </div>
+      <div class="km-form-row km-inline">
+        <input type="checkbox" id="edit-f-enabled" ${card.enabled !== false ? 'checked' : ''}>
+        <label for="edit-f-enabled">Visible on kiosk grid</label>
+      </div>
+      ${buildEditDemoFields(card)}
+      <div class="km-btn-row">
+        <button class="km-btn km-btn-primary" onclick="saveEditCard()">Save Changes</button>
+        <button class="km-btn km-btn-secondary" onclick="closeEditPanel()">Cancel</button>
+      </div>
+    </div>
+  </td>`;
+
+  row.insertAdjacentElement('afterend', editRow);
+  populateEditMediaSelects(card);
+  editRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function buildEditDemoFields(card) {
+  const demo = card.demo ?? {};
+  const type = demo.type ?? '';
+
+  if (type === 'video' || type === 'slides' || type === 'asciinema') {
+    return `<div class="km-form-row">
+      <label for="edit-f-src">Media file</label>
+      <select id="edit-f-src"></select>
+    </div>`;
+  }
+  if (type === 'image-text') {
+    return `<div class="km-form-row">
+      <label for="edit-f-image">Image file</label>
+      <select id="edit-f-image"></select>
+    </div>
+    <div class="km-form-row">
+      <label for="edit-f-caption">Caption</label>
+      <input type="text" id="edit-f-caption" value="${esc(demo.caption ?? '')}">
+    </div>`;
+  }
+  if (type === 'external-url' || type === 'lab') {
+    const dur = type === 'lab'
+      ? `<div class="km-form-row">
+          <label for="edit-f-duration">Estimated duration</label>
+          <input type="text" id="edit-f-duration" value="${esc(demo.duration ?? '')}">
+          <p class="km-hint">Optional.</p>
+        </div>`
+      : '';
+    return `<div class="km-form-row">
+      <label for="edit-f-url">URL</label>
+      <input type="url" id="edit-f-url" value="${esc(demo.url ?? '')}">
+    </div>
+    <div class="km-form-row">
+      <label for="edit-f-long-desc">Description</label>
+      <textarea id="edit-f-long-desc">${esc(demo.long_description ?? '')}</textarea>
+    </div>
+    ${dur}`;
+  }
+  if (type === 'arcade') {
+    return `<div class="km-form-row">
+      <label for="edit-f-share-url">Arcade share URL</label>
+      <input type="url" id="edit-f-share-url" value="${esc(demo.share_url ?? '')}">
+    </div>
+    <div class="km-form-grid">
+      <div class="km-form-row">
+        <label for="edit-f-arcade-title">Title override</label>
+        <input type="text" id="edit-f-arcade-title" value="${esc(demo.title ?? '')}">
+        <p class="km-hint">Optional.</p>
+      </div>
+      <div class="km-form-row">
+        <label for="edit-f-arcade-ratio">Aspect ratio</label>
+        <input type="text" id="edit-f-arcade-ratio" value="${esc(demo.aspect_ratio ?? '')}">
+        <p class="km-hint">Optional.</p>
+      </div>
+    </div>`;
+  }
+  if (type === 'video-loop') {
+    return `<div class="km-form-row">
+      <label for="edit-f-videos">Video files</label>
+      <select id="edit-f-videos" multiple style="min-height:6rem"></select>
+      <p class="km-hint">Hold Ctrl / ⌘ to select multiple files.</p>
+    </div>`;
+  }
+  return '';
+}
+
+function populateEditMediaSelects(card) {
+  const demo = card.demo ?? {};
+  const type = demo.type ?? '';
+  if (type === 'video' || type === 'slides' || type === 'asciinema') {
+    const demoTypes = { video: ['video'], slides: ['slides'], asciinema: ['asciinema'] };
+    populateMediaSelect('edit-f-src', demoTypes[type], demo.src ?? '');
+  } else if (type === 'image-text') {
+    populateMediaSelect('edit-f-image', ['image-text'], demo.image ?? '');
+  } else if (type === 'video-loop') {
+    const existing = demo.videos ?? [];
+    const sel = document.getElementById('edit-f-videos');
+    if (!sel) return;
+    const relevant = mediaFiles.filter(f => f.demo_type === 'video');
+    sel.innerHTML = relevant.length
+      ? relevant.map(f =>
+          `<option value="${esc(f.path)}"${existing.includes(f.path) ? ' selected' : ''}>${esc(f.filename)}</option>`
+        ).join('')
+      : '<option value="" disabled>No video files found</option>';
+  }
+}
+
+function closeEditPanel() {
+  const panel = document.getElementById('edit-panel-row');
+  if (panel) panel.remove();
+  if (editingCardId) {
+    const row = document.querySelector(`tr[data-row-id="${CSS.escape(editingCardId)}"]`);
+    if (row) row.classList.remove('km-row-editing');
+  }
+  editingCardId = null;
+}
+
+async function saveEditCard() {
+  const card = cardMap[editingCardId];
+  if (!card) return;
+  const alert = document.getElementById('edit-alert');
+
+  const order   = parseInt(document.getElementById('edit-f-order').value, 10);
+  const title   = document.getElementById('edit-f-title').value.trim();
+  const summary = document.getElementById('edit-f-summary').value.trim();
+  const enabled = document.getElementById('edit-f-enabled').checked;
+
+  if (!title || !summary || isNaN(order)) {
+    return showAlert(alert, 'danger', 'Title, summary, and order are required.');
+  }
+
+  const demo = { type: card.demo?.type ?? '' };
+  const type = demo.type;
+
+  if (type === 'video' || type === 'slides' || type === 'asciinema') {
+    demo.src = document.getElementById('edit-f-src')?.value ?? '';
+    if (!demo.src) return showAlert(alert, 'danger', 'Media file is required.');
+  } else if (type === 'image-text') {
+    demo.image   = document.getElementById('edit-f-image')?.value ?? '';
+    demo.caption = document.getElementById('edit-f-caption')?.value.trim() ?? '';
+    if (!demo.image || !demo.caption) return showAlert(alert, 'danger', 'Image and caption are required.');
+  } else if (type === 'external-url') {
+    demo.url              = document.getElementById('edit-f-url')?.value.trim() ?? '';
+    demo.long_description = document.getElementById('edit-f-long-desc')?.value.trim() ?? '';
+    if (!demo.url || !demo.long_description) return showAlert(alert, 'danger', 'URL and description are required.');
+  } else if (type === 'lab') {
+    demo.url              = document.getElementById('edit-f-url')?.value.trim() ?? '';
+    demo.long_description = document.getElementById('edit-f-long-desc')?.value.trim() ?? '';
+    const dur = document.getElementById('edit-f-duration')?.value.trim() ?? '';
+    if (dur) demo.duration = dur;
+    if (!demo.url || !demo.long_description) return showAlert(alert, 'danger', 'URL and description are required.');
+  } else if (type === 'arcade') {
+    demo.share_url = document.getElementById('edit-f-share-url')?.value.trim() ?? '';
+    const t = document.getElementById('edit-f-arcade-title')?.value.trim() ?? '';
+    const r = document.getElementById('edit-f-arcade-ratio')?.value.trim() ?? '';
+    if (t) demo.title = t;
+    if (r) demo.aspect_ratio = r;
+    if (!demo.share_url) return showAlert(alert, 'danger', 'Share URL is required.');
+  } else if (type === 'video-loop') {
+    demo.videos = Array.from(document.getElementById('edit-f-videos')?.selectedOptions ?? [])
+      .map(o => o.value).filter(Boolean);
+    if (!demo.videos.length) return showAlert(alert, 'danger', 'Select at least one video.');
+  }
+
+  const payload = { id: editingCardId, order, title, summary, enabled, demo };
+  const btn = document.querySelector('#edit-panel-row .km-btn-primary');
+  setLoading(btn, true, 'Saving…');
+
+  try {
+    const r = await fetch(`/api/cards/${encodeURIComponent(editingCardId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      showAlert(alert, 'danger', d.error || 'Save failed.', d.output);
+      setLoading(btn, false, 'Save Changes');
+    } else {
+      closeEditPanel();
+      loadCards();
+    }
+  } catch (e) {
+    showAlert(alert, 'danger', `Save error: ${e.message}`);
+    setLoading(btn, false, 'Save Changes');
+  }
 }
 
 // ── Zip upload ─────────────────────────────────────────────────────────
@@ -545,8 +772,11 @@ async function uploadZip() {
     if (!r.ok) {
       showAlert(alert, 'danger', d.error || 'Upload failed.', d.output);
     } else {
-      showAlert(alert, 'success', d.message);
+      const fixes = d.order_fixes && d.order_fixes.length
+        ? 'Order adjustments:\n' + d.order_fixes.join('\n') : null;
+      showAlert(alert, fixes ? 'warning' : 'success', d.message, fixes);
       input.value = '';
+      await loadMedia();
       loadCards();
     }
   } catch (e) {
@@ -555,13 +785,68 @@ async function uploadZip() {
   setLoading(btn, false, 'Upload & Rebuild');
 }
 
-// ── Media upload ───────────────────────────────────────────────────────
+// ── Add Card media upload ──────────────────────────────────────────────
 
-async function uploadMedia() {
-  const input = document.getElementById('media-file');
-  const btn   = document.getElementById('media-upload-btn');
-  const alert = document.getElementById('media-alert');
-  if (!input.files.length) return showAlert(alert, 'danger', 'Select a media file first.');
+async function uploadAddMedia(field) {
+  if (field === 'video-loop') {
+    const input  = document.getElementById('media-file-video-loop');
+    const btn    = document.getElementById('media-upload-loop-btn');
+    const alert  = document.getElementById('media-loop-alert');
+    const status = document.getElementById('media-loop-status');
+    if (!input.files.length) return showAlert(alert, 'danger', 'Select at least one file.');
+    setLoading(btn, true, 'Uploading…');
+    hideAlert(alert);
+    pendingVideoPaths = [];
+    try {
+      for (const file of input.files) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const r = await fetch('/api/upload/media', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || `Failed: ${file.name}`);
+        pendingVideoPaths.push(d.path);
+      }
+      showAlert(alert, 'success', `Uploaded ${pendingVideoPaths.length} file(s).`);
+      status.textContent = `✓ ${pendingVideoPaths.length} file(s) ready`;
+      status.style.display = '';
+      input.value = '';
+    } catch (e) {
+      showAlert(alert, 'danger', e.message);
+    }
+    setLoading(btn, false, 'Upload');
+    return;
+  }
+
+  const isImage  = field === 'image';
+  const inputId  = isImage ? 'media-file-image'      : 'media-file-src';
+  const btnId    = isImage ? 'media-upload-image-btn' : 'media-upload-src-btn';
+  const alertId  = isImage ? 'media-image-alert'      : 'media-src-alert';
+  const statusId = isImage ? 'media-image-status'     : 'media-src-status';
+
+  const input  = document.getElementById(inputId);
+  const btn    = document.getElementById(btnId);
+  const alert  = document.getElementById(alertId);
+  const status = document.getElementById(statusId);
+
+  if (!input.files.length) return showAlert(alert, 'danger', 'Select a file first.');
+
+  // Validate extension matches the selected demo type
+  const demoType = document.getElementById('f-type').value;
+  const validExts = {
+    video:     ['.mp4', '.webm'],
+    slides:    ['.pdf'],
+    asciinema: ['.cast'],
+    'image-text': ['.png', '.jpg', '.jpeg', '.svg', '.webp'],
+  };
+  if (!isImage) {
+    const allowed = validExts[demoType] || [];
+    const fname   = input.files[0].name.toLowerCase();
+    if (allowed.length && !allowed.some(ext => fname.endsWith(ext))) {
+      return showAlert(alert, 'danger',
+        `Wrong file type for "${demoType}". Expected: ${allowed.join(', ')}`);
+    }
+  }
+
   setLoading(btn, true, 'Uploading…');
   hideAlert(alert);
   try {
@@ -569,57 +854,39 @@ async function uploadMedia() {
     fd.append('file', input.files[0]);
     const r = await fetch('/api/upload/media', { method: 'POST', body: fd });
     const d = await r.json();
-    if (!r.ok) {
-      showAlert(alert, 'danger', d.error || 'Upload failed.');
-    } else {
-      showAlert(alert, 'success', `Uploaded: ${d.filename}`);
-      input.value = '';
-      uploadedMediaPath = d.path;
-      // Pre-fill the card form for the uploaded file
-      prefillCardForMedia(d);
-      document.getElementById('card-section').scrollIntoView({ behavior: 'smooth' });
+    if (!r.ok) throw new Error(d.error || 'Upload failed.');
+    pendingMediaPath = d.path;
+    showAlert(alert, 'success', `Uploaded: ${d.filename}`);
+    status.textContent = `✓ ${d.filename}`;
+    status.style.display = '';
+    input.value = '';
+    if (!document.getElementById('f-id').value) {
+      const base = d.filename.replace(/\.[^.]+$/, '')
+        .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      document.getElementById('f-id').value = base;
     }
   } catch (e) {
-    showAlert(alert, 'danger', `Upload error: ${e.message}`);
+    showAlert(alert, 'danger', e.message);
   }
   setLoading(btn, false, 'Upload');
 }
 
-function prefillCardForMedia(upload) {
-  resetCardForm();
-  const typeEl = document.getElementById('f-type');
-  typeEl.value = upload.demo_type;
-  updateDemoFields();
-
-  if (upload.demo_type === 'image-text') {
-    document.getElementById('f-image').value = upload.path;
-  } else {
-    const srcEl = document.getElementById('f-src');
-    if (srcEl) srcEl.value = upload.path;
-  }
-
-  // Suggest an ID from the filename (strip extension, lowercase, hyphens)
-  const base = upload.filename.replace(/\.[^.]+$/, '')
-    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  document.getElementById('f-id').value = base;
-  document.getElementById('card-section-title').textContent = 'Create Card for Uploaded File';
-  document.getElementById('card-section-desc').textContent =
-    `Fill in the card details for ${upload.filename}.`;
-}
-
-// ── Card form ──────────────────────────────────────────────────────────
+// ── Add Card form ──────────────────────────────────────────────────────
 
 function updateDemoFields() {
   const type = document.getElementById('f-type').value;
-
-  // Hide all demo field groups
   document.querySelectorAll('.km-demo-fields').forEach(el => el.classList.remove('active'));
+  pendingMediaPath  = null;
+  pendingVideoPaths = [];
+  ['media-src-status', 'media-image-status', 'media-loop-status'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = ''; el.style.display = 'none'; }
+  });
 
   if (type === 'video' || type === 'slides' || type === 'asciinema') {
     document.getElementById('df-src').classList.add('active');
-    const ph = { video: 'content/media/my-video.mp4', slides: 'content/media/my-slides.pdf',
-                 asciinema: 'content/media/my-recording.cast' };
-    document.getElementById('f-src').placeholder = ph[type] || 'content/media/...';
+    const accepts = { video: '.mp4,.webm', slides: '.pdf', asciinema: '.cast' };
+    document.getElementById('media-file-src').accept = accepts[type] || '';
   } else if (type === 'image-text') {
     document.getElementById('df-image-text').classList.add('active');
   } else if (type === 'external-url') {
@@ -635,85 +902,43 @@ function updateDemoFields() {
 }
 
 function resetCardForm() {
-  editingCardId = null;
-  uploadedMediaPath = null;
-  ['f-id','f-order','f-title','f-summary','f-src','f-image','f-caption',
+  pendingMediaPath  = null;
+  pendingVideoPaths = [];
+  ['f-id','f-order','f-title','f-summary','f-caption',
    'f-url','f-long-desc','f-duration','f-share-url','f-arcade-title',
-   'f-arcade-ratio','f-videos'].forEach(id => {
+   'f-arcade-ratio'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) { el.value = ''; el.removeAttribute('readonly'); }
+    if (el) el.value = '';
   });
   document.getElementById('f-enabled').checked = true;
   document.getElementById('f-type').value = '';
   updateDemoFields();
-  document.getElementById('card-section-title').textContent = 'Add Card';
-  document.getElementById('card-section-desc').textContent = 'Create a new card for the kiosk grid.';
-  document.getElementById('card-edit-mode').style.display = 'none';
+  ['media-src-alert','media-image-alert','media-loop-alert'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) hideAlert(el);
+  });
   hideAlert(document.getElementById('card-alert'));
 }
 
-function startEdit(cardJson) {
-  const card = JSON.parse(cardJson);
-  resetCardForm();
-  editingCardId = card.id;
-
-  document.getElementById('f-id').value    = card.id ?? '';
-  document.getElementById('f-id').setAttribute('readonly', '');
-  document.getElementById('f-order').value = card.order ?? '';
-  document.getElementById('f-title').value = card.title ?? '';
-  document.getElementById('f-summary').value = card.summary ?? '';
-  document.getElementById('f-enabled').checked = card.enabled !== false;
-
-  const demo = card.demo ?? {};
-  document.getElementById('f-type').value = demo.type ?? '';
-  updateDemoFields();
-
-  const type = demo.type;
-  if (type === 'video' || type === 'slides' || type === 'asciinema') {
-    document.getElementById('f-src').value = demo.src ?? '';
-  } else if (type === 'image-text') {
-    document.getElementById('f-image').value   = demo.image ?? '';
-    document.getElementById('f-caption').value = demo.caption ?? '';
-  } else if (type === 'external-url') {
-    document.getElementById('f-url').value       = demo.url ?? '';
-    document.getElementById('f-long-desc').value = demo.long_description ?? '';
-  } else if (type === 'lab') {
-    document.getElementById('f-url').value       = demo.url ?? '';
-    document.getElementById('f-long-desc').value = demo.long_description ?? '';
-    document.getElementById('f-duration').value  = demo.duration ?? '';
-  } else if (type === 'arcade') {
-    document.getElementById('f-share-url').value    = demo.share_url ?? '';
-    document.getElementById('f-arcade-title').value = demo.title ?? '';
-    document.getElementById('f-arcade-ratio').value = demo.aspect_ratio ?? '';
-  } else if (type === 'video-loop') {
-    document.getElementById('f-videos').value = (demo.videos ?? []).join('\n');
-  }
-
-  document.getElementById('card-section-title').textContent = `Edit: ${card.title}`;
-  document.getElementById('card-section-desc').textContent =
-    `Editing card "${card.id}". Click Save Card to apply and rebuild.`;
-  document.getElementById('card-edit-mode').style.display = '';
-  document.getElementById('card-section').scrollIntoView({ behavior: 'smooth' });
-}
-
 function buildCardPayload() {
-  const id    = document.getElementById('f-id').value.trim();
-  const order = parseInt(document.getElementById('f-order').value, 10);
-  const title = document.getElementById('f-title').value.trim();
+  const id      = document.getElementById('f-id').value.trim();
+  const order   = parseInt(document.getElementById('f-order').value, 10);
+  const title   = document.getElementById('f-title').value.trim();
   const summary = document.getElementById('f-summary').value.trim();
   const enabled = document.getElementById('f-enabled').checked;
-  const type  = document.getElementById('f-type').value;
+  const type    = document.getElementById('f-type').value;
 
   if (!id || !title || !summary || !type || isNaN(order)) return null;
 
   const demo = { type };
   if (type === 'video' || type === 'slides' || type === 'asciinema') {
-    demo.src = document.getElementById('f-src').value.trim();
-    if (!demo.src) return null;
+    if (!pendingMediaPath) return null;
+    demo.src = pendingMediaPath;
   } else if (type === 'image-text') {
-    demo.image   = document.getElementById('f-image').value.trim();
+    if (!pendingMediaPath) return null;
+    demo.image   = pendingMediaPath;
     demo.caption = document.getElementById('f-caption').value.trim();
-    if (!demo.image || !demo.caption) return null;
+    if (!demo.caption) return null;
   } else if (type === 'external-url') {
     demo.url              = document.getElementById('f-url').value.trim();
     demo.long_description = document.getElementById('f-long-desc').value.trim();
@@ -732,9 +957,8 @@ function buildCardPayload() {
     if (r) demo.aspect_ratio = r;
     if (!demo.share_url) return null;
   } else if (type === 'video-loop') {
-    demo.videos = document.getElementById('f-videos').value
-      .split('\n').map(s => s.trim()).filter(Boolean);
-    if (!demo.videos.length) return null;
+    if (!pendingVideoPaths.length) return null;
+    demo.videos = pendingVideoPaths;
   }
 
   return { id, order, title, summary, enabled, demo };
@@ -745,18 +969,14 @@ async function saveCard() {
   const btn   = document.getElementById('card-save-btn');
   const payload = buildCardPayload();
   if (!payload) {
-    return showAlert(alert, 'danger', 'Please fill in all required fields.');
+    return showAlert(alert, 'danger',
+      'Please fill in all required fields. For media types, upload a file first.');
   }
   hideAlert(alert);
   setLoading(btn, true, 'Saving…');
-
-  const isEdit  = editingCardId !== null;
-  const url     = isEdit ? `/api/cards/${encodeURIComponent(editingCardId)}` : '/api/cards';
-  const method  = isEdit ? 'PUT' : 'POST';
-
   try {
-    const r = await fetch(url, {
-      method,
+    const r = await fetch('/api/cards', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
@@ -764,28 +984,32 @@ async function saveCard() {
     if (!r.ok) {
       showAlert(alert, 'danger', d.error || 'Save failed.', d.output);
     } else {
-      showAlert(alert, 'success', d.message + ' — page will reload in 2 s…');
+      showAlert(alert, 'success', d.message);
       setTimeout(() => { loadCards(); resetCardForm(); hideAlert(alert); }, 2000);
     }
   } catch (e) {
     showAlert(alert, 'danger', `Save error: ${e.message}`);
   }
-  setLoading(btn, false, 'Save Card');
+  setLoading(btn, false, 'Add Card');
 }
 
 async function deleteCard(cardId) {
-  if (!confirm(`Delete card "${cardId}"? This cannot be undone.`)) return;
+  const card  = cardMap[cardId];
+  const label = card ? card.title : cardId;
+  if (!confirm(`Delete "${label}"?\n\nThis removes the card permanently.`)) return;
   const alert = document.getElementById('card-list-alert');
   hideAlert(alert);
   try {
-    // There is no DELETE endpoint — set enabled:false is the soft option,
-    // but for a hard delete we need the server to support it.
-    // For now, guide the user.
-    showAlert(alert, 'warning',
-      `To delete card "${cardId}", remove its YAML file from content/faqs/ ` +
-      `and rebuild, or edit it and set it to hidden.`);
+    const r = await fetch(`/api/cards/${encodeURIComponent(cardId)}`, { method: 'DELETE' });
+    const d = await r.json();
+    if (!r.ok) {
+      showAlert(alert, 'danger', d.error || 'Delete failed.', d.output);
+    } else {
+      showAlert(alert, 'success', d.message);
+      loadCards();
+    }
   } catch (e) {
-    showAlert(alert, 'danger', e.message);
+    showAlert(alert, 'danger', `Delete error: ${e.message}`);
   }
 }
 
@@ -802,10 +1026,11 @@ function hideAlert(el) {
 }
 
 function setLoading(btn, loading, label) {
+  if (!btn) return;
   btn.disabled = loading;
-  btn.innerHTML = loading
-    ? `<span class="km-spinner"></span> ${label}`
-    : label;
+  const spinClass = btn.classList.contains('km-btn-primary')
+    ? 'km-spinner' : 'km-spinner km-spinner-dark';
+  btn.innerHTML = loading ? `<span class="${spinClass}"></span> ${label}` : label;
 }
 
 function esc(s) {

@@ -94,6 +94,9 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
         elif p == '/api/cards':
             self._handle_list_cards()
             return
+        elif p == '/api/media':
+            self._handle_list_media()
+            return
         if self._try_range():
             return
         super().do_GET()
@@ -122,7 +125,29 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
+    def do_DELETE(self):
+        p = self.path.split('?')[0]
+        if p.startswith('/api/cards/'):
+            card_id = p[len('/api/cards/'):]
+            self._handle_delete_card(card_id)
+        else:
+            self.send_error(404)
+
     # ── Management API handlers ───────────────────────────────────
+
+    def _handle_list_media(self):
+        media_dir = self._content_dir / 'media'
+        files = []
+        if media_dir.exists():
+            for f in sorted(media_dir.iterdir()):
+                ext = f.suffix.lower()
+                if f.is_file() and not f.name.startswith('.') and ext in _MEDIA_DEMO_TYPE:
+                    files.append({
+                        'filename':  f.name,
+                        'path':      f'content/media/{f.name}',
+                        'demo_type': _MEDIA_DEMO_TYPE[ext],
+                    })
+        self._send_json(files)
 
     def _handle_status(self):
         self._send_json({'writable': self._is_writable()})
@@ -179,19 +204,29 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
                     {'error': "No 'kiosk/' directory found in zip. "
                               "Expected structure: kiosk/faqs/, kiosk/branding/, kiosk/media/"}, 400)
 
+            # faqs/ and branding/ are replaced entirely so baked-in cards
+            # don't persist alongside the zip's cards (duplicate order/id).
+            # media/ is additive to preserve individually uploaded files.
+            _REPLACE = {'faqs', 'branding'}
             content_str = str(self._content_dir)
             for item in os.listdir(kiosk_dir):
                 src = os.path.join(kiosk_dir, item)
                 dst = os.path.join(content_str, item)
                 if os.path.isdir(src):
+                    if item in _REPLACE and os.path.isdir(dst):
+                        shutil.rmtree(dst)
                     shutil.copytree(src, dst, dirs_exist_ok=True)
                 else:
                     shutil.copy2(src, dst)
 
+        order_fixes = self._fix_duplicate_orders()
         ok, output = self._rebuild()
         if not ok:
             return self._send_json({'error': 'Content extracted but rebuild failed', 'output': output}, 500)
-        self._send_json({'message': 'Bundle uploaded and content rebuilt', 'output': output})
+        msg = 'Bundle uploaded and content rebuilt'
+        if order_fixes:
+            msg += f'. Order values adjusted for {len(order_fixes)} card(s) to resolve duplicates.'
+        self._send_json({'message': msg, 'output': output, 'order_fixes': order_fixes})
 
     def _handle_media_upload(self):
         if not self._is_writable():
@@ -245,6 +280,18 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
             path.unlink(missing_ok=True)
             return self._send_json({'error': 'Card saved but rebuild failed', 'output': output}, 500)
         self._send_json({'message': f"Card '{card_id}' created", 'output': output})
+
+    def _handle_delete_card(self, card_id):
+        if not self._is_writable():
+            return self._send_json(self._not_writable_error(), 503)
+        path = self._find_card_file(card_id)
+        if not path:
+            return self._send_json({'error': f"Card '{card_id}' not found"}, 404)
+        path.unlink()
+        ok, output = self._rebuild()
+        if not ok:
+            return self._send_json({'error': 'Card deleted but rebuild failed', 'output': output}, 500)
+        self._send_json({'message': f"Card '{card_id}' deleted"})
 
     def _handle_update_card(self, card_id):
         if not self._is_writable():
@@ -375,6 +422,40 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
         card = {k: v for k, v in card.items() if not k.startswith('_')}
         with open(path, 'w', encoding='utf-8') as fh:
             yaml.dump(card, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
+
+    def _fix_duplicate_orders(self):
+        """Scan faqs/ for duplicate order values and increment conflicts until unique.
+
+        Returns a list of human-readable change descriptions. Called after zip
+        extraction so authoring errors in the bundle don't block the event team.
+        """
+        if yaml is None:
+            return []
+        faqs_dir = self._content_dir / 'faqs'
+        entries = []
+        for path in sorted(faqs_dir.glob('*.yaml')):
+            if path.stem.startswith('_'):
+                continue
+            try:
+                with open(path, encoding='utf-8') as fh:
+                    data = yaml.safe_load(fh)
+                if isinstance(data, dict) and isinstance(data.get('order'), (int, float)):
+                    entries.append((path, data))
+            except Exception:
+                pass
+
+        seen = {}
+        changes = []
+        for path, data in entries:
+            order = data['order']
+            while order in seen:
+                order += 1
+            if order != data['order']:
+                changes.append(f"{path.name}: order {data['order']} → {order}")
+                data['order'] = order
+                self._write_card(path, data)
+            seen[order] = path.name
+        return changes
 
     def _rebuild(self):
         """Run build-faqs.py and return (success, combined_output)."""
