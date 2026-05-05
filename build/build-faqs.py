@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import urlopen, Request
 from urllib.error import URLError
+from urllib.parse import quote as urlquote
 
 try:
     import yaml
@@ -57,6 +58,10 @@ BRANDING_OUTPUT   = CONTENT_DIR / "branding.js"
 
 # ── Valid demo types ──────────────────────────────────────────────
 VALID_TYPES = {"video", "slides", "asciinema", "image-text", "external-url", "arcade", "lab", "video-loop"}
+
+def encode_media_path(raw):
+    """Percent-encode a content/media/ path for use as a browser URL src."""
+    return urlquote(raw, safe='./:@!$&\'()*+,;=')
 
 # ── Required top-level fields ─────────────────────────────────────
 REQUIRED_FIELDS = {"id", "order", "title", "summary", "demo"}
@@ -323,6 +328,14 @@ def load_entries():
             for e in file_errors:
                 errors.append(f"{path.name}: {e}")
         else:
+            demo = data.get("demo", {})
+            dtype = demo.get("type", "")
+            if dtype in ("video", "slides", "asciinema") and "src" in demo:
+                demo["src"] = encode_media_path(demo["src"])
+            elif dtype == "image-text" and "image" in demo:
+                demo["image"] = encode_media_path(demo["image"])
+            elif dtype == "video-loop" and isinstance(demo.get("videos"), list):
+                demo["videos"] = [encode_media_path(v) for v in demo["videos"]]
             entries.append(data)
             hidden_label = "" if data["enabled"] else "  [hidden]"
             ok(f"{path.name}  (id={data['id']!r}, order={data['order']}){hidden_label}")

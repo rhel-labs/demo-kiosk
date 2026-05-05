@@ -16,6 +16,17 @@ content/media/*.m4v
 # Contains media files to overlay onto content/media/ during build
 kiosk*.zip
 
+# Event-specific FAQ content — delivered per-event, not stored in git.
+# _template.yaml is the exception: it documents the schema for content authors.
+content/faqs/*.yaml
+!content/faqs/_template.yaml
+content/*.yaml
+
+# Generated files built from the YAML content above.
+# Run `python3 build/build-faqs.py` to regenerate locally.
+content/faqs.js
+content/branding.js
+
 # npm-managed third-party libraries — installed by the asset-builder stage.
 # Do not commit; update versions in package.json and regenerate package-lock.json.
 node_modules/

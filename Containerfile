@@ -1,11 +1,12 @@
 # ── Stage 1: asset-builder ───────────────────────────────────────
-# node:22-alpine installs npm-managed third-party libraries and
+# hummingbird nodejs:22-builder installs npm-managed third-party libraries and
 # extracts only the runtime distribution files into dist/.
 # Nothing from this stage enters the Python builder — it feeds the
 # runtime stage directly, keeping the asset layer independent of
 # Python tooling changes.
-FROM node:22-alpine AS asset-builder
+FROM quay.io/hummingbird/nodejs:22-builder AS asset-builder
 
+USER root
 WORKDIR /build
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
@@ -89,6 +90,31 @@ RUN if [ -f kiosk-bundle.zip ] && [ -s kiosk-bundle.zip ]; then \
       rm -f kiosk-bundle.zip; \
     fi && \
     echo "Content loaded: $(find content/faqs -name '*.yaml' ! -name '_*' | wc -l) FAQ files"
+
+# Move the moov atom to the front of every MP4 so browsers can begin playback
+# without first seeking to the end of the file to locate it.  Non-faststart
+# files cause Firefox to make dozens of range requests before playing a single
+# frame; Chrome tolerates them but Firefox does not.  qtfaststart is a pure-
+# Python implementation of the same operation extracted from the FFmpeg project;
+# it re-muxes without re-encoding so there is no quality loss.
+RUN python3 - << 'EOF'
+import os, shutil, tempfile
+from qtfaststart import processor
+media = 'content/media'
+for f in sorted(os.listdir(media)):
+    if not f.endswith('.mp4'):
+        continue
+    src = os.path.join(media, f)
+    fd, tmp = tempfile.mkstemp(suffix='.mp4', dir=media)
+    os.close(fd)
+    try:
+        processor.process(src, tmp)
+        shutil.move(tmp, src)
+        print(f'  faststart: {f}')
+    except Exception as e:
+        os.unlink(tmp)
+        print(f'  skip {f}: {e}')
+EOF
 
 # Generate faqs.js and branding.js from the final content state, then lint.
 # Both steps see bundle-provided YAML and media if a bundle was present.

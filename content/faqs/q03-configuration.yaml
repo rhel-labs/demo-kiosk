@@ -1,8 +1,0 @@
-id: q03-configuration
-order: 30
-title: "How do I configure it?"
-summary: "A terminal walkthrough of the key configuration options."
-
-demo:
-  type: asciinema
-  src: content/media/build.cast

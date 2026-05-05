@@ -18,7 +18,7 @@ build: ## Build container image (downloads all dependencies internally)
 	podman build -t $(IMAGE) .
 
 test: build ## Build and test container locally
-	podman run --rm -p $(PORT):8181 $(IMAGE)
+	podman run --rm -p 127.0.0.1:$(PORT):8181 $(IMAGE)
 
 lint: ## Lint YAML content files (requires: pip3 install -r build/requirements.txt)
 	python3 build/lint-content.py
@@ -29,7 +29,7 @@ test-volume: build ## Test with local content volume mount
 	@echo "Building content locally..."
 	@python3 build/build-faqs.py
 	@echo "Starting container with volume mount: $(CONTENT_DIR)"
-	podman run --rm -p $(PORT):8181 \
+	podman run --rm -p 127.0.0.1:$(PORT):8181 \
 	  -v $(CONTENT_DIR):/srv/faq/content:ro \
 	  $(IMAGE)
 

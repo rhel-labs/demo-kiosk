@@ -923,7 +923,9 @@
     function renderVideo(demo, container) {
       const video = document.createElement('video');
       video.controls = true;
-      video.preload  = 'metadata';
+      video.muted    = true;
+      video.autoplay = true;
+      video.preload  = 'auto';
       video.src      = demo.src || '';
 
       video.addEventListener('play',  () => { state.isPlaying = true;  IdleTimer.pause(); });
@@ -1218,23 +1220,29 @@
       video.controls = true;
       video.preload  = 'auto';
 
-      // Preload all clips immediately — local serving means no network cost,
-      // and having everything buffered eliminates inter-clip stalls entirely.
-      const preloaders = demo.videos.slice(1).map(src => {
-        const el = document.createElement('video');
-        el.muted   = true;
-        el.preload = 'auto';
-        el.src     = src;
-        el.style.display = 'none';
-        el.load();
-        return el;
-      });
-
       let index = 0;
+      let preloader = null;
+
+      // Preload only the next clip. Preloading all clips simultaneously saturates
+      // the connection for remote clients (Firefox fetches all preload=auto elements
+      // aggressively in parallel; Chrome throttles them). One-ahead keeps inter-clip
+      // gaps minimal without starving the playing video.
+      function preloadNext() {
+        if (preloader) { preloader.src = ''; preloader.remove(); }
+        const next = (index + 1) % demo.videos.length;
+        preloader = document.createElement('video');
+        preloader.muted        = true;
+        preloader.preload      = 'auto';
+        preloader.src          = demo.videos[next];
+        preloader.style.display = 'none';
+        preloader.load();
+        container.appendChild(preloader);
+      }
 
       function loadNext() {
         video.src = demo.videos[index];
         video.play().catch(() => {});
+        preloadNext();
       }
 
       video.addEventListener('ended', () => {
@@ -1255,7 +1263,6 @@
 
       loadNext();
       container.appendChild(video);
-      preloaders.forEach(el => container.appendChild(el));
     }
 
     // ---- Markdown renderer (bold, links, lists, paragraphs) ----

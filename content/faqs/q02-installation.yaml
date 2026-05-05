@@ -1,8 +1,0 @@
-id: q02-installation
-order: 20
-title: "How do I install it?"
-summary: "Watch a short walkthrough of the installation process from start to finish."
-
-demo:
-  type: video
-  src: content/media/placeholder-installation.mp4

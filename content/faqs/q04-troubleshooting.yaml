@@ -1,8 +1,0 @@
-id: q04-troubleshooting
-order: 40
-title: "What do I do if something goes wrong?"
-summary: "Step-by-step slides covering common issues and how to diagnose them."
-
-demo:
-  type: slides
-  src: content/media/placeholder-configuration.pdf

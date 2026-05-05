@@ -63,9 +63,12 @@ After=local-fs.target
 Image=quay.io/mmicene/demo-kiosk:latest
 Pull=newer
 
-# Publish container port 8181 to the same port on all host interfaces.
-# Change the host side (left of :) to use a different port, e.g. 9090:8181
-PublishPort=8181:8181
+# Publish container port 8181 to localhost IPv4 only.
+# Podman's pasta network layer accepts IPv6 connections but resets them,
+# causing Chrome to fail (the reset wins the Happy Eyeballs race over IPv4).
+# Binding to 127.0.0.1 keeps pasta off IPv6 so Chrome falls back cleanly.
+# To use a different port: change 8181 (left of :) to e.g. 9090:8181
+PublishPort=127.0.0.1:8181:8181
 
 # Predictable container name for `podman exec` and `podman logs`
 ContainerName=demo-kiosk
