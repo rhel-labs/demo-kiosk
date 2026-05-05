@@ -62,6 +62,56 @@ podman run --rm -p 8181:8181 \
 
 **Zero host dependencies** — libraries, fonts, and build tools are downloaded and built inside the container.
 
+---
+
+## Runtime Uploads
+
+The `/manage` page lets you upload content and edit cards while the container is running, without rebuilding the image.
+
+Visit **http://localhost:8181/manage**
+
+From there you can:
+- **Upload a kiosk zip** — replace all content (FAQs, branding, media) from a `kiosk-*.zip` bundle
+- **Upload a media file** — add a video, PDF, image, or terminal recording, then create a card for it
+- **Add a new card** — create cards for non-media demo types (Arcade, lab, external URL)
+- **Edit existing cards** — update any card field; the kiosk grid rebuilds immediately
+
+### Persistence across restarts
+
+Uploads write to `/srv/faq/content` inside the container. Without a volume mount that path is on the read-only container filesystem, so uploads are rejected with a clear error. Mount a writable volume to persist changes:
+
+**Option A — Named volume** (recommended; data survives image rebuilds):
+```bash
+podman volume create kiosk-content
+podman run --rm -p 8181:8181 \
+  -v kiosk-content:/srv/faq/content \
+  demo-kiosk:latest
+```
+
+On first run the named volume starts empty. The container serves its baked-in content from the image. After the first upload the volume holds your changes.
+
+**Option B — Writable bind mount** (local authoring workflow; changes visible on host):
+```bash
+podman run --rm -p 8181:8181 \
+  -v ./content:/srv/faq/content:rw \
+  demo-kiosk:latest
+```
+
+The host directory must already contain a valid `faqs.js` (run `python3 build/build-faqs.py` locally first, or use `make test-volume`).
+
+**Read-only bind mount** (original pattern, no uploads):
+```bash
+podman run --rm -p 8181:8181 \
+  -v ./content:/srv/faq/content:ro \
+  demo-kiosk:latest
+```
+
+The `/manage` upload and edit actions are rejected; the kiosk runs normally.
+
+For the systemd Quadlet service, see the volume mount options documented in `demo-kiosk.container`.
+
+---
+
 ## Documentation
 
 - **[PLATFORM-TEAM.md](PLATFORM-TEAM.md)** — Build, publish, and deploy kiosk images

@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kiosk Manager</title>
+  <link rel="stylesheet" href="/patternfly.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: var(--pf-t--global--font--family--body, RedHatText, Overpass, overpass, helvetica, arial, sans-serif);
+      font-size: 1rem;
+      background: #f0f0f0;
+      margin: 0;
+      color: #151515;
+    }
+
+    /* ── Page layout ── */
+    .km-header {
+      background: #151515;
+      color: #fff;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+    .km-header h1 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+    .km-header a  { color: #73bcf7; font-size: 0.875rem; text-decoration: none; }
+    .km-header a:hover { text-decoration: underline; }
+
+    .km-main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* ── Cards / sections ── */
+    .km-section {
+      background: #fff;
+      border: 1px solid #d2d2d2;
+      border-radius: 4px;
+    }
+    .km-section-header {
+      padding: 1rem 1.25rem 0.75rem;
+      border-bottom: 1px solid #d2d2d2;
+    }
+    .km-section-header h2 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .km-section-header p {
+      margin: 0.25rem 0 0;
+      font-size: 0.875rem;
+      color: #6a6e73;
+    }
+    .km-section-body { padding: 1.25rem; }
+
+    /* ── Alerts ── */
+    .km-alert {
+      padding: 0.75rem 1rem;
+      border-radius: 3px;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    .km-alert.show { display: block; }
+    .km-alert-info    { background: #e7f1fa; border-left: 4px solid #2b9af3; color: #002952; }
+    .km-alert-success { background: #f3faf2; border-left: 4px solid #3e8635; color: #1e4f18; }
+    .km-alert-warning { background: #fdf7e7; border-left: 4px solid #f0ab00; color: #795600; }
+    .km-alert-danger  { background: #faeae8; border-left: 4px solid #c9190b; color: #7d1007; }
+    .km-alert pre {
+      margin: 0.5rem 0 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.8rem;
+      max-height: 200px;
+      overflow-y: auto;
+      background: rgba(0,0,0,0.06);
+      padding: 0.5rem;
+      border-radius: 2px;
+    }
+
+    /* ── Status banner ── */
+    #writable-banner {
+      font-size: 0.875rem;
+      padding: 0.6rem 1.25rem;
+      border-radius: 3px;
+      display: none;
+    }
+    #writable-banner.show { display: block; }
+
+    /* ── Forms ── */
+    .km-form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-bottom: 1rem;
+    }
+    .km-form-row label {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .km-form-row .km-hint {
+      font-size: 0.8rem;
+      color: #6a6e73;
+      margin: 0;
+    }
+    .km-form-row input[type="text"],
+    .km-form-row input[type="number"],
+    .km-form-row input[type="url"],
+    .km-form-row select,
+    .km-form-row textarea {
+      border: 1px solid #8a8d90;
+      border-radius: 3px;
+      padding: 0.375rem 0.5rem;
+      font-size: 0.875rem;
+      font-family: inherit;
+      width: 100%;
+    }
+    .km-form-row input:focus,
+    .km-form-row select:focus,
+    .km-form-row textarea:focus {
+      outline: 2px solid #2b9af3;
+      outline-offset: 1px;
+      border-color: #2b9af3;
+    }
+    .km-form-row textarea { resize: vertical; min-height: 80px; }
+    .km-form-row.km-inline {
+      flex-direction: row;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .km-form-row.km-inline label { font-weight: normal; margin: 0; }
+
+    .km-form-row input[readonly] {
+      background: #f5f5f5;
+      color: #6a6e73;
+      cursor: default;
+    }
+
+    .km-demo-fields { display: none; }
+    .km-demo-fields.active { display: contents; }
+
+    .km-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 1rem;
+    }
+    @media (max-width: 600px) { .km-form-grid { grid-template-columns: 1fr; } }
+
+    .km-file-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .km-file-row input[type="file"] { flex: 1; font-size: 0.875rem; }
+
+    /* ── Buttons ── */
+    .km-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 1rem;
+      border: 1px solid transparent;
+      border-radius: 3px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .km-btn:disabled { opacity: 0.5; cursor: default; }
+    .km-btn-primary  { background: #ee0000; color: #fff; border-color: #c9190b; }
+    .km-btn-primary:hover:not(:disabled)  { background: #c9190b; }
+    .km-btn-secondary { background: #fff; color: #151515; border-color: #8a8d90; }
+    .km-btn-secondary:hover:not(:disabled) { background: #f5f5f5; }
+    .km-btn-sm { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
+    .km-btn-plain { background: none; border: none; color: #0066cc; cursor: pointer; padding: 0; font-size: 0.875rem; }
+    .km-btn-plain:hover { text-decoration: underline; }
+
+    .km-btn-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-top: 1rem;
+    }
+
+    /* ── Card table ── */
+    .km-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    .km-table th, .km-table td {
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #d2d2d2;
+    }
+    .km-table th { font-weight: 600; background: #f5f5f5; }
+    .km-table tr:hover td { background: #fafafa; }
+    .km-table .km-type-badge {
+      display: inline-block;
+      padding: 0.1rem 0.4rem;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      background: #e7f1fa;
+      color: #002952;
+      font-weight: 600;
+    }
+
+    .km-empty { text-align: center; color: #6a6e73; padding: 2rem; font-size: 0.875rem; }
+
+    /* ── Misc ── */
+    .km-spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+    }
+    .km-spinner-dark {
+      border-color: rgba(0,0,0,0.2);
+      border-top-color: #151515;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .km-separator {
+      border: none;
+      border-top: 1px solid #d2d2d2;
+      margin: 1.25rem 0;
+    }
+  </style>
+</head>
+<body>
+
+<header class="km-header">
+  <h1>Kiosk Manager</h1>
+  <a href="/">← Back to kiosk</a>
+</header>
+
+<main class="km-main">
+
+  <!-- Writable status banner -->
+  <div id="writable-banner"></div>
+
+  <!-- ── Upload kiosk bundle ── -->
+  <section class="km-section">
+    <div class="km-section-header">
+      <h2>Upload Kiosk Bundle</h2>
+      <p>Replace all content (cards, branding, media) from a <code>kiosk-*.zip</code> file.
+         The zip must contain a <code>kiosk/</code> directory with <code>faqs/</code>,
+         <code>branding/</code>, and <code>media/</code> subdirectories.</p>
+    </div>
+    <div class="km-section-body">
+      <div id="zip-alert" class="km-alert"></div>
+      <div class="km-file-row">
+        <input type="file" id="zip-file" accept=".zip">
+        <button class="km-btn km-btn-primary" id="zip-upload-btn" onclick="uploadZip()">Upload &amp; Rebuild</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Upload media file ── -->
+  <section class="km-section">
+    <div class="km-section-header">
+      <h2>Upload Media File</h2>
+      <p>Upload a video, PDF, image, or terminal recording. A card creation form
+         will appear after upload so you can add it to the kiosk grid.</p>
+    </div>
+    <div class="km-section-body">
+      <div id="media-alert" class="km-alert"></div>
+      <div class="km-file-row">
+        <input type="file" id="media-file"
+               accept=".mp4,.webm,.pdf,.cast,.png,.jpg,.jpeg,.svg,.webp">
+        <button class="km-btn km-btn-primary" id="media-upload-btn" onclick="uploadMedia()">Upload</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Card form (create / edit) ── -->
+  <section class="km-section" id="card-section">
+    <div class="km-section-header">
+      <h2 id="card-section-title">Add Card</h2>
+      <p id="card-section-desc">Create a new card for the kiosk grid.</p>
+    </div>
+    <div class="km-section-body">
+      <div id="card-alert" class="km-alert"></div>
+
+      <div class="km-form-grid">
+        <div class="km-form-row">
+          <label for="f-id">ID <span style="color:#c9190b">*</span></label>
+          <input type="text" id="f-id" placeholder="my-card" pattern="[a-z0-9][a-z0-9\-]*">
+          <p class="km-hint">Lowercase letters, digits, hyphens. Must be unique.</p>
+        </div>
+        <div class="km-form-row">
+          <label for="f-order">Order <span style="color:#c9190b">*</span></label>
+          <input type="number" id="f-order" placeholder="10" min="0" step="10">
+          <p class="km-hint">Lower numbers appear first. Use multiples of 10.</p>
+        </div>
+      </div>
+
+      <div class="km-form-row">
+        <label for="f-title">Title <span style="color:#c9190b">*</span></label>
+        <input type="text" id="f-title" placeholder="What is X?">
+      </div>
+
+      <div class="km-form-row">
+        <label for="f-summary">Summary <span style="color:#c9190b">*</span></label>
+        <input type="text" id="f-summary" placeholder="One sentence shown under the title on the card.">
+      </div>
+
+      <div class="km-form-row km-inline">
+        <input type="checkbox" id="f-enabled" checked>
+        <label for="f-enabled">Visible on kiosk grid</label>
+      </div>
+
+      <hr class="km-separator">
+
+      <div class="km-form-row">
+        <label for="f-type">Demo type <span style="color:#c9190b">*</span></label>
+        <select id="f-type" onchange="updateDemoFields()">
+          <option value="">— select —</option>
+          <option value="video">video — MP4/WebM playback</option>
+          <option value="slides">slides — PDF presentation</option>
+          <option value="asciinema">asciinema — terminal recording (.cast)</option>
+          <option value="image-text">image-text — image with caption</option>
+          <option value="external-url">external-url — link to a website</option>
+          <option value="lab">lab — Red Hat Demo Platform hands-on lab</option>
+          <option value="arcade">arcade — Arcade interactive demo</option>
+          <option value="video-loop">video-loop — ambient booth reel (not shown in grid)</option>
+        </select>
+      </div>
+
+      <!-- video / slides / asciinema -->
+      <div class="km-demo-fields" id="df-src">
+        <div class="km-form-row">
+          <label for="f-src">Media path <span style="color:#c9190b">*</span></label>
+          <input type="text" id="f-src" placeholder="content/media/my-file.mp4">
+          <p class="km-hint">Relative path from the server root. Upload a file above to fill this automatically.</p>
+        </div>
+      </div>
+
+      <!-- image-text -->
+      <div class="km-demo-fields" id="df-image-text">
+        <div class="km-form-row">
+          <label for="f-image">Image path <span style="color:#c9190b">*</span></label>
+          <input type="text" id="f-image" placeholder="content/media/my-image.png">
+          <p class="km-hint">PNG, JPG, SVG, or WebP. Upload a file above to fill this automatically.</p>
+        </div>
+        <div class="km-form-row">
+          <label for="f-caption">Caption <span style="color:#c9190b">*</span></label>
+          <input type="text" id="f-caption" placeholder="Short description shown below the image.">
+        </div>
+      </div>
+
+      <!-- external-url / lab -->
+      <div class="km-demo-fields" id="df-url">
+        <div class="km-form-row">
+          <label for="f-url">URL <span style="color:#c9190b">*</span></label>
+          <input type="url" id="f-url" placeholder="https://...">
+        </div>
+        <div class="km-form-row">
+          <label for="f-long-desc">Description <span style="color:#c9190b">*</span></label>
+          <textarea id="f-long-desc" rows="3" placeholder="Shown to attendees when they open the card."></textarea>
+        </div>
+        <div class="km-demo-fields" id="df-lab-duration">
+          <div class="km-form-row">
+            <label for="f-duration">Estimated duration</label>
+            <input type="text" id="f-duration" placeholder="e.g. 45 minutes">
+            <p class="km-hint">Optional. Displayed as a hint to attendees.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- arcade -->
+      <div class="km-demo-fields" id="df-arcade">
+        <div class="km-form-row">
+          <label for="f-share-url">Arcade share URL <span style="color:#c9190b">*</span></label>
+          <input type="url" id="f-share-url" placeholder="https://interact.redhat.com/share/...">
+          <p class="km-hint">The share link from interact.redhat.com or app.arcade.software.</p>
+        </div>
+        <div class="km-form-grid">
+          <div class="km-form-row">
+            <label for="f-arcade-title">Title override</label>
+            <input type="text" id="f-arcade-title" placeholder="Fetched from Arcade if blank">
+            <p class="km-hint">Optional. Leave blank to use the Arcade flow name.</p>
+          </div>
+          <div class="km-form-row">
+            <label for="f-arcade-ratio">Aspect ratio override</label>
+            <input type="text" id="f-arcade-ratio" placeholder="e.g. 56.25%">
+            <p class="km-hint">Optional. Leave blank to auto-detect.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- video-loop -->
+      <div class="km-demo-fields" id="df-video-loop">
+        <div class="km-form-row">
+          <label for="f-videos">Video paths <span style="color:#c9190b">*</span></label>
+          <textarea id="f-videos" rows="3" placeholder="content/media/reel-1.mp4&#10;content/media/reel-2.mp4"></textarea>
+          <p class="km-hint">One path per line. These play as a muted ambient loop from the header button.</p>
+        </div>
+      </div>
+
+      <div class="km-btn-row">
+        <button class="km-btn km-btn-primary" id="card-save-btn" onclick="saveCard()">Save Card</button>
+        <button class="km-btn km-btn-secondary" onclick="resetCardForm()">Clear</button>
+        <span id="card-edit-mode" style="font-size:0.8rem;color:#6a6e73;display:none">
+          Editing existing card — <button class="km-btn-plain" onclick="resetCardForm()">cancel</button>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Card list ── -->
+  <section class="km-section">
+    <div class="km-section-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <h2 style="margin:0">Manage Cards</h2>
+        <p style="margin:0.25rem 0 0;font-size:0.875rem;color:#6a6e73">
+          Click <strong>Edit</strong> to modify a card, or <strong>Delete</strong> to remove it.
+          Changes take effect after rebuild.
+        </p>
+      </div>
+      <button class="km-btn km-btn-secondary km-btn-sm" onclick="loadCards()">↻ Refresh</button>
+    </div>
+    <div class="km-section-body" style="padding:0">
+      <div id="card-list-alert" class="km-alert" style="margin:1rem 1.25rem 0"></div>
+      <div id="card-list-container">
+        <div class="km-empty">Loading cards…</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────────
+
+let editingCardId = null;    // null = create mode, string = edit mode
+let uploadedMediaPath = null; // path filled in after media upload
+
+// ── Init ───────────────────────────────────────────────────────────────
+
+(async function init() {
+  await checkWritable();
+  await loadCards();
+})();
+
+// ── Writable status ────────────────────────────────────────────────────
+
+async function checkWritable() {
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    const banner = document.getElementById('writable-banner');
+    if (!d.writable) {
+      banner.className = 'km-alert km-alert-warning show';
+      banner.innerHTML =
+        '<strong>Read-only content directory.</strong> Uploads and card edits are disabled. ' +
+        'Mount a writable volume or bind mount at <code>/srv/faq/content</code> — ' +
+        'see <a href="https://github.com/rhel-labs/demo-kiosk#runtime-uploads" ' +
+        'target="_blank">README</a> for instructions.';
+    }
+  } catch (e) {
+    // Silently ignore — server might not support /api/status yet
+  }
+}
+
+// ── Card list ──────────────────────────────────────────────────────────
+
+async function loadCards() {
+  const container = document.getElementById('card-list-container');
+  container.innerHTML = '<div class="km-empty">Loading…</div>';
+  try {
+    const r = await fetch('/api/cards');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const cards = await r.json();
+    renderCardTable(cards);
+  } catch (e) {
+    container.innerHTML =
+      `<div class="km-empty" style="color:#c9190b">Failed to load cards: ${e.message}</div>`;
+  }
+}
+
+function renderCardTable(cards) {
+  const container = document.getElementById('card-list-container');
+  if (!cards.length) {
+    container.innerHTML = '<div class="km-empty">No cards found.</div>';
+    return;
+  }
+  cards.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const rows = cards.map(c => {
+    const enabled = c.enabled !== false
+      ? '<span style="color:#3e8635">✓ visible</span>'
+      : '<span style="color:#6a6e73">hidden</span>';
+    const type = c.demo?.type ?? '—';
+    return `<tr>
+      <td>${c.order ?? '—'}</td>
+      <td><code>${esc(c.id)}</code></td>
+      <td>${esc(c.title)}</td>
+      <td><span class="km-type-badge">${esc(type)}</span></td>
+      <td>${enabled}</td>
+      <td>
+        <button class="km-btn km-btn-secondary km-btn-sm"
+                onclick="startEdit(${JSON.stringify(JSON.stringify(c))})">Edit</button>
+        <button class="km-btn km-btn-secondary km-btn-sm" style="margin-left:4px;color:#c9190b"
+                onclick="deleteCard(${JSON.stringify(c.id)})">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+  container.innerHTML = `
+    <table class="km-table">
+      <thead><tr>
+        <th>Order</th><th>ID</th><th>Title</th><th>Type</th><th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ── Zip upload ─────────────────────────────────────────────────────────
+
+async function uploadZip() {
+  const input = document.getElementById('zip-file');
+  const btn   = document.getElementById('zip-upload-btn');
+  const alert = document.getElementById('zip-alert');
+  if (!input.files.length) return showAlert(alert, 'danger', 'Select a .zip file first.');
+  setLoading(btn, true, 'Uploading…');
+  hideAlert(alert);
+  try {
+    const fd = new FormData();
+    fd.append('file', input.files[0]);
+    const r = await fetch('/api/upload/zip', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) {
+      showAlert(alert, 'danger', d.error || 'Upload failed.', d.output);
+    } else {
+      showAlert(alert, 'success', d.message);
+      input.value = '';
+      loadCards();
+    }
+  } catch (e) {
+    showAlert(alert, 'danger', `Upload error: ${e.message}`);
+  }
+  setLoading(btn, false, 'Upload & Rebuild');
+}
+
+// ── Media upload ───────────────────────────────────────────────────────
+
+async function uploadMedia() {
+  const input = document.getElementById('media-file');
+  const btn   = document.getElementById('media-upload-btn');
+  const alert = document.getElementById('media-alert');
+  if (!input.files.length) return showAlert(alert, 'danger', 'Select a media file first.');
+  setLoading(btn, true, 'Uploading…');
+  hideAlert(alert);
+  try {
+    const fd = new FormData();
+    fd.append('file', input.files[0]);
+    const r = await fetch('/api/upload/media', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) {
+      showAlert(alert, 'danger', d.error || 'Upload failed.');
+    } else {
+      showAlert(alert, 'success', `Uploaded: ${d.filename}`);
+      input.value = '';
+      uploadedMediaPath = d.path;
+      // Pre-fill the card form for the uploaded file
+      prefillCardForMedia(d);
+      document.getElementById('card-section').scrollIntoView({ behavior: 'smooth' });
+    }
+  } catch (e) {
+    showAlert(alert, 'danger', `Upload error: ${e.message}`);
+  }
+  setLoading(btn, false, 'Upload');
+}
+
+function prefillCardForMedia(upload) {
+  resetCardForm();
+  const typeEl = document.getElementById('f-type');
+  typeEl.value = upload.demo_type;
+  updateDemoFields();
+
+  if (upload.demo_type === 'image-text') {
+    document.getElementById('f-image').value = upload.path;
+  } else {
+    const srcEl = document.getElementById('f-src');
+    if (srcEl) srcEl.value = upload.path;
+  }
+
+  // Suggest an ID from the filename (strip extension, lowercase, hyphens)
+  const base = upload.filename.replace(/\.[^.]+$/, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  document.getElementById('f-id').value = base;
+  document.getElementById('card-section-title').textContent = 'Create Card for Uploaded File';
+  document.getElementById('card-section-desc').textContent =
+    `Fill in the card details for ${upload.filename}.`;
+}
+
+// ── Card form ──────────────────────────────────────────────────────────
+
+function updateDemoFields() {
+  const type = document.getElementById('f-type').value;
+
+  // Hide all demo field groups
+  document.querySelectorAll('.km-demo-fields').forEach(el => el.classList.remove('active'));
+
+  if (type === 'video' || type === 'slides' || type === 'asciinema') {
+    document.getElementById('df-src').classList.add('active');
+    const ph = { video: 'content/media/my-video.mp4', slides: 'content/media/my-slides.pdf',
+                 asciinema: 'content/media/my-recording.cast' };
+    document.getElementById('f-src').placeholder = ph[type] || 'content/media/...';
+  } else if (type === 'image-text') {
+    document.getElementById('df-image-text').classList.add('active');
+  } else if (type === 'external-url') {
+    document.getElementById('df-url').classList.add('active');
+  } else if (type === 'lab') {
+    document.getElementById('df-url').classList.add('active');
+    document.getElementById('df-lab-duration').classList.add('active');
+  } else if (type === 'arcade') {
+    document.getElementById('df-arcade').classList.add('active');
+  } else if (type === 'video-loop') {
+    document.getElementById('df-video-loop').classList.add('active');
+  }
+}
+
+function resetCardForm() {
+  editingCardId = null;
+  uploadedMediaPath = null;
+  ['f-id','f-order','f-title','f-summary','f-src','f-image','f-caption',
+   'f-url','f-long-desc','f-duration','f-share-url','f-arcade-title',
+   'f-arcade-ratio','f-videos'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; el.removeAttribute('readonly'); }
+  });
+  document.getElementById('f-enabled').checked = true;
+  document.getElementById('f-type').value = '';
+  updateDemoFields();
+  document.getElementById('card-section-title').textContent = 'Add Card';
+  document.getElementById('card-section-desc').textContent = 'Create a new card for the kiosk grid.';
+  document.getElementById('card-edit-mode').style.display = 'none';
+  hideAlert(document.getElementById('card-alert'));
+}
+
+function startEdit(cardJson) {
+  const card = JSON.parse(cardJson);
+  resetCardForm();
+  editingCardId = card.id;
+
+  document.getElementById('f-id').value    = card.id ?? '';
+  document.getElementById('f-id').setAttribute('readonly', '');
+  document.getElementById('f-order').value = card.order ?? '';
+  document.getElementById('f-title').value = card.title ?? '';
+  document.getElementById('f-summary').value = card.summary ?? '';
+  document.getElementById('f-enabled').checked = card.enabled !== false;
+
+  const demo = card.demo ?? {};
+  document.getElementById('f-type').value = demo.type ?? '';
+  updateDemoFields();
+
+  const type = demo.type;
+  if (type === 'video' || type === 'slides' || type === 'asciinema') {
+    document.getElementById('f-src').value = demo.src ?? '';
+  } else if (type === 'image-text') {
+    document.getElementById('f-image').value   = demo.image ?? '';
+    document.getElementById('f-caption').value = demo.caption ?? '';
+  } else if (type === 'external-url') {
+    document.getElementById('f-url').value       = demo.url ?? '';
+    document.getElementById('f-long-desc').value = demo.long_description ?? '';
+  } else if (type === 'lab') {
+    document.getElementById('f-url').value       = demo.url ?? '';
+    document.getElementById('f-long-desc').value = demo.long_description ?? '';
+    document.getElementById('f-duration').value  = demo.duration ?? '';
+  } else if (type === 'arcade') {
+    document.getElementById('f-share-url').value    = demo.share_url ?? '';
+    document.getElementById('f-arcade-title').value = demo.title ?? '';
+    document.getElementById('f-arcade-ratio').value = demo.aspect_ratio ?? '';
+  } else if (type === 'video-loop') {
+    document.getElementById('f-videos').value = (demo.videos ?? []).join('\n');
+  }
+
+  document.getElementById('card-section-title').textContent = `Edit: ${card.title}`;
+  document.getElementById('card-section-desc').textContent =
+    `Editing card "${card.id}". Click Save Card to apply and rebuild.`;
+  document.getElementById('card-edit-mode').style.display = '';
+  document.getElementById('card-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+function buildCardPayload() {
+  const id    = document.getElementById('f-id').value.trim();
+  const order = parseInt(document.getElementById('f-order').value, 10);
+  const title = document.getElementById('f-title').value.trim();
+  const summary = document.getElementById('f-summary').value.trim();
+  const enabled = document.getElementById('f-enabled').checked;
+  const type  = document.getElementById('f-type').value;
+
+  if (!id || !title || !summary || !type || isNaN(order)) return null;
+
+  const demo = { type };
+  if (type === 'video' || type === 'slides' || type === 'asciinema') {
+    demo.src = document.getElementById('f-src').value.trim();
+    if (!demo.src) return null;
+  } else if (type === 'image-text') {
+    demo.image   = document.getElementById('f-image').value.trim();
+    demo.caption = document.getElementById('f-caption').value.trim();
+    if (!demo.image || !demo.caption) return null;
+  } else if (type === 'external-url') {
+    demo.url              = document.getElementById('f-url').value.trim();
+    demo.long_description = document.getElementById('f-long-desc').value.trim();
+    if (!demo.url || !demo.long_description) return null;
+  } else if (type === 'lab') {
+    demo.url              = document.getElementById('f-url').value.trim();
+    demo.long_description = document.getElementById('f-long-desc').value.trim();
+    const dur = document.getElementById('f-duration').value.trim();
+    if (dur) demo.duration = dur;
+    if (!demo.url || !demo.long_description) return null;
+  } else if (type === 'arcade') {
+    demo.share_url = document.getElementById('f-share-url').value.trim();
+    const t = document.getElementById('f-arcade-title').value.trim();
+    const r = document.getElementById('f-arcade-ratio').value.trim();
+    if (t) demo.title = t;
+    if (r) demo.aspect_ratio = r;
+    if (!demo.share_url) return null;
+  } else if (type === 'video-loop') {
+    demo.videos = document.getElementById('f-videos').value
+      .split('\n').map(s => s.trim()).filter(Boolean);
+    if (!demo.videos.length) return null;
+  }
+
+  return { id, order, title, summary, enabled, demo };
+}
+
+async function saveCard() {
+  const alert = document.getElementById('card-alert');
+  const btn   = document.getElementById('card-save-btn');
+  const payload = buildCardPayload();
+  if (!payload) {
+    return showAlert(alert, 'danger', 'Please fill in all required fields.');
+  }
+  hideAlert(alert);
+  setLoading(btn, true, 'Saving…');
+
+  const isEdit  = editingCardId !== null;
+  const url     = isEdit ? `/api/cards/${encodeURIComponent(editingCardId)}` : '/api/cards';
+  const method  = isEdit ? 'PUT' : 'POST';
+
+  try {
+    const r = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      showAlert(alert, 'danger', d.error || 'Save failed.', d.output);
+    } else {
+      showAlert(alert, 'success', d.message + ' — page will reload in 2 s…');
+      setTimeout(() => { loadCards(); resetCardForm(); hideAlert(alert); }, 2000);
+    }
+  } catch (e) {
+    showAlert(alert, 'danger', `Save error: ${e.message}`);
+  }
+  setLoading(btn, false, 'Save Card');
+}
+
+async function deleteCard(cardId) {
+  if (!confirm(`Delete card "${cardId}"? This cannot be undone.`)) return;
+  const alert = document.getElementById('card-list-alert');
+  hideAlert(alert);
+  try {
+    // There is no DELETE endpoint — set enabled:false is the soft option,
+    // but for a hard delete we need the server to support it.
+    // For now, guide the user.
+    showAlert(alert, 'warning',
+      `To delete card "${cardId}", remove its YAML file from content/faqs/ ` +
+      `and rebuild, or edit it and set it to hidden.`);
+  } catch (e) {
+    showAlert(alert, 'danger', e.message);
+  }
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────────
+
+function showAlert(el, type, message, details) {
+  el.className = `km-alert km-alert-${type} show`;
+  el.innerHTML = esc(message) + (details ? `<pre>${esc(details)}</pre>` : '');
+}
+
+function hideAlert(el) {
+  el.className = 'km-alert';
+  el.textContent = '';
+}
+
+function setLoading(btn, loading, label) {
+  btn.disabled = loading;
+  btn.innerHTML = loading
+    ? `<span class="km-spinner"></span> ${label}`
+    : label;
+}
+
+function esc(s) {
+  return String(s ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
