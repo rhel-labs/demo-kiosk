@@ -1543,9 +1543,11 @@
     document.getElementById('site-header').addEventListener('click', (e) => {
       // Don't intercept clicks on links inside the header (e.g. event logo link)
       if (e.target.closest('a')) return;
-      // If a video-loop card is configured, the header launches it.
+      // If a video-loop card is configured and visible, the header launches it.
+      // Multiple loops can be defined; the first visible one is active.
+      // Use the admin panel to toggle which loop plays.
       // Otherwise fall back to closing any open modal and returning to the grid.
-      const loopEntry = FAQ.all().find(en => en.demo?.type === 'video-loop');
+      const loopEntry = FAQ.all().find(en => en.demo?.type === 'video-loop' && Visibility.get(en));
       if (loopEntry) {
         closeModal();
         openModal(loopEntry);
