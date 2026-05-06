@@ -110,7 +110,7 @@ If the event team provides an updated content bundle on-site, the easiest path i
 3. Under **Upload Kiosk Bundle**, select the zip and click **Upload & Rebuild**.
 4. The kiosk reloads automatically with the new content.
 
-The zip must contain a `kiosk/` directory with `faqs/`, `branding/`, and `media/` subdirectories. Cards and branding are replaced; existing media files are preserved.
+The zip must contain a `kiosk/` directory. The standard structure includes `faqs/`, `branding/`, and `media/` subdirectories — each is optional. `faqs/` and `branding/` fully replace their existing counterparts when included; `media/` is additive. Anything not in the zip is left untouched.
 
 **Note:** Some content types (Arcade demos, external URLs, labs) require internet access to load. If on-site internet is limited, verify the content bundle uses primarily offline demo types (video, slides, asciinema, image-text).
 

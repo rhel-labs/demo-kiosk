@@ -22,7 +22,7 @@ Visit **http://localhost:8181/manage** to update the kiosk without rebuilding th
 
 From there you can:
 
-- **Upload a kiosk zip** — replace all cards, branding, and media from a `kiosk-*.zip` bundle provided by the platform team. Existing media files are preserved; cards and branding are replaced entirely.
+- **Upload a kiosk zip** — update content from a `kiosk-*.zip` bundle provided by the platform team. Cards and branding are fully replaced if included in the zip; media files are always additive.
 - **Upload a media file** — add a video, PDF, image, or terminal recording, then create a card for it.
 - **Add a new card** — create cards for non-media demo types (Arcade, lab, external URL).
 - **Edit existing cards** — click **Edit** on any card row to expand an inline editor. Change title, summary, order, enabled state, or the media file. Changes rebuild the kiosk grid immediately.

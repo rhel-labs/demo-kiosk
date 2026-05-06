@@ -474,9 +474,10 @@ Use this when the platform team provides an updated `kiosk-*.zip` file.
 3. The kiosk reloads with the new content — cards, branding, and any new media files.
 
 **What gets replaced vs. kept:**
-- Cards (`faqs/`) — replaced entirely.
-- Branding (`branding/`) — replaced entirely.
+- Cards (`faqs/`) — fully replaced when included in the zip.
+- Branding (`branding/`) — fully replaced when included in the zip.
 - Media files (`media/`) — additive. Existing files are kept; new files from the zip are added.
+- Anything not in the zip — left untouched.
 
 If any cards have duplicate order numbers, the upload auto-fixes them and shows a warning listing the changes.
 
