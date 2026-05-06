@@ -26,7 +26,7 @@
       gap: 2rem;
     }
     .km-header h1 { margin: 0; font-size: 1.25rem; font-weight: 600; }
-    .km-header a  { color: #73bcf7; font-size: 0.875rem; text-decoration: none; }
+    .km-header a  { color: #73bcf7; font-size: 1rem; font-weight: 600; text-decoration: none; }
     .km-header a:hover { text-decoration: underline; }
 
     .km-main {
@@ -410,6 +410,67 @@
     </div>
   </section>
 
+
+  <!-- ── Branding ── -->
+  <section class="km-section">
+    <div class="km-section-header">
+      <h2>Update Branding</h2>
+      <p>Change the event name, tagline, and logo shown in the kiosk header.
+         Colors and the Red Hat logo are not changed here.</p>
+    </div>
+    <div class="km-section-body">
+      <div id="brand-alert" class="km-alert"></div>
+
+      <div class="km-form-row">
+        <label for="b-header">Event header <span style="color:#c9190b">*</span></label>
+        <input type="text" id="b-header" placeholder="Red Hat Summit">
+        <p class="km-hint">Large centered text in the kiosk header.</p>
+      </div>
+
+      <div class="km-form-row">
+        <label for="b-tagline">Tagline</label>
+        <input type="text" id="b-tagline" placeholder="Navigate what's now. Unlock what's next.">
+        <p class="km-hint">Optional. Appears below the header text.</p>
+      </div>
+
+      <div class="km-form-row">
+        <label for="b-title">Browser tab title</label>
+        <input type="text" id="b-title" placeholder="Red Hat Summit 2026 - Demo Kiosk">
+        <p class="km-hint">Optional. Defaults to the event header if blank.</p>
+      </div>
+
+      <hr class="km-separator">
+
+      <div class="km-form-row">
+        <label>Event logo</label>
+        <div class="km-file-row">
+          <input type="file" id="logo-file" accept=".svg,.png,.jpg,.jpeg,.webp">
+          <button class="km-btn km-btn-secondary km-btn-sm" id="logo-upload-btn"
+                  onclick="uploadLogo()">Upload</button>
+        </div>
+        <p id="logo-status" class="km-uploaded-file"></p>
+        <div id="logo-alert" class="km-alert" style="margin-top:0.5rem;margin-bottom:0"></div>
+      </div>
+
+      <div class="km-form-grid">
+        <div class="km-form-row">
+          <label for="b-logo-alt">Logo alt text</label>
+          <input type="text" id="b-logo-alt" placeholder="Red Hat Summit">
+          <p class="km-hint">Shown to screen readers and on load error.</p>
+        </div>
+        <div class="km-form-row">
+          <label for="b-logo-url">Logo link URL</label>
+          <input type="url" id="b-logo-url" placeholder="https://www.redhat.com/en/summit">
+          <p class="km-hint">Optional. Opens when the logo is clicked.</p>
+        </div>
+      </div>
+
+      <div class="km-btn-row">
+        <button class="km-btn km-btn-primary" id="brand-save-btn" onclick="saveBranding()">Save Branding</button>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <script>
@@ -427,7 +488,7 @@ let cardMap          = {};   // id → card object
 
 (async function init() {
   await checkWritable();
-  await Promise.all([loadCards(), loadMedia()]);
+  await Promise.all([loadCards(), loadMedia(), loadBranding()]);
 })();
 
 // ── Writable status ────────────────────────────────────────────────────
@@ -1011,6 +1072,91 @@ async function deleteCard(cardId) {
   } catch (e) {
     showAlert(alert, 'danger', `Delete error: ${e.message}`);
   }
+}
+
+// ── Branding ───────────────────────────────────────────────────────────
+
+let pendingLogoPath = null;  // uploaded logo path, set before saveBranding
+
+async function loadBranding() {
+  try {
+    const r = await fetch('/api/branding');
+    if (!r.ok) return;
+    const d = await r.json();
+    document.getElementById('b-header').value   = d.header   ?? '';
+    document.getElementById('b-tagline').value  = d.tagline  ?? '';
+    document.getElementById('b-title').value    = d.title    ?? '';
+    document.getElementById('b-logo-alt').value = d.secondary_logo_alt ?? '';
+    document.getElementById('b-logo-url').value = d.secondary_logo_url ?? '';
+    if (d.secondary_logo_file) {
+      const status = document.getElementById('logo-status');
+      const fname  = d.secondary_logo_file.split('/').pop();
+      status.textContent = `Current: ${fname}`;
+      status.style.display = '';
+      pendingLogoPath = d.secondary_logo_file;
+    }
+  } catch (e) { /* non-fatal */ }
+}
+
+async function uploadLogo() {
+  const input = document.getElementById('logo-file');
+  const btn   = document.getElementById('logo-upload-btn');
+  const alert = document.getElementById('logo-alert');
+  const status = document.getElementById('logo-status');
+  if (!input.files.length) return showAlert(alert, 'danger', 'Select a file first.');
+  setLoading(btn, true, 'Uploading…');
+  hideAlert(alert);
+  try {
+    const fd = new FormData();
+    fd.append('file', input.files[0]);
+    const r = await fetch('/api/upload/logo', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Upload failed.');
+    pendingLogoPath = d.path;
+    showAlert(alert, 'success', `Uploaded: ${d.filename}`);
+    status.textContent = `✓ ${d.filename}`;
+    status.style.display = '';
+    input.value = '';
+    if (!document.getElementById('b-logo-alt').value) {
+      document.getElementById('b-logo-alt').value =
+        d.filename.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+    }
+  } catch (e) {
+    showAlert(alert, 'danger', e.message);
+  }
+  setLoading(btn, false, 'Upload');
+}
+
+async function saveBranding() {
+  const alert = document.getElementById('brand-alert');
+  const btn   = document.getElementById('brand-save-btn');
+  const header = document.getElementById('b-header').value.trim();
+  if (!header) return showAlert(alert, 'danger', 'Event header is required.');
+  hideAlert(alert);
+  setLoading(btn, true, 'Saving…');
+  try {
+    const r = await fetch('/api/branding', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        header,
+        tagline:             document.getElementById('b-tagline').value.trim(),
+        title:               document.getElementById('b-title').value.trim(),
+        secondary_logo_file: pendingLogoPath ?? '',
+        secondary_logo_alt:  document.getElementById('b-logo-alt').value.trim(),
+        secondary_logo_url:  document.getElementById('b-logo-url').value.trim(),
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      showAlert(alert, 'danger', d.error || 'Save failed.', d.output);
+    } else {
+      showAlert(alert, 'success', d.message + ' Use ← Back to kiosk to see the updated header.');
+    }
+  } catch (e) {
+    showAlert(alert, 'danger', `Save error: ${e.message}`);
+  }
+  setLoading(btn, false, 'Save Branding');
 }
 
 // ── UI helpers ─────────────────────────────────────────────────────────
