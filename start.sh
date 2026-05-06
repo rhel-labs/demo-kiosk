@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ================================================================
-# start.sh — Launch the Interactive FAQ
+# start.sh — Launch the Demo Kiosk
 # ================================================================
 # Starts a local HTTP server (Python 3, built into RHEL 10) and
 # opens the FAQ in a browser. The HTTP server is required because
@@ -60,7 +60,7 @@ FAQ_URL="http://localhost:${PORT}"
 
 echo ""
 echo "================================================================"
-echo " Interactive FAQ — Launcher"
+echo " Demo Kiosk — Launcher"
 echo "================================================================"
 echo ""
 

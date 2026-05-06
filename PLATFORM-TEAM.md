@@ -61,7 +61,7 @@ On the event laptop:
 curl -fsSL red.ht/demo-kiosk-install | bash
 ```
 
-The installer checks for Podman, installs the quadlet, starts the service, and verifies the healthcheck. Opens at http://localhost:8181.
+The installer pulls the image, installs the quadlet, starts the service, and waits for the healthcheck to pass. Opens at http://localhost:8181.
 
 ### **Manual setup (fallback)**
 
@@ -73,18 +73,20 @@ mkdir -p ~/.config/containers/systemd
 curl -o ~/.config/containers/systemd/demo-kiosk.container \
   https://raw.githubusercontent.com/rhel-labs/demo-kiosk/main/demo-kiosk.container
 
-# 3. Edit quadlet - set image URL
+# 3. Edit quadlet — set the image URL to the event-specific image
 vi ~/.config/containers/systemd/demo-kiosk.container
+# Update: Image=quay.io/rhel-labs/demo-kiosk:summit2026
 
-# Update these lines:
-#   Image=quay.io/rhel-labs/demo-kiosk:summit2026
-#   Pull=newer
+# 4. Pull the image before starting (required — startup timeout won't cover a cold pull)
+podman pull quay.io/rhel-labs/demo-kiosk:summit2026
 
-# 4. Enable linger and start service
+# 5. Enable linger and start service
 loginctl enable-linger
 systemctl --user daemon-reload
-systemctl --user enable --now demo-kiosk
+systemctl --user start demo-kiosk
 ```
+
+> **Note:** `systemctl start` blocks until the container passes its healthcheck (~30–45 seconds). This is expected — the service is ready when the command returns.
 
 ### **Verify**
 
@@ -99,30 +101,34 @@ systemctl --user status demo-kiosk
 
 ## Day-of Content Updates
 
-If event team provides updated content bundle on-site, serve it via volume mount.
+If the event team provides an updated content bundle on-site, the easiest path is the `/manage` upload — no container knowledge required.
+
+### **Via /manage (recommended)**
+
+1. Get the updated `kiosk-*.zip` from the event team.
+2. Open **http://localhost:8181/manage** in a browser.
+3. Under **Upload Kiosk Bundle**, select the zip and click **Upload & Rebuild**.
+4. The kiosk reloads automatically with the new content.
+
+The zip must contain a `kiosk/` directory with `faqs/`, `branding/`, and `media/` subdirectories. Cards and branding are replaced; existing media files are preserved.
 
 **Note:** Some content types (Arcade demos, external URLs, labs) require internet access to load. If on-site internet is limited, verify the content bundle uses primarily offline demo types (video, slides, asciinema, image-text).
 
-### **Setup (extract from running container)**
+### **Via bind mount (advanced — for local authoring workflow)**
+
+If the event team is editing YAML files directly on the laptop, you can mount the local content directory instead of using the named volume.
 
 No internet required — all tools are bundled in the container image.
 
 ```bash
-# Create working directory
-mkdir -p ~/demo-kiosk
-cd ~/demo-kiosk
-
 # Extract build tools from running container
 podman cp demo-kiosk:/extras/extras.tar.gz ./
 tar -xzf extras.tar.gz
 # Extracts: build/, content/, AUTHORING.md, start.sh, etc.
 ```
 
-### **Use Updated Content Bundle**
-
 ```bash
 # 1. Get updated bundle from event team
-#    (They download from Drive and give you the kiosk-*.zip file)
 mv ~/Downloads/kiosk-*.zip ~/demo-kiosk/
 
 # 2. Extract content
@@ -134,18 +140,20 @@ mv kiosk content
 python3 build/build-faqs.py
 # Outputs: content/faqs.js and content/branding.js
 
-# 4. Enable volume mount in quadlet
+# 4. Switch the quadlet to a bind mount
 vi ~/.config/containers/systemd/demo-kiosk.container
 
-# Uncomment this line:
-Volume=%h/demo-kiosk/content:/srv/faq/content:ro
+# Comment out the named volume line:
+#   Volume=kiosk-content:/srv/faq/content:copy
+# Uncomment the bind mount line:
+#   Volume=%h/demo-kiosk/content:/srv/faq/content:rw
 
 # 5. Restart service
 systemctl --user daemon-reload
 systemctl --user restart demo-kiosk
 ```
 
-Kiosk now serves content from `~/demo-kiosk/content/` on host.
+Kiosk now serves content from `~/demo-kiosk/content/` on the host.
 
 ---
 
@@ -157,6 +165,9 @@ systemctl --user status demo-kiosk
 
 # Restart
 systemctl --user restart demo-kiosk
+
+# Stop
+systemctl --user stop demo-kiosk
 
 # Logs
 journalctl --user -u demo-kiosk -f
@@ -177,15 +188,18 @@ ls kiosk-*.zip
 
 ### Service won't start
 ```bash
-# Pull image manually
+# Pull image manually (required before systemctl start)
 podman pull quay.io/rhel-labs/demo-kiosk:summit2026
 
 # Check image loaded
 podman images | grep demo-kiosk
 
-# Restart
-systemctl --user restart demo-kiosk
+# Start (blocks ~30-45s while healthcheck runs)
+systemctl --user start demo-kiosk
 ```
+
+### Service times out during start
+The healthcheck must pass within `TimeoutStartSec` (120 seconds). If the image hasn't been pulled yet, the pull happens inside that window and may not leave enough time. Always run `podman pull` before `systemctl start`.
 
 ### Wrong content showing
 ```bash
@@ -197,6 +211,9 @@ podman pull quay.io/rhel-labs/demo-kiosk:summit2026
 systemctl --user restart demo-kiosk
 ```
 
+### /manage shows "read-only" warning
+The named volume is not mounted. Verify the `Volume=` line in `~/.config/containers/systemd/demo-kiosk.container` is not commented out, then run `systemctl --user daemon-reload && systemctl --user restart demo-kiosk`.
+
 ---
 
 ## Event Checklist
@@ -206,11 +223,12 @@ systemctl --user restart demo-kiosk
 - [ ] Build: `podman build -t demo-kiosk:summit2026 .`
 - [ ] Test locally: http://localhost:8181
 - [ ] Push: `podman push quay.io/rhel-labs/demo-kiosk:summit2026`
-- [ ] Share image URL and quadlet with event staff
+- [ ] Share image URL and installer link with event staff
 
 **Event Staff (On-Site):**
 - [ ] Run: `curl -fsSL red.ht/demo-kiosk-install | bash`
 - [ ] Verify: http://localhost:8181
+- [ ] If content update needed: http://localhost:8181/manage → Upload Kiosk Bundle
 
 **Post-Event:**
 - [ ] Download stats: http://localhost:8181/#admin → Download CSV

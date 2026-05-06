@@ -6,6 +6,7 @@ This guide covers creating demo content, rebranding for events, and deploying th
 
 | Role | You want to... | Start here |
 |------|----------------|------------|
+| 🖥️ **Event Staff** | Update content or branding on a running kiosk | [Managing Content at Runtime](#managing-content-at-runtime-manage) |
 | 📝 **Content Author** | Add/edit FAQ cards and media files | [Content Authoring](#content-authoring) |
 | 🎨 **Event Coordinator** | Rebrand for Summit, AnsibleFest, etc. | [Event Branding](#event-branding) |
 | 🚀 **Platform Operator** | Build, deploy, and run the kiosk | [Deployment & Operations](#deployment--operations) |
@@ -292,6 +293,28 @@ demo:
 
 ---
 
+### `video-loop` — Ambient booth reel
+
+```yaml
+demo:
+  type: video-loop
+  videos:
+    - content/media/reel-part1.mp4
+    - content/media/reel-part2.mp4
+```
+
+Best for: a muted looping video shown in the kiosk header when no modal is open — typically a brand or product highlight reel playing in the background at a booth.
+
+**How it works:** A `video-loop` card does not appear on the kiosk grid. Instead, clicking the kiosk header launches the loop. The videos play in order, muted, and repeat continuously.
+
+**Tips:**
+- List multiple files under `videos` to queue them sequentially.
+- Keep files short (30–90 seconds each) so the loop transitions feel natural.
+- Use MP4 (H.264) for broadest compatibility.
+- Only one `video-loop` card is used; if multiple exist, the one with the lowest `order` value wins.
+
+---
+
 ## Ordering Cards
 
 Cards appear in ascending `order` value. Lower numbers appear first (top-left).
@@ -402,6 +425,8 @@ footer:
 | `event.header` | **Required** | Large text shown in masthead center. |
 | `event.tagline` | Optional | Smaller text shown below header. Hidden if omitted. |
 
+> **Runtime vs. rebuild:** The event header, tagline, title, and secondary logo can be changed at runtime via `/manage` without rebuilding the image. Colors (`brand_primary`, `brand_hover`, backgrounds) and layout settings require editing `branding.yaml` and rebuilding. See [Managing Content at Runtime](#managing-content-at-runtime-manage) below.
+
 ---
 
 ## Adding Custom Logos
@@ -423,6 +448,84 @@ If your text contains a colon (`:`), wrap it in quotes:
 title: "Your Event 2026: Demo Kiosk"  ← correct
 title: Your Event 2026: Demo Kiosk    ← will fail (YAML parse error)
 ```
+
+---
+
+# Managing Content at Runtime (/manage)
+
+**Audience:** Event staff and coordinators who need to update a running kiosk  
+**Skills needed:** A browser  
+**No container or coding knowledge required**
+
+---
+
+The `/manage` page lets you update content while the kiosk is running, without rebuilding the image. Open it at **http://localhost:8181/manage**.
+
+> **Requirement:** The kiosk must be running with a writable content directory. The default quadlet setup (named volume with `:copy`) satisfies this automatically. If a yellow banner appears saying the content directory is read-only, contact your platform operator.
+
+---
+
+## Upload Kiosk Bundle
+
+Use this when the platform team provides an updated `kiosk-*.zip` file.
+
+1. Click **Choose File** under **Upload Kiosk Bundle** and select the zip.
+2. Click **Upload & Rebuild**.
+3. The kiosk reloads with the new content — cards, branding, and any new media files.
+
+**What gets replaced vs. kept:**
+- Cards (`faqs/`) — replaced entirely.
+- Branding (`branding/`) — replaced entirely.
+- Media files (`media/`) — additive. Existing files are kept; new files from the zip are added.
+
+If any cards have duplicate order numbers, the upload auto-fixes them and shows a warning listing the changes.
+
+---
+
+## Add a Card
+
+Use this to create a new card without rebuilding the image.
+
+1. Fill in **ID**, **Order**, **Title**, and **Summary**.
+2. Select a **Demo type** from the dropdown.
+3. For media types (video, slides, asciinema, image-text): use the **Upload** button to upload the file first. A green confirmation line shows when the upload succeeds.
+4. For non-media types (external-url, lab, arcade): fill in the URL and description fields.
+5. Click **Add Card**.
+
+The card appears on the kiosk grid immediately after saving.
+
+---
+
+## Edit an Existing Card
+
+1. Scroll to the **Manage Cards** table.
+2. Click **Edit** on the card row you want to change.
+3. An inline editor expands below the row. Modify any field: title, summary, order, enabled state, or the media file.
+4. Click **Save Changes**. The panel closes and the table refreshes.
+5. Click **Cancel** to dismiss without saving.
+
+---
+
+## Delete a Card
+
+Click **Delete** on the card row. You will be asked to confirm. The card is removed immediately and the kiosk grid rebuilds.
+
+---
+
+## Update Branding
+
+Use this to change the event name, tagline, or logo on a running kiosk.
+
+1. Scroll to the **Update Branding** section (below Manage Cards).
+2. Update any of the following fields:
+   - **Event header** — large centered text in the masthead (required).
+   - **Tagline** — smaller text shown below the header (optional).
+   - **Browser tab title** — overrides the default tab label (optional).
+3. To change the event logo: click **Upload** next to **Event logo**, select an SVG or PNG file, then fill in the alt text and optional link URL.
+4. Click **Save Branding**.
+5. Click **← Back to kiosk** — the updated header appears immediately (no page reload needed).
+
+> **Colors and layout** (background colors, brand accent color, card columns, idle timeout) are not editable at runtime. They require editing `content/branding/branding.yaml` and rebuilding the container image.
 
 ---
 
@@ -524,9 +627,12 @@ For production deployments, use systemd Quadlet to run the kiosk as a persistent
 mkdir -p ~/.config/containers/systemd
 cp demo-kiosk.container ~/.config/containers/systemd/
 
+# Pull the image before starting (startup timeout won't cover a cold pull)
+podman pull quay.io/mmicene/demo-kiosk:latest
+
 # Reload systemd and start the service
 systemctl --user daemon-reload
-systemctl --user start demo-kiosk
+systemctl --user start demo-kiosk   # blocks ~30-45s while healthcheck runs
 systemctl --user enable demo-kiosk  # auto-start on login
 ```
 

@@ -4,12 +4,12 @@
 # Runs the Demo Kiosk SPA as a rootless systemd service via Podman
 # Quadlet. The container image must be built on the host first:
 #
-#   podman build -t demo-kiosk:latest /path/to/faq-spa
+#   podman build -t demo-kiosk:latest /path/to/demo-kiosk
 #
 # INSTALL (no root required):
 #
 #   1. Build the image (once, or after any content change):
-#        podman build -t demo-kiosk:latest ~/faq-spa
+#        podman build -t demo-kiosk:latest ~/demo-kiosk
 #
 #   2. Copy this file into the user Quadlet search path:
 #        mkdir -p ~/.config/containers/systemd
@@ -43,37 +43,26 @@
 #   After editing FAQ files or running download-libs.sh, rebuild
 #   the image and restart the service:
 #
-#        podman build -t demo-kiosk:latest ~/faq-spa
+#        podman build -t demo-kiosk:latest ~/demo-kiosk
 #        systemctl --user restart demo-kiosk
 #
-# ── VOLUME OPTIONS FOR RUNTIME UPLOADS ───────────────────────────
+# ── RUNTIME UPLOADS ──────────────────────────────────────────────
 #
 # The /manage page lets you upload content and edit cards while the
-# container is running.  Uploads require a writable content directory.
-# Without a volume, uploads are rejected (the baked-in content is
-# on the read-only container filesystem).  Two options:
+# container is running.  The named volume below (Volume=) makes this
+# work out of the box:
 #
-# OPTION A — Named volume (recommended for runtime upload use):
-#   Data lives in a Podman-managed volume; survives container restarts
-#   and image rebuilds.  Create the volume once, then uncomment the
-#   named Volume= line below.
+#   • On first start Podman creates the volume and copies the baked
+#     content from the image into it (:copy option).
+#   • After that the volume persists across restarts and image updates
+#     so uploaded files and card edits are never lost.
+#   • ReadOnly=true only applies to the container root filesystem.
+#     Named volumes are always writable regardless of that setting.
 #
-#     podman volume create kiosk-content
-#     # Uncomment:  Volume=kiosk-content:/srv/faq/content
-#
-#   Note: ReadOnly=true (below) only makes the container root filesystem
-#   read-only. Named volumes are writable regardless of that setting.
-#
-# OPTION B — Bind mount (for local content authoring workflow):
-#   The host directory is mounted directly into the container.
-#   Use :rw so uploads can write back to the host directory.
-#   Run build-faqs.py locally first to generate faqs.js.
-#
-#     # Uncomment:  Volume=%h/faq-spa/content:/srv/faq/content:rw
-#
-#   To keep the original read-only behaviour (no uploads, content
-#   baked at build time), use :ro instead — uploads will be rejected
-#   with a clear error in the /manage UI.
+# ALTERNATIVE — bind mount for local content authoring:
+#   Comment out the Volume= line and uncomment the bind-mount line.
+#   The host directory is mounted directly; run build-faqs.py locally
+#   first to generate faqs.js before starting the container.
 #
 # ================================================================
 
@@ -95,16 +84,21 @@ PublishPort=127.0.0.1:8181:8181
 # Predictable container name for `podman exec` and `podman logs`
 ContainerName=demo-kiosk
 
-# Run as read-only — the SPA serves static files and writes nothing
+# Run as read-only — the container root filesystem is immutable.
+# The named volume below is writable regardless of this flag, so
+# /manage uploads and card edits work via the volume.
 ReadOnly=true
 
 # Required by --read-only: allow tmpfs on /tmp and /run inside container
 ReadOnlyTmpfs=true
 
-# Volume mount — uncomment ONE of the following (see header comments for details):
-# Volume=kiosk-content:/srv/faq/content          ← named volume (option A, runtime uploads)
-# Volume=%h/faq-spa/content:/srv/faq/content:rw  ← rw bind mount (option B, local authoring)
-# Volume=%h/faq-spa/content:/srv/faq/content:ro  ← ro bind mount (no uploads, read-only)
+# Named volume — seeds from the image on first start, then persists across
+# restarts and image updates so uploaded content is never lost.
+Volume=kiosk-content:/srv/faq/content:copy
+
+# Alternative: bind mount to a local directory (local content authoring workflow).
+# Uncomment and comment out the Volume= line above to use instead.
+# Volume=%h/demo-kiosk/content:/srv/faq/content:rw
 
 # Healthcheck configuration for systemd integration
 HealthCmd=["python3", "/srv/faq/healthcheck.py"]
@@ -121,8 +115,14 @@ Notify=healthy
 # Restart automatically if the container exits unexpectedly
 Restart=on-failure
 
-# Give Podman time to start (image may need to be decompressed on first run)
-TimeoutStartSec=90
+# SIGKILL (the container's STOPSIGNAL) produces exit code 137.
+# Treat it as a clean stop so `systemctl stop` doesn't show "failed".
+SuccessExitStatus=137
+
+# Give Podman time to start and pass the first health check.
+# The install script pre-pulls the image, so this window is only
+# for container startup + the 30s health interval.
+TimeoutStartSec=120
 
 [Install]
 # Start with the user's default systemd session target.

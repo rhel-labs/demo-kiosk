@@ -41,18 +41,23 @@ if ! podman quadlet install https://raw.githubusercontent.com/rhel-labs/demo-kio
     fi
 fi
 
-# Start service (always needed after quadlet install)
+# Pull image before starting so the systemd startup timeout is only
+# waiting for the health check, not a cold image download.
+echo "Pulling kiosk image (may take a minute on first run)..."
+if ! podman pull quay.io/mmicene/demo-kiosk:latest; then
+    error "Image pull failed - check network connection and try again"
+    exit 1
+fi
+
+# Start service — blocks until the health check first passes (sdnotify=healthy)
+echo "Starting kiosk..."
 if ! systemctl --user start demo-kiosk 2>/dev/null; then
     error "Service failed to start - try restarting this laptop"
     exit 1
 fi
 
-# Wait for container pull and startup
-echo "Starting up (may take 20 seconds for first run)..."
-sleep 15
-
-# Verify using healthcheck
-if podman healthcheck run demo-kiosk >/dev/null 2>&1; then
+# systemctl start already waited for healthy state; no sleep needed
+if systemctl --user is-active demo-kiosk >/dev/null 2>&1; then
     success "Demo Kiosk running at: http://localhost:8181"
     exit 0
 fi
@@ -83,9 +88,9 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     podman quadlet rm demo-kiosk 2>/dev/null || true
     
     if podman quadlet install https://raw.githubusercontent.com/rhel-labs/demo-kiosk/refs/heads/main/demo-kiosk.container >/dev/null 2>&1; then
+        podman pull quay.io/mmicene/demo-kiosk:latest 2>/dev/null
         systemctl --user start demo-kiosk 2>/dev/null
-        sleep 10
-        if podman healthcheck run demo-kiosk >/dev/null 2>&1; then
+        if systemctl --user is-active demo-kiosk >/dev/null 2>&1; then
             success "Demo Kiosk running at: http://localhost:8181"
             exit 0
         fi

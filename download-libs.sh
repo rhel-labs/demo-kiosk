@@ -55,7 +55,7 @@ ASSETS_DIR="${SCRIPT_DIR}/app/assets"
 
 echo ""
 echo "================================================================"
-echo " FAQ Library Downloader"
+echo " Demo Kiosk Library Downloader"
 echo "================================================================"
 echo " Project root:   ${SCRIPT_DIR}"
 echo " Assets folder:  ${ASSETS_DIR} (app/assets/)"

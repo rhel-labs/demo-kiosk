@@ -61,6 +61,7 @@ _MEDIA_DEMO_TYPE = {
     '.webp': 'image-text',
 }
 
+_LOGO_EXTS         = {'.svg', '.png', '.jpg', '.jpeg', '.webp'}
 _CARD_REQUIRED     = {'id', 'order', 'title', 'summary', 'demo'}
 _VALID_DEMO_TYPES  = {
     'video', 'slides', 'asciinema', 'image-text',
@@ -97,6 +98,9 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
         elif p == '/api/media':
             self._handle_list_media()
             return
+        elif p == '/api/branding':
+            self._handle_get_branding()
+            return
         if self._try_range():
             return
         super().do_GET()
@@ -114,6 +118,10 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_media_upload()
         elif p == '/api/cards':
             self._handle_create_card()
+        elif p == '/api/branding':
+            self._handle_update_branding()
+        elif p == '/api/upload/logo':
+            self._handle_logo_upload()
         else:
             self.send_error(404)
 
@@ -309,6 +317,109 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
         if not ok:
             return self._send_json({'error': 'Card saved but rebuild failed', 'output': output}, 500)
         self._send_json({'message': f"Card '{card_id}' updated", 'output': output})
+
+    def _handle_get_branding(self):
+        if yaml is None:
+            return self._send_json({'error': 'PyYAML not available'}, 500)
+        branding_file = self._content_dir / 'branding' / 'branding.yaml'
+        if not branding_file.exists():
+            return self._send_json({'error': 'branding.yaml not found'}, 404)
+        try:
+            with open(branding_file, encoding='utf-8') as fh:
+                data = yaml.safe_load(fh)
+        except Exception as exc:
+            return self._send_json({'error': f'Cannot read branding.yaml: {exc}'}, 500)
+        event     = data.get('event', {})
+        secondary = data.get('logos', {}).get('secondary', {})
+        self._send_json({
+            'header':             event.get('header', ''),
+            'tagline':            event.get('tagline', ''),
+            'title':              event.get('title', ''),
+            'secondary_logo_file': secondary.get('file', ''),
+            'secondary_logo_alt':  secondary.get('alt_text', ''),
+            'secondary_logo_url':  secondary.get('url', ''),
+        })
+
+    def _handle_update_branding(self):
+        if not self._is_writable():
+            return self._send_json(self._not_writable_error(), 503)
+        if yaml is None:
+            return self._send_json({'error': 'PyYAML not available'}, 500)
+        try:
+            body = self._read_json_body()
+        except Exception as exc:
+            return self._send_json({'error': f'Invalid JSON: {exc}'}, 400)
+        header = str(body.get('header', '')).strip()
+        if not header:
+            return self._send_json({'error': "'header' is required"}, 400)
+        branding_file = self._content_dir / 'branding' / 'branding.yaml'
+        if not branding_file.exists():
+            return self._send_json({'error': 'branding.yaml not found'}, 404)
+        try:
+            with open(branding_file, encoding='utf-8') as fh:
+                data = yaml.safe_load(fh)
+        except Exception as exc:
+            return self._send_json({'error': f'Cannot read branding.yaml: {exc}'}, 500)
+        # Update only the fields the UI exposes; leave colors/layout/footer untouched.
+        data.setdefault('event', {})['header'] = header
+        tagline = str(body.get('tagline', '')).strip()
+        if tagline:
+            data['event']['tagline'] = tagline
+        else:
+            data['event'].pop('tagline', None)
+        title = str(body.get('title', '')).strip()
+        if title:
+            data['event']['title'] = title
+        else:
+            data['event'].pop('title', None)
+        secondary = data.setdefault('logos', {}).setdefault('secondary', {})
+        logo_file = str(body.get('secondary_logo_file', '')).strip()
+        if logo_file:
+            secondary['file'] = logo_file
+        logo_alt = str(body.get('secondary_logo_alt', '')).strip()
+        if logo_alt:
+            secondary['alt_text'] = logo_alt
+        logo_url = str(body.get('secondary_logo_url', '')).strip()
+        if logo_url:
+            secondary['url'] = logo_url
+        else:
+            secondary.pop('url', None)
+        try:
+            with open(branding_file, 'w', encoding='utf-8') as fh:
+                yaml.dump(data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        except Exception as exc:
+            return self._send_json({'error': f'Cannot write branding.yaml: {exc}'}, 500)
+        ok, output = self._rebuild()
+        if not ok:
+            return self._send_json({'error': 'Branding saved but rebuild failed', 'output': output}, 500)
+        self._send_json({'message': 'Branding updated'})
+
+    def _handle_logo_upload(self):
+        if not self._is_writable():
+            return self._send_json(self._not_writable_error(), 503)
+        parts = self._read_multipart()
+        if 'file' not in parts:
+            return self._send_json({'error': 'No file field in upload'}, 400)
+        file_data = parts['file']['data']
+        filename  = parts['file']['filename']
+        if not filename:
+            return self._send_json({'error': 'No filename in upload'}, 400)
+        ext = Path(filename).suffix.lower()
+        if ext not in _LOGO_EXTS:
+            return self._send_json(
+                {'error': f'Unsupported logo type {ext!r}. '
+                          f'Supported: {", ".join(sorted(_LOGO_EXTS))}'}, 400)
+        safe_name = re.sub(r'[^\w.\-]', '_', filename).strip()
+        if not safe_name:
+            return self._send_json({'error': 'Filename contains no usable characters'}, 400)
+        branding_dir = self._content_dir / 'branding'
+        branding_dir.mkdir(parents=True, exist_ok=True)
+        with open(branding_dir / safe_name, 'wb') as f:
+            f.write(file_data)
+        self._send_json({
+            'filename': safe_name,
+            'path':     f'content/branding/{safe_name}',
+        })
 
     # ── Helpers ───────────────────────────────────────────────────
 
