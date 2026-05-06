@@ -29,7 +29,7 @@ if podman quadlet list 2>/dev/null | grep -q demo-kiosk; then
     fi
     # Remove existing installation before reinstalling
     systemctl --user stop demo-kiosk 2>/dev/null || true
-    podman quadlet rm demo-kiosk 2>/dev/null || true
+    podman quadlet rm demo-kiosk.container 2>/dev/null || true
 fi
 
 # Install quadlet (suppress errors for internal script logic)
@@ -85,8 +85,8 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     
     # Complete reinstall: stop, remove, fresh install, start
     systemctl --user stop demo-kiosk 2>/dev/null || true
-    podman quadlet rm demo-kiosk 2>/dev/null || true
-    
+    podman quadlet rm demo-kiosk.container 2>/dev/null || true
+
     if podman quadlet install https://raw.githubusercontent.com/rhel-labs/demo-kiosk/refs/heads/main/demo-kiosk.container >/dev/null 2>&1; then
         podman pull quay.io/mmicene/demo-kiosk:latest 2>/dev/null
         systemctl --user start demo-kiosk 2>/dev/null
