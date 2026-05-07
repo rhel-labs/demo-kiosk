@@ -1,5 +1,5 @@
 id: manage
-order: 40
+order: 50
 title: "Managing this kiosk"
 summary: "The /manage panel lets you upload content, check server status, and view loaded cards."
 enabled: true
