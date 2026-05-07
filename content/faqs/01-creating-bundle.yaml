@@ -1,0 +1,16 @@
+id: creating-bundle
+order: 20
+title: "Creating a content bundle"
+summary: "Use the authoring tool to build a zip bundle — no manual YAML or file management needed."
+enabled: true
+demo:
+  type: external-url
+  url: https://github.com/rhel-labs/demo-kiosk
+  long_description: |
+    1. Run the authoring tool container — see the repo README for the podman or quadlet command.
+    2. Add cards: video, slides, terminal recordings, interactive demos, images, and more.
+    3. Configure event branding — header text, tagline, and your event logo.
+    4. Click **Download Bundle** to get a kiosk-*.zip file.
+    5. Come back to this card and drop the zip to load your content.
+
+    All media files are embedded in the zip — no separate uploads needed.

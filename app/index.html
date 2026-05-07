@@ -514,6 +514,46 @@
     }
 
 
+    /* --- Upload zone ------------------------------------------- */
+    #upload-container {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.25rem;
+      padding: 0.5rem 0 1rem;
+    }
+
+    .upload-dropzone {
+      width: 100%;
+      max-width: 520px;
+      border: 2px dashed var(--pf-t--global--border--color--default, #d2d2d2);
+      border-radius: var(--pf-t--global--border--radius--medium, 6px);
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      background: #fafafa;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .upload-dropzone.drag-over {
+      border-color: var(--pf-t--global--color--brand--default, #ee0000);
+      background: rgba(238, 0, 0, 0.04);
+    }
+
+    .upload-dropzone-icon { font-size: 2.5rem; line-height: 1; }
+    .upload-dropzone-title { margin: 0; font-size: 1.1rem; font-weight: 600; color: #151515; }
+    .upload-dropzone-sub { margin: 0; font-size: 0.9rem; color: var(--pf-t--global--text--color--subtle); }
+
+    .upload-status-msg { font-size: 1rem; text-align: center; margin: 0; }
+    .upload-status-msg.progress { color: var(--pf-t--global--text--color--subtle); }
+    .upload-status-msg.success  { color: var(--pf-t--global--icon--color--status--success--default, #1e4620); font-weight: 600; }
+    .upload-status-msg.error    { color: var(--pf-t--global--icon--color--status--danger--default, #c9190b); }
+
     /* --- Footer ------------------------------------------------- */
     #site-footer {
       text-align: center;
@@ -538,7 +578,7 @@
         <span id="header-title"></span>
         <span id="header-tagline"></span>
       </div>
-      <img id="header-logo-hummingbird" src="assets/logo-summit.svg" alt="Red Hat Summit" />
+      <img id="header-logo-hummingbird" src="content/branding/logo-redhat.svg" alt="Event Logo" />
     </div>
   </header>
 
@@ -914,6 +954,7 @@
         case 'lab':          renderLab(demo, container);         break;
         case 'arcade':       renderArcade(demo, container);      break;
         case 'video-loop':   renderVideoLoop(demo, container);   break;
+        case 'upload':       renderUpload(demo, container);       break;
         default:
           container.appendChild(missingAsset(null, `Unknown demo type: "${demo.type}"`));
       }
@@ -1263,6 +1304,102 @@
 
       loadNext();
       container.appendChild(video);
+    }
+
+    // ---- Bundle upload ----
+    // Lets staff drop a kiosk-*.zip directly from this card without visiting /manage.
+    // POSTs to /api/upload/zip; reloads on success so onboarding cards are replaced.
+    function renderUpload(demo, container) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'upload-container';
+
+      const zone = document.createElement('div');
+      zone.className = 'upload-dropzone';
+
+      const icon = document.createElement('div');
+      icon.className = 'upload-dropzone-icon';
+      icon.textContent = '📦';
+
+      const title = document.createElement('p');
+      title.className = 'upload-dropzone-title';
+      title.textContent = 'Drop a kiosk-*.zip bundle here';
+
+      const sub = document.createElement('p');
+      sub.className = 'upload-dropzone-sub';
+      sub.textContent = 'or';
+
+      const chooseBtn = document.createElement('button');
+      chooseBtn.className = 'pf-v6-c-button pf-m-secondary';
+      chooseBtn.textContent = 'Choose file…';
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.zip';
+      fileInput.style.display = 'none';
+
+      zone.append(icon, title, sub, chooseBtn, fileInput);
+      wrapper.appendChild(zone);
+
+      const statusEl = document.createElement('p');
+      statusEl.className = 'upload-status-msg';
+      wrapper.appendChild(statusEl);
+
+      container.appendChild(wrapper);
+
+      chooseBtn.addEventListener('click', () => fileInput.click());
+
+      zone.addEventListener('dragover', e => {
+        e.preventDefault();
+        zone.classList.add('drag-over');
+      });
+      zone.addEventListener('dragleave', e => {
+        if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-over');
+      });
+      zone.addEventListener('drop', e => {
+        e.preventDefault();
+        zone.classList.remove('drag-over');
+        const file = [...e.dataTransfer.files].find(f => f.name.toLowerCase().endsWith('.zip'));
+        if (file) uploadFile(file);
+        else showUploadError('Please drop a .zip bundle file.');
+      });
+
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files[0]) uploadFile(fileInput.files[0]);
+        fileInput.value = '';
+      });
+
+      function setZoneLocked(locked) {
+        zone.style.opacity        = locked ? '0.5' : '';
+        zone.style.pointerEvents  = locked ? 'none' : '';
+      }
+
+      function showUploadError(msg) {
+        statusEl.className   = 'upload-status-msg error';
+        statusEl.textContent = msg;
+        setZoneLocked(false);
+      }
+
+      function uploadFile(file) {
+        statusEl.className   = 'upload-status-msg progress';
+        statusEl.textContent = `Uploading ${file.name}…`;
+        setZoneLocked(true);
+
+        const form = new FormData();
+        form.append('file', file, file.name);
+
+        fetch('/api/upload/zip', { method: 'POST', body: form })
+          .then(r => r.json().then(data => ({ ok: r.ok, data })))
+          .then(({ ok: success, data }) => {
+            if (success) {
+              statusEl.className   = 'upload-status-msg success';
+              statusEl.textContent = 'Content loaded — reloading…';
+              setTimeout(() => window.location.reload(), 1500);
+            } else {
+              showUploadError(data.error || 'Upload failed.');
+            }
+          })
+          .catch(() => showUploadError('Network error — could not reach the server.'));
+      }
     }
 
     // ---- Markdown renderer (bold, links, lists, paragraphs) ----

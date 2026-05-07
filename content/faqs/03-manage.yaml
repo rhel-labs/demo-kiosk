@@ -1,0 +1,16 @@
+id: manage
+order: 40
+title: "Managing this kiosk"
+summary: "The /manage panel lets you upload content, check server status, and view loaded cards."
+enabled: true
+demo:
+  type: external-url
+  url: https://github.com/rhel-labs/demo-kiosk
+  long_description: |
+    Navigate to **/manage** on this kiosk to:
+    - Upload a new content bundle (zip)
+    - View currently loaded cards and branding configuration
+    - Check whether the content directory is writable
+    - Access individual card and media management
+
+    The kiosk runs as a Quadlet/systemd service — see the repo README for update and restart instructions.

@@ -57,7 +57,7 @@ OUTPUT            = CONTENT_DIR / "faqs.js"           # generated output
 BRANDING_OUTPUT   = CONTENT_DIR / "branding.js"
 
 # ── Valid demo types ──────────────────────────────────────────────
-VALID_TYPES = {"video", "slides", "asciinema", "image-text", "external-url", "arcade", "lab", "video-loop"}
+VALID_TYPES = {"video", "slides", "asciinema", "image-text", "external-url", "arcade", "lab", "video-loop", "upload"}
 
 def encode_media_path(raw):
     """Percent-encode a content/media/ path for use as a browser URL src."""
@@ -306,6 +306,8 @@ def load_entries():
                                     f"demo type 'lab' requires a '{key}' field"
                                 )
                         # 'duration' is optional — no validation needed
+                    elif dtype == "upload":
+                        pass  # no extra fields required — renderer is kiosk-internal
                     elif dtype == "video-loop":
                         if "videos" not in demo:
                             file_errors.append(

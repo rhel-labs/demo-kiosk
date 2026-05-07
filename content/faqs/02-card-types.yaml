@@ -1,0 +1,19 @@
+id: card-types
+order: 30
+title: "What can this kiosk show?"
+summary: "Eight card types are supported — from screen recordings to interactive walkthroughs."
+enabled: true
+demo:
+  type: external-url
+  url: https://github.com/rhel-labs/demo-kiosk
+  long_description: |
+    - **Video** — MP4 or WebM screen recordings
+    - **Slides** — PDF presentations with page controls and fullscreen mode
+    - **Terminal** — Asciinema .cast recordings
+    - **Image** — Annotated screenshot with optional caption
+    - **External URL** — Description plus a link button (opens in a new tab)
+    - **Lab** — Hands-on lab from Red Hat Demo Platform with estimated duration
+    - **Arcade** — Embedded interactive demo from Arcade.software
+    - **Video Loop** — Ambient reel that plays from the header (not on the card grid)
+
+    Use the authoring tool to create and arrange cards of any of these types.
