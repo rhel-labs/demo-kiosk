@@ -1,0 +1,147 @@
+import React, { useState, useCallback } from 'react';
+import {
+  Page, PageSection, Masthead, MastheadMain, MastheadContent,
+  Title, Nav, NavItem, NavList, PageSidebar, PageSidebarBody,
+  Button, Toolbar, ToolbarContent, ToolbarItem,
+  Alert, AlertGroup, AlertActionCloseButton,
+} from '@patternfly/react-core';
+import WelcomeScreen from './components/WelcomeScreen.jsx';
+import CardList from './components/CardList.jsx';
+import BrandingEditor from './components/BrandingEditor.jsx';
+import { validateCards, validateBranding } from './utils/validation.js';
+import { exportZip, defaultBranding } from './utils/zipHandler.js';
+
+function emptyCard() {
+  return {
+    id: '',
+    title: '',
+    summary: '',
+    enabled: true,
+    demo: { type: 'video', _mediaFile: null, _videoFiles: [] },
+  };
+}
+
+export default function App() {
+  const [view, setView] = useState('welcome'); // 'welcome' | 'editor'
+  const [activeTab, setActiveTab] = useState('cards'); // 'cards' | 'branding'
+  const [cards, setCards] = useState([]);
+  const [branding, setBranding] = useState(defaultBranding);
+  const [errors, setErrors] = useState([]);
+  const [exportSuccess, setExportSuccess] = useState(false);
+
+  const handleStart = useCallback((initialCards, initialBranding) => {
+    setCards(initialCards);
+    setBranding(initialBranding);
+    setErrors([]);
+    setView('editor');
+  }, []);
+
+  const handleExport = useCallback(async () => {
+    const cardErrors = validateCards(cards);
+    const brandingErrors = validateBranding(branding);
+    const all = [...cardErrors, ...brandingErrors];
+    if (all.length > 0) {
+      setErrors(all);
+      setExportSuccess(false);
+      return;
+    }
+    setErrors([]);
+    try {
+      await exportZip(cards, branding);
+      setExportSuccess(true);
+      setTimeout(() => setExportSuccess(false), 4000);
+    } catch (e) {
+      setErrors([`Export failed: ${e.message}`]);
+    }
+  }, [cards, branding]);
+
+  const masthead = (
+    <Masthead>
+      <MastheadMain>
+        <Title headingLevel="h1" size="xl" style={{ color: 'white', margin: 0 }}>
+          Demo Kiosk Authoring Tool
+        </Title>
+      </MastheadMain>
+      {view === 'editor' && (
+        <MastheadContent>
+          <Toolbar>
+            <ToolbarContent>
+              <ToolbarItem align={{ default: 'alignEnd' }}>
+                <Button variant="primary" onClick={handleExport}>
+                  Export Bundle
+                </Button>
+              </ToolbarItem>
+              <ToolbarItem>
+                <Button variant="plain" style={{ color: 'white' }} onClick={() => setView('welcome')}>
+                  ← Start Over
+                </Button>
+              </ToolbarItem>
+            </ToolbarContent>
+          </Toolbar>
+        </MastheadContent>
+      )}
+    </Masthead>
+  );
+
+  const sidebar = view === 'editor' ? (
+    <PageSidebar>
+      <PageSidebarBody>
+        <Nav>
+          <NavList>
+            <NavItem isActive={activeTab === 'cards'} onClick={() => setActiveTab('cards')}>
+              Cards ({cards.length})
+            </NavItem>
+            <NavItem isActive={activeTab === 'branding'} onClick={() => setActiveTab('branding')}>
+              Branding
+            </NavItem>
+          </NavList>
+        </Nav>
+      </PageSidebarBody>
+    </PageSidebar>
+  ) : null;
+
+  return (
+    <Page masthead={masthead} sidebar={sidebar}>
+      {errors.length > 0 && (
+        <PageSection padding={{ default: 'noPadding' }}>
+          <AlertGroup>
+            <Alert
+              variant="danger"
+              title={`${errors.length} validation error${errors.length > 1 ? 's' : ''} — fix before exporting`}
+              actionClose={<AlertActionCloseButton onClose={() => setErrors([])} />}
+            >
+              <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
+                {errors.map((e, i) => <li key={i}>{e}</li>)}
+              </ul>
+            </Alert>
+          </AlertGroup>
+        </PageSection>
+      )}
+      {exportSuccess && (
+        <PageSection padding={{ default: 'noPadding' }}>
+          <AlertGroup>
+            <Alert variant="success" title="Bundle exported — upload it via the kiosk /manage panel." />
+          </AlertGroup>
+        </PageSection>
+      )}
+
+      {view === 'welcome' && (
+        <PageSection>
+          <WelcomeScreen onStart={handleStart} />
+        </PageSection>
+      )}
+
+      {view === 'editor' && activeTab === 'cards' && (
+        <PageSection>
+          <CardList cards={cards} setCards={setCards} emptyCard={emptyCard} />
+        </PageSection>
+      )}
+
+      {view === 'editor' && activeTab === 'branding' && (
+        <PageSection>
+          <BrandingEditor branding={branding} setBranding={setBranding} />
+        </PageSection>
+      )}
+    </Page>
+  );
+}
