@@ -40,12 +40,8 @@ function addCardMedia(mediaFolder, card) {
 }
 
 function addBrandingLogos(brandingFolder, branding) {
-  const primaryFile = branding.logos.primary._file;
+  // Primary logo is always the bundled Red Hat SVG — not user-supplied.
   const secondaryFile = branding.logos.secondary._file;
-  if (primaryFile) {
-    const ext = primaryFile.name.split('.').pop();
-    brandingFolder.file(`logo-primary.${ext}`, primaryFile);
-  }
   if (secondaryFile) {
     const ext = secondaryFile.name.split('.').pop();
     brandingFolder.file(`logo-secondary.${ext}`, secondaryFile);
@@ -188,10 +184,6 @@ async function importBranding(zip, kioskPrefix) {
     b.event.tagline = data.event.tagline || '';
     b.event.title = data.event.title || '';
   }
-  if (data.logos?.primary) {
-    b.logos.primary.altText = data.logos.primary.alt_text || '';
-    b.logos.primary._existingPath = data.logos.primary.file || null;
-  }
   if (data.logos?.secondary) {
     b.logos.secondary.altText = data.logos.secondary.alt_text || '';
     b.logos.secondary.url = data.logos.secondary.url || '';
@@ -202,14 +194,13 @@ async function importBranding(zip, kioskPrefix) {
 
 async function attachLogoFiles(branding, zip, kioskPrefix) {
   const brandingPrefix = kioskPrefix + 'branding/';
-  for (const role of ['primary', 'secondary']) {
-    const existingPath = branding.logos[role]._existingPath;
-    if (!existingPath) continue;
+  const existingPath = branding.logos.secondary._existingPath;
+  if (existingPath) {
     const filename = existingPath.split('/').pop();
     const entry = zip.file(brandingPrefix + filename);
     if (entry) {
       const blob = await entry.async('blob');
-      branding.logos[role]._file = new File([blob], filename, { type: guessMime(filename) });
+      branding.logos.secondary._file = new File([blob], filename, { type: guessMime(filename) });
     }
   }
   return branding;
@@ -219,7 +210,6 @@ export function defaultBranding() {
   return {
     event: { header: '', tagline: '', title: '' },
     logos: {
-      primary:   { altText: '', _file: null, _existingPath: null },
       secondary: { altText: '', url: '', _file: null, _existingPath: null },
     },
   };

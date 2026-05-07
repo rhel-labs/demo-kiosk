@@ -55,11 +55,7 @@ function buildDemo(demo) {
 }
 
 export function brandingToYaml(branding) {
-  const primaryFile = branding.logos.primary._file;
   const secondaryFile = branding.logos.secondary._file;
-  const primaryPath = primaryFile
-    ? logoPath(primaryFile, 'primary')
-    : branding.logos.primary._existingPath || 'content/branding/logo-primary.svg';
   const secondaryPath = secondaryFile
     ? logoPath(secondaryFile, 'secondary')
     : branding.logos.secondary._existingPath || 'content/branding/logo-secondary.svg';
@@ -72,8 +68,9 @@ export function brandingToYaml(branding) {
     },
     logos: {
       primary: {
-        file: primaryPath,
-        alt_text: branding.logos.primary.altText || 'Logo',
+        file: 'content/branding/logo-redhat.svg',
+        alt_text: 'Red Hat',
+        url: 'https://www.redhat.com',
       },
       secondary: {
         file: secondaryPath,

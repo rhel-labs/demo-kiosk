@@ -11,16 +11,6 @@ import BrandingEditor from './components/BrandingEditor.jsx';
 import { validateCards, validateBranding } from './utils/validation.js';
 import { exportZip, defaultBranding } from './utils/zipHandler.js';
 
-function emptyCard() {
-  return {
-    id: '',
-    title: '',
-    summary: '',
-    enabled: true,
-    demo: { type: 'video', _mediaFile: null, _videoFiles: [] },
-  };
-}
-
 export default function App() {
   const [view, setView] = useState('welcome'); // 'welcome' | 'editor'
   const [activeTab, setActiveTab] = useState('cards'); // 'cards' | 'branding'
@@ -133,7 +123,7 @@ export default function App() {
 
       {view === 'editor' && activeTab === 'cards' && (
         <PageSection>
-          <CardList cards={cards} setCards={setCards} emptyCard={emptyCard} />
+          <CardList cards={cards} setCards={setCards} />
         </PageSection>
       )}
 
