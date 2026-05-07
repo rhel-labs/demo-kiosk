@@ -392,26 +392,25 @@
       font-weight: 600;
     }
 
+    .visibility-table th:last-child,
     .visibility-table td:last-child {
       text-align: right;
     }
 
-    .visibility-badge {
-      display: inline-block;
-      font-size: 0.8rem;
-      padding: 0.15em 0.6em;
-      border-radius: 2em;
-      font-weight: 600;
-    }
-
-    .visibility-badge.on {
-      background: var(--pf-t--global--background--color--status--success--default, #f3faf2);
-      color: var(--pf-t--global--icon--color--status--success--default, #1e4620);
-    }
-
-    .visibility-badge.off {
-      background: var(--pf-t--global--background--color--secondary--default, #f0f0f0);
+    .visibility-drag-handle {
+      cursor: grab;
       color: var(--pf-t--global--text--color--subtle);
+      width: 2rem;
+      text-align: center;
+      user-select: none;
+    }
+
+    .visibility-table tr.dragging {
+      opacity: 0.4;
+    }
+
+    .visibility-table tr.drag-over td {
+      border-top: 2px solid var(--pf-t--global--color--brand--default, #ee0000);
     }
 
     /* --- Idle overlay ------------------------------------------ */
@@ -603,20 +602,22 @@
       <table class="visibility-table" aria-label="Card visibility controls">
         <thead>
           <tr>
+            <th scope="col"></th>
             <th scope="col">Card</th>
             <th scope="col">Default</th>
-            <th scope="col">Showing</th>
+            <th scope="col">Visibility</th>
           </tr>
         </thead>
         <tbody id="visibility-tbody"></tbody>
       </table>
-      <button class="pf-v6-c-button pf-m-secondary" id="btn-reset-visibility">Reset all to defaults</button>
     </div>
 
     <div class="admin-actions">
       <button class="pf-v6-c-button pf-m-primary" id="btn-back-to-faq">&#8592; Back to Kiosk</button>
       <button class="pf-v6-c-button pf-m-secondary" id="btn-download-csv">&#8681; Download CSV</button>
       <button class="pf-v6-c-button pf-m-danger pf-m-secondary" id="btn-clear-log">Clear Log</button>
+      <button class="pf-v6-c-button pf-m-secondary" id="btn-reset-visibility" style="margin-left:auto">Reset visibility</button>
+      <button class="pf-v6-c-button pf-m-secondary" id="btn-reset-order">Reset card order</button>
     </div>
 
     <div class="admin-table-wrap">
@@ -722,6 +723,7 @@
     // ==========================================================
     const LOG_KEY        = 'faq_view_log';
     const VISIBILITY_KEY = 'faq_visibility';
+    const ORDER_KEY      = 'faq_order';
 
     const Log = {
       read() {
@@ -776,6 +778,42 @@
       // Clear all overrides — restores YAML defaults
       reset() {
         localStorage.removeItem(VISIBILITY_KEY);
+        buildGrid();
+      }
+    };
+
+    // ==========================================================
+    // ORDER (localStorage — card display order by id array)
+    // ==========================================================
+    const Order = {
+      _read() {
+        try { return JSON.parse(localStorage.getItem(ORDER_KEY) || 'null'); }
+        catch { return null; }
+      },
+
+      // Returns entries sorted by stored id array.
+      // Cards not in the stored order are appended at the end.
+      apply(entries) {
+        const ids = this._read();
+        if (!ids) return entries;
+        const idxMap = new Map(ids.map((id, i) => [id, i]));
+        return [...entries].sort((a, b) => {
+          const ai = idxMap.has(a.id) ? idxMap.get(a.id) : Infinity;
+          const bi = idxMap.has(b.id) ? idxMap.get(b.id) : Infinity;
+          return ai - bi;
+        });
+      },
+
+      save(orderedEntries) {
+        try {
+          localStorage.setItem(ORDER_KEY, JSON.stringify(orderedEntries.map(e => e.id)));
+        } catch(e) {
+          console.warn('[FAQ] Could not write order to localStorage:', e);
+        }
+      },
+
+      reset() {
+        localStorage.removeItem(ORDER_KEY);
         buildGrid();
       }
     };
@@ -1169,12 +1207,17 @@
       // Open link button
       const btn = document.createElement('a');
       btn.className = 'pf-v6-c-button pf-m-primary';
-      btn.textContent = 'Open Link \u2197';
-      btn.href   = demo.url || '#';
-      btn.target = '_blank';
-      btn.rel    = 'noopener noreferrer';
-      // Reset idle timer on click (user is actively engaging)
-      btn.addEventListener('click', () => IdleTimer.reset());
+      const isHash = demo.url && demo.url.startsWith('#');
+      btn.textContent = isHash ? 'Open \u2192' : 'Open Link \u2197';
+      btn.href = demo.url || '#';
+      if (isHash) {
+        // Same-page hash navigation \u2014 close modal so the view switch is visible
+        btn.addEventListener('click', (e) => { e.preventDefault(); closeModal(); window.location.hash = demo.url; });
+      } else {
+        btn.target = '_blank';
+        btn.rel    = 'noopener noreferrer';
+        btn.addEventListener('click', () => IdleTimer.reset());
+      }
       wrapper.appendChild(btn);
 
       container.appendChild(wrapper);
@@ -1421,22 +1464,27 @@
         return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${label}</a>`;
       });
 
-      // 4. List items: lines starting with - or *
-      //    Collect consecutive list items and wrap in <ul>
-      const lines = s.split('\n');
-      const out   = [];
-      let inList  = false;
+      // 4. List items: lines starting with - or * (unordered) or 1. 2. (ordered)
+      const lines    = s.split('\n');
+      const out      = [];
+      let listType   = null; // null | 'ul' | 'ol'
       for (const line of lines) {
-        const listMatch = line.match(/^[-*]\s+(.+)/);
-        if (listMatch) {
-          if (!inList) { out.push('<ul>'); inList = true; }
-          out.push(`<li>${listMatch[1]}</li>`);
+        const ulMatch = line.match(/^[-*]\s+(.+)/);
+        const olMatch = line.match(/^\d+\.\s+(.+)/);
+        if (ulMatch || olMatch) {
+          const newType = ulMatch ? 'ul' : 'ol';
+          if (listType !== newType) {
+            if (listType) out.push(`</${listType}>`);
+            out.push(`<${newType}>`);
+            listType = newType;
+          }
+          out.push(`<li>${(ulMatch || olMatch)[1]}</li>`);
         } else {
-          if (inList) { out.push('</ul>'); inList = false; }
+          if (listType) { out.push(`</${listType}>`); listType = null; }
           out.push(line);
         }
       }
-      if (inList) out.push('</ul>');
+      if (listType) out.push(`</${listType}>`);
 
       // 5. Paragraphs: blank lines between non-list blocks
       s = out.join('\n')
@@ -1445,7 +1493,7 @@
           block = block.trim();
           if (!block) return '';
           // Don't wrap list blocks or existing HTML tags in <p>
-          if (block.startsWith('<ul>') || block.startsWith('<li>')) return block;
+          if (block.startsWith('<ul>') || block.startsWith('<ol>') || block.startsWith('<li>')) return block;
           return `<p>${block.replace(/\n/g, ' ')}</p>`;
         })
         .filter(Boolean)
@@ -1477,7 +1525,7 @@
 
       // video-loop cards are never shown in the grid — they are launched from the
       // header button. Filter them out regardless of their enabled/visibility state.
-      const entries = FAQ.all().filter(e => Visibility.get(e) && e.demo?.type !== 'video-loop');
+      const entries = Order.apply(FAQ.all()).filter(e => Visibility.get(e) && e.demo?.type !== 'video-loop');
 
       if (entries.length === 0) {
         const msg = document.createElement('p');
@@ -1587,42 +1635,89 @@
     }
 
     function renderVisibilityPanel() {
-      const tbody  = document.getElementById('visibility-tbody');
-      const entries = FAQ.all();
+      const tbody   = document.getElementById('visibility-tbody');
+      const entries = Order.apply(FAQ.all());
 
       if (entries.length === 0) {
         tbody.innerHTML =
-          `<tr><td colspan="3" style="padding:1rem;color:var(--pf-t--global--text--color--subtle)">No cards loaded.</td></tr>`;
+          `<tr><td colspan="4" style="padding:1rem;color:var(--pf-t--global--text--color--subtle)">No cards loaded.</td></tr>`;
         return;
       }
 
-      tbody.innerHTML = entries.map(entry => {
-        const defaultOn  = entry.enabled !== false;
+      tbody.innerHTML = '';
+
+      entries.forEach(entry => {
+        const defaultOn   = entry.enabled !== false;
         const effectiveOn = Visibility.get(entry);
-        const badgeClass  = effectiveOn ? 'on' : 'off';
-        const badgeLabel  = effectiveOn ? 'Visible' : 'Hidden';
         const btnLabel    = effectiveOn ? 'Hide' : 'Show';
         const btnClass    = effectiveOn ? 'pf-m-secondary' : 'pf-m-primary';
-        return (
-          `<tr>` +
+
+        const tr = document.createElement('tr');
+        tr.draggable = true;
+        tr.dataset.entryId = entry.id;
+        tr.innerHTML =
+          `<td class="visibility-drag-handle" aria-hidden="true">&#8597;</td>` +
           `<td>${escHtml(entry.title)}</td>` +
           `<td>${defaultOn ? 'enabled' : 'disabled'}</td>` +
           `<td>` +
-            `<span class="visibility-badge ${badgeClass}">${badgeLabel}</span>` +
-            `&nbsp;` +
             `<button class="pf-v6-c-button pf-m-small ${btnClass}" ` +
               `data-vis-id="${escHtml(entry.id)}" ` +
               `data-vis-val="${effectiveOn ? 'false' : 'true'}">${btnLabel}</button>` +
-          `</td>` +
-          `</tr>`
-        );
-      }).join('');
+          `</td>`;
 
-      // Attach toggle listeners
+        tbody.appendChild(tr);
+      });
+
+      // Drag-to-reorder
+      let dragSrc = null;
+      tbody.querySelectorAll('tr').forEach(row => {
+        row.addEventListener('dragstart', e => {
+          dragSrc = row;
+          row.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+
+        row.addEventListener('dragend', () => {
+          row.classList.remove('dragging');
+          tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+        });
+
+        row.addEventListener('dragover', e => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (row !== dragSrc) {
+            tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+            row.classList.add('drag-over');
+          }
+        });
+
+        row.addEventListener('drop', e => {
+          e.preventDefault();
+          if (!dragSrc || dragSrc === row) return;
+          const rect = row.getBoundingClientRect();
+          if (e.clientY < rect.top + rect.height / 2) {
+            tbody.insertBefore(dragSrc, row);
+          } else {
+            tbody.insertBefore(dragSrc, row.nextSibling);
+          }
+          row.classList.remove('drag-over');
+
+          // Persist new order
+          const allEntries = FAQ.all();
+          const idMap = new Map(allEntries.map(e => [e.id, e]));
+          const ordered = [...tbody.querySelectorAll('tr')]
+            .map(r => idMap.get(r.dataset.entryId))
+            .filter(Boolean);
+          Order.save(ordered);
+          buildGrid();
+        });
+      });
+
+      // Attach visibility toggle listeners
       tbody.querySelectorAll('button[data-vis-id]').forEach(btn => {
         btn.addEventListener('click', () => {
           Visibility.set(btn.dataset.visId, btn.dataset.visVal === 'true');
-          renderVisibilityPanel();  // re-render panel to reflect new state
+          renderVisibilityPanel();
         });
       });
     }
@@ -1645,6 +1740,10 @@
 
     document.getElementById('btn-reset-visibility').addEventListener('click', () => {
       Visibility.reset();
+      renderVisibilityPanel();
+    });
+    document.getElementById('btn-reset-order').addEventListener('click', () => {
+      Order.reset();
       renderVisibilityPanel();
     });
     document.getElementById('btn-download-csv').addEventListener('click', downloadCsv);
@@ -1806,7 +1905,7 @@
   </script>
 
   <footer id="site-footer">
-    <a href="index.html#admin">Statistics</a> &nbsp;&middot;&nbsp;
+    <a href="#admin">Statistics</a> &nbsp;&middot;&nbsp;
     <a href="containerfile.html">Containerfile</a> &nbsp;&middot;&nbsp;
     &copy; Red Hat, Inc.
   </footer>

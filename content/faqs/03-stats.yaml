@@ -5,7 +5,7 @@ summary: "Track which demos visitors engage with and show or hide cards without 
 enabled: true
 demo:
   type: external-url
-  url: https://github.com/rhel-labs/demo-kiosk
+  url: "#admin"
   long_description: |
     Click the **Statistics** link in the footer, or navigate to **/#admin**, to access the event dashboard.
 

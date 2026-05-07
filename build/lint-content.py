@@ -94,9 +94,12 @@ rules:
 # ── Helpers ───────────────────────────────────────────────────────
 
 def is_valid_url(value):
-    """Return True if value is a plausible http/https URL (no network call)."""
+    """Return True if value is a plausible http/https URL or a hash anchor (no network call)."""
+    s = str(value)
+    if s.startswith('#'):
+        return bool(s[1:])  # '#admin' is valid; bare '#' is not
     try:
-        p = urlparse(str(value))
+        p = urlparse(s)
         return p.scheme in ("http", "https") and bool(p.netloc)
     except Exception:
         return False
