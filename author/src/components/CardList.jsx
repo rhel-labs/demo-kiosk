@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core';
@@ -8,7 +8,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  Button, DataList, DataListItem, DataListItemRow, DataListItemCells,
+  Button, DataList, DataListItemRow, DataListItemCells,
   DataListCell, DataListAction, Switch, Label, Flex, FlexItem,
   Title, TextInput, TextArea, FormGroup, Form, Divider,
 } from '@patternfly/react-core';
@@ -164,7 +164,7 @@ function SortableRow({ card, index, isEditing, onToggleEdit, onCardChange, onDel
   const incomplete = isIncomplete(card);
 
   return (
-    <DataListItem ref={setNodeRef} style={style} aria-labelledby={`card-${index}-title`}>
+    <li ref={setNodeRef} style={style} className="pf-c-data-list__item" aria-labelledby={`card-${index}-title`}>
       <DataListItemRow>
         <DataListItemCells dataListCells={[
           <DataListCell key="drag" style={{ flex: '0 0 2rem' }}>
@@ -184,26 +184,28 @@ function SortableRow({ card, index, isEditing, onToggleEdit, onCardChange, onDel
             </Label>
           </DataListCell>,
           <DataListCell key="content" id={`card-${index}-title`}>
-            {incomplete ? (
-              <span style={{ color: '#795600', fontSize: '0.875rem' }}>
-                Needs title &amp; summary
-                {card.demo?._mediaFile && (
-                  <span style={{ marginLeft: 8, color: '#6a6e73' }}>· {card.demo._mediaFile.name}</span>
-                )}
-              </span>
-            ) : (
-              <>
-                <strong>{card.title}</strong>
-                <div style={{ fontSize: '0.8rem', color: '#6a6e73', marginTop: 2 }}>
-                  {card.summary.length > 90 ? card.summary.slice(0, 90) + '…' : card.summary}
-                </div>
-                {card.demo?._mediaFile && (
-                  <div style={{ fontSize: '0.75rem', color: '#6a6e73', marginTop: 2 }}>
-                    {card.demo._mediaFile.name}
+            <div onClick={() => onToggleEdit(index)} style={{ cursor: 'pointer' }}>
+              {incomplete ? (
+                <span style={{ color: '#795600', fontSize: '0.875rem' }}>
+                  Needs title &amp; summary
+                  {card.demo?._mediaFile && (
+                    <span style={{ marginLeft: 8, color: '#6a6e73' }}>· {card.demo._mediaFile.name}</span>
+                  )}
+                </span>
+              ) : (
+                <>
+                  <strong>{card.title}</strong>
+                  <div style={{ fontSize: '0.8rem', color: '#6a6e73', marginTop: 2 }}>
+                    {card.summary.length > 90 ? card.summary.slice(0, 90) + '…' : card.summary}
                   </div>
-                )}
-              </>
-            )}
+                  {card.demo?._mediaFile && (
+                    <div style={{ fontSize: '0.75rem', color: '#6a6e73', marginTop: 2 }}>
+                      {card.demo._mediaFile.name}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </DataListCell>,
           <DataListCell key="enabled" style={{ flex: '0 0 5rem' }}>
             <Switch isChecked={card.enabled !== false}
@@ -231,7 +233,7 @@ function SortableRow({ card, index, isEditing, onToggleEdit, onCardChange, onDel
           onDone={() => onToggleEdit(index)}
         />
       )}
-    </DataListItem>
+    </li>
   );
 }
 
@@ -240,55 +242,15 @@ function SortableRow({ card, index, isEditing, onToggleEdit, onCardChange, onDel
 export default function CardList({ cards, setCards }) {
   const [editingIndex, setEditingIndex] = useState(null);
   const [urlModal, setUrlModal] = useState(null);
-  const [dragOver, setDragOver] = useState(false);
-  const dragCounter = useRef(0);
+  const [dropZoneActive, setDropZoneActive] = useState(false);
   const fileInputRef = useRef(null);
+  const bulkInputRef = useRef(null);
   const pendingType = useRef(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
-
-  // ── File drop: attach to window so the whole page is a drop target ──
-  // Using a counter to handle dragleave/enter flickering between child elements.
-  useEffect(() => {
-    function onDragEnter(e) {
-      if (!e.dataTransfer?.types?.includes('Files')) return;
-      e.preventDefault();
-      dragCounter.current++;
-      setDragOver(true);
-    }
-    function onDragOver(e) {
-      if (!e.dataTransfer?.types?.includes('Files')) return;
-      e.preventDefault();
-    }
-    function onDragLeave() {
-      dragCounter.current--;
-      if (dragCounter.current <= 0) {
-        dragCounter.current = 0;
-        setDragOver(false);
-      }
-    }
-    function onDrop(e) {
-      e.preventDefault();
-      dragCounter.current = 0;
-      setDragOver(false);
-      const files = [...e.dataTransfer.files];
-      if (files.length) addDroppedFiles(files);
-    }
-
-    window.addEventListener('dragenter', onDragEnter);
-    window.addEventListener('dragover', onDragOver);
-    window.addEventListener('dragleave', onDragLeave);
-    window.addEventListener('drop', onDrop);
-    return () => {
-      window.removeEventListener('dragenter', onDragEnter);
-      window.removeEventListener('dragover', onDragOver);
-      window.removeEventListener('dragleave', onDragLeave);
-      window.removeEventListener('drop', onDrop);
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Infer type from extension for drag-dropped files
   const EXT_TO_TYPE = {
@@ -390,11 +352,46 @@ export default function CardList({ cards, setCards }) {
           </FlexItem>
         ))}
       </Flex>
-      <div style={{ fontSize: '0.8rem', color: '#6a6e73', marginBottom: '1.5rem' }}>
-        Or drag media files anywhere onto the page — type is inferred from the file extension.
+      <div
+        onDragOver={e => { if (e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); } }}
+        onDragEnter={e => { if (e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); setDropZoneActive(true); } }}
+        onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDropZoneActive(false); }}
+        onDrop={e => {
+          e.preventDefault();
+          setDropZoneActive(false);
+          const files = [...e.dataTransfer.files];
+          if (files.length) addDroppedFiles(files);
+        }}
+        onClick={() => bulkInputRef.current.click()}
+        style={{
+          border: `2px dashed ${dropZoneActive ? 'var(--pf-t--color--blue--40, #2b9af3)' : '#d2d2d2'}`,
+          borderRadius: 6,
+          background: dropZoneActive ? 'rgba(0,102,204,0.06)' : '#fafafa',
+          padding: '1rem 1.5rem',
+          marginBottom: '1.5rem',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          transition: 'border-color 0.15s, background 0.15s',
+        }}>
+        <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>+</span>
+        <span>
+          <strong style={{ fontSize: '0.9rem' }}>Add files in bulk</strong>
+          <span style={{ marginLeft: 8, fontSize: '0.8rem', color: '#6a6e73' }}>
+            Drop files here or click to browse — MP4, WebM, PDF, .cast, PNG, JPG, SVG accepted. Card type is inferred from file extension.
+          </span>
+        </span>
       </div>
 
       <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileInput} />
+      <input ref={bulkInputRef} type="file" multiple accept=".mp4,.webm,.pdf,.cast,.png,.jpg,.jpeg,.svg,.webp" style={{ display: 'none' }}
+        onChange={e => {
+          const files = [...e.target.files];
+          if (files.length) addDroppedFiles(files);
+          e.target.value = '';
+        }}
+      />
 
       <Divider style={{ marginBottom: '1rem' }} />
 
@@ -431,6 +428,22 @@ export default function CardList({ cards, setCards }) {
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDndEnd}>
           <SortableContext items={ids} strategy={verticalListSortingStrategy}>
             <DataList aria-label="Cards" isCompact>
+              <li style={{ borderBottom: '2px solid #d2d2d2' }}>
+                <DataListItemRow>
+                  <DataListItemCells dataListCells={[
+                    <DataListCell key="drag" style={{ flex: '0 0 2rem' }} />,
+                    <DataListCell key="order" style={{ flex: '0 0 2.5rem', fontSize: '0.7rem', fontWeight: 700, color: '#6a6e73', textTransform: 'uppercase' }}>#</DataListCell>,
+                    <DataListCell key="type" style={{ flex: '0 0 6rem', fontSize: '0.7rem', fontWeight: 700, color: '#6a6e73', textTransform: 'uppercase' }}>Type</DataListCell>,
+                    <DataListCell key="content" style={{ fontSize: '0.7rem', fontWeight: 700, color: '#6a6e73', textTransform: 'uppercase' }}>Card</DataListCell>,
+                    <DataListCell key="enabled" style={{ flex: '0 0 5rem', fontSize: '0.7rem', fontWeight: 700, color: '#6a6e73', textTransform: 'uppercase' }}>Enabled</DataListCell>,
+                  ]} />
+                  <DataListAction aria-label="actions header" id="col-header-actions" aria-labelledby="col-header-actions" style={{ position: 'relative' }}>
+                    <Button variant="plain" tabIndex={-1} aria-hidden="true" style={{ visibility: 'hidden' }}><PencilAltIcon /></Button>
+                    <Button variant="plain" tabIndex={-1} aria-hidden="true" style={{ visibility: 'hidden' }}><TrashIcon /></Button>
+                    <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#6a6e73', textTransform: 'uppercase', pointerEvents: 'none' }}>Actions</span>
+                  </DataListAction>
+                </DataListItemRow>
+              </li>
               {cards.map((card, index) => (
                 <SortableRow
                   key={getRowKey(card, index)}
@@ -446,25 +459,6 @@ export default function CardList({ cards, setCards }) {
             </DataList>
           </SortableContext>
         </DndContext>
-      )}
-
-      {/* ── File drag overlay ─────────────────────────────────────── */}
-      {dragOver && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999,
-          background: 'rgba(0, 102, 204, 0.12)',
-          border: '3px dashed var(--pf-t--color--blue--40, #2b9af3)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          pointerEvents: 'none',
-        }}>
-          <div style={{
-            background: 'white', borderRadius: 8, padding: '2rem 3rem',
-            fontSize: '1.25rem', fontWeight: 600, color: '#06c',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-          }}>
-            Drop to add media files
-          </div>
-        </div>
       )}
 
       {urlModal && (

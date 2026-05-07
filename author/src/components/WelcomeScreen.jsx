@@ -1,13 +1,14 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Grid, GridItem, Card, CardBody, CardTitle,
-  Title, Content, Button,
+  Title, Content, Button, Spinner,
   EmptyState, EmptyStateBody,
 } from '@patternfly/react-core';
 import { importZip, defaultBranding } from '../utils/zipHandler.js';
 
 export default function WelcomeScreen({ onStart }) {
   const zipInputRef = useRef(null);
+  const [loading, setLoading] = useState(false);
 
   function handleNewBundle() {
     onStart([], defaultBranding());
@@ -16,11 +17,13 @@ export default function WelcomeScreen({ onStart }) {
   async function handleZipFile(e) {
     const file = e.target.files[0];
     if (!file) return;
+    setLoading(true);
     try {
       const { cards, branding } = await importZip(file);
       onStart(cards, branding);
     } catch (err) {
       alert(`Could not load bundle: ${err.message}`);
+      setLoading(false);
     } finally {
       e.target.value = '';
     }
@@ -54,9 +57,16 @@ export default function WelcomeScreen({ onStart }) {
                 <Content component="p" style={{ marginBottom: '1.5rem' }}>
                   Open a previously exported <code>kiosk-*.zip</code> to edit its cards and re-export.
                 </Content>
-                <Button variant="secondary" size="lg" onClick={() => zipInputRef.current.click()}>
-                  Load Bundle (ZIP)
-                </Button>
+                {loading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
+                    <Spinner size="md" />
+                    <span>Loading bundle…</span>
+                  </div>
+                ) : (
+                  <Button variant="secondary" size="lg" onClick={() => zipInputRef.current.click()}>
+                    Load Bundle (ZIP)
+                  </Button>
+                )}
                 <input
                   ref={zipInputRef}
                   type="file"

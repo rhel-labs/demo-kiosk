@@ -46,7 +46,7 @@ export default function App() {
   }, [cards, branding]);
 
   const masthead = (
-    <Masthead>
+    <Masthead style={{ background: '#151515' }}>
       <MastheadMain>
         <Title headingLevel="h1" size="xl" style={{ color: 'white', margin: 0 }}>
           Demo Kiosk Authoring Tool
@@ -56,14 +56,21 @@ export default function App() {
         <MastheadContent>
           <Toolbar>
             <ToolbarContent>
-              <ToolbarItem align={{ default: 'alignEnd' }}>
+              <ToolbarItem>
                 <Button variant="primary" onClick={handleExport}>
-                  Export Bundle
+                  Download Bundle
                 </Button>
               </ToolbarItem>
-              <ToolbarItem>
-                <Button variant="plain" style={{ color: 'white' }} onClick={() => setView('welcome')}>
-                  ← Start Over
+              <ToolbarItem align={{ default: 'alignEnd' }}>
+                <Button variant="plain" style={{ color: '#ff7575', border: '1px solid rgba(255,100,100,0.6)', borderRadius: 4, padding: '4px 16px' }} onClick={() => {
+                  if (cards.length === 0 || confirm('Discard all changes and return to the start?')) {
+                    setCards([]);
+                    setBranding(defaultBranding());
+                    setErrors([]);
+                    setView('welcome');
+                  }
+                }}>
+                  Discard &amp; Start Over
                 </Button>
               </ToolbarItem>
             </ToolbarContent>
