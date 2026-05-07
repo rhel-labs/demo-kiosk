@@ -7,13 +7,13 @@ demo:
   type: external-url
   url: https://github.com/rhel-labs/demo-kiosk
   long_description: |
+    - **Video Loop** — Playlist of videos that plays continuously from the header button (not on the card grid)
     - **Video** — MP4 or WebM screen recordings
     - **Slides** — PDF presentations with page controls and fullscreen mode
-    - **Terminal** — Asciinema .cast recordings
-    - **Image** — Annotated screenshot with optional caption
-    - **External URL** — Description plus a link button (opens in a new tab)
     - **Lab** — Hands-on lab from Red Hat Demo Platform with estimated duration
     - **Arcade** — Embedded interactive demo from Arcade.software
-    - **Video Loop** — Ambient reel that plays from the header (not on the card grid)
+    - **External URL** — Description plus a link button (opens in a new tab)
+    - **Image** — Annotated screenshot with optional caption
+    - **Terminal** — Asciinema .cast recordings
 
     Use the authoring tool to create and arrange cards of any of these types.
