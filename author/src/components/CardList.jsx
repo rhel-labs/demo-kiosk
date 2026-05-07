@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core';
@@ -10,14 +10,29 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Button, DataList, DataListItem, DataListItemRow, DataListItemCells,
   DataListCell, DataListAction, Switch, Label, Flex, FlexItem,
-  Title, TextInput, TextArea, FormGroup, Form,
+  Title, TextInput, TextArea, FormGroup, Form, Divider,
 } from '@patternfly/react-core';
 import {
   GripVerticalIcon, PencilAltIcon, TrashIcon, CheckIcon, TimesIcon,
-  UploadIcon,
 } from '@patternfly/react-icons';
-import { processFiles, ACCEPT } from './MediaDropZone.jsx';
+import { ACCEPT } from './MediaDropZone.jsx';
 import UrlCardModal from './UrlCardModal.jsx';
+
+// ── Card type definitions ─────────────────────────────────────────
+
+const FILE_TYPES = [
+  { type: 'video',      label: 'Video',     accept: '.mp4,.webm',                     hint: 'MP4, WebM' },
+  { type: 'slides',     label: 'Slides',    accept: '.pdf',                           hint: 'PDF' },
+  { type: 'asciinema',  label: 'Terminal',  accept: '.cast',                          hint: '.cast' },
+  { type: 'image-text', label: 'Image',     accept: '.png,.jpg,.jpeg,.svg,.webp',     hint: 'PNG, JPG, SVG' },
+];
+
+const URL_TYPES = [
+  { type: 'external-url', label: 'External URL' },
+  { type: 'lab',          label: 'Lab' },
+  { type: 'arcade',       label: 'Arcade Demo' },
+  { type: 'video-loop',   label: 'Video Loop' },
+];
 
 const TYPE_LABELS = {
   video: 'Video', slides: 'Slides', asciinema: 'Terminal',
@@ -29,22 +44,37 @@ const TYPE_COLORS = {
   'image-text': 'green', 'external-url': 'orange', lab: 'gold',
   arcade: 'teal', 'video-loop': 'grey',
 };
-const URL_TYPES = [
-  { type: 'external-url', label: '+ URL' },
-  { type: 'lab',          label: '+ Lab' },
-  { type: 'arcade',       label: '+ Arcade' },
-  { type: 'video-loop',   label: '+ Video Loop' },
-];
 
-function getRowKey(card, index) {
-  return card.id || `__idx_${index}`;
+// ── Card factory ──────────────────────────────────────────────────
+
+function slugify(name) {
+  return name
+    .replace(/\.[^.]+$/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64) || 'card';
+}
+
+function fileToCard(file, type) {
+  return {
+    id: slugify(file.name),
+    title: '',
+    summary: '',
+    enabled: true,
+    demo: { type, _mediaFile: file, _videoFiles: [], caption: '' },
+  };
 }
 
 function isIncomplete(card) {
   return !card.title?.trim() || !card.summary?.trim();
 }
 
-// ── Inline edit form ─────────────────────────────────────────────
+function getRowKey(card, index) {
+  return card.id || `__idx_${index}`;
+}
+
+// ── Inline edit form ──────────────────────────────────────────────
 
 function InlineForm({ card, onChange, onDone }) {
   const isImageText = card.demo?.type === 'image-text';
@@ -60,7 +90,10 @@ function InlineForm({ card, onChange, onDone }) {
         <FormGroup label="ID" fieldId="inline-id" isRequired>
           <TextInput id="inline-id"
             value={card.id}
-            onChange={(_e, v) => onChange({ ...card, id: v.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+/, '') })}
+            onChange={(_e, v) => onChange({
+              ...card,
+              id: v.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+/, ''),
+            })}
             placeholder="card-id"
             style={{ maxWidth: 220 }}
           />
@@ -142,25 +175,20 @@ function SortableRow({ card, index, isEditing, onToggleEdit, onCardChange, onDel
               </span>
             )}
           </DataListCell>,
-
           <DataListCell key="order" style={{ flex: '0 0 2.5rem', color: '#6a6e73', fontSize: '0.8rem' }}>
             {(index + 1) * 10}
           </DataListCell>,
-
           <DataListCell key="type" style={{ flex: '0 0 6rem' }}>
             <Label color={TYPE_COLORS[type] || 'grey'} isCompact>
               {TYPE_LABELS[type] || type}
             </Label>
           </DataListCell>,
-
           <DataListCell key="content" id={`card-${index}-title`}>
             {incomplete ? (
               <span style={{ color: '#795600', fontSize: '0.875rem' }}>
                 Needs title &amp; summary
                 {card.demo?._mediaFile && (
-                  <span style={{ marginLeft: 8, color: '#6a6e73' }}>
-                    · {card.demo._mediaFile.name}
-                  </span>
+                  <span style={{ marginLeft: 8, color: '#6a6e73' }}>· {card.demo._mediaFile.name}</span>
                 )}
               </span>
             ) : (
@@ -177,7 +205,6 @@ function SortableRow({ card, index, isEditing, onToggleEdit, onCardChange, onDel
               </>
             )}
           </DataListCell>,
-
           <DataListCell key="enabled" style={{ flex: '0 0 5rem' }}>
             <Switch isChecked={card.enabled !== false}
               onChange={(_e, checked) => onToggle(index, checked)}
@@ -214,38 +241,92 @@ export default function CardList({ cards, setCards }) {
   const [editingIndex, setEditingIndex] = useState(null);
   const [urlModal, setUrlModal] = useState(null);
   const [dragOver, setDragOver] = useState(false);
-  const [rejected, setRejected] = useState([]);
+  const dragCounter = useRef(0);
   const fileInputRef = useRef(null);
+  const pendingType = useRef(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const addFiles = useCallback((files) => {
-    const { cards: newCards, rejected: bad } = processFiles(files);
-    if (newCards.length) setCards(prev => [...prev, ...newCards]);
-    if (bad.length) {
-      setRejected(bad);
-      setTimeout(() => setRejected([]), 5000);
+  // ── File drop: attach to window so the whole page is a drop target ──
+  // Using a counter to handle dragleave/enter flickering between child elements.
+  useEffect(() => {
+    function onDragEnter(e) {
+      if (!e.dataTransfer?.types?.includes('Files')) return;
+      e.preventDefault();
+      dragCounter.current++;
+      setDragOver(true);
     }
-  }, [setCards]);
+    function onDragOver(e) {
+      if (!e.dataTransfer?.types?.includes('Files')) return;
+      e.preventDefault();
+    }
+    function onDragLeave() {
+      dragCounter.current--;
+      if (dragCounter.current <= 0) {
+        dragCounter.current = 0;
+        setDragOver(false);
+      }
+    }
+    function onDrop(e) {
+      e.preventDefault();
+      dragCounter.current = 0;
+      setDragOver(false);
+      const files = [...e.dataTransfer.files];
+      if (files.length) addDroppedFiles(files);
+    }
 
-  function handleDragOver(e) { e.preventDefault(); setDragOver(true); }
-  function handleDragLeave(e) {
-    if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false);
+    window.addEventListener('dragenter', onDragEnter);
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('dragleave', onDragLeave);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragenter', onDragEnter);
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('dragleave', onDragLeave);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Infer type from extension for drag-dropped files
+  const EXT_TO_TYPE = {
+    mp4: 'video', webm: 'video', pdf: 'slides', cast: 'asciinema',
+    png: 'image-text', jpg: 'image-text', jpeg: 'image-text',
+    svg: 'image-text', webp: 'image-text',
+  };
+
+  function addDroppedFiles(files) {
+    const newCards = [];
+    const rejected = [];
+    for (const f of files) {
+      const ext = f.name.split('.').pop().toLowerCase();
+      const type = EXT_TO_TYPE[ext];
+      if (type) newCards.push(fileToCard(f, type));
+      else rejected.push(f.name);
+    }
+    if (newCards.length) setCards(prev => [...prev, ...newCards]);
+    if (rejected.length) alert(`Skipped (unsupported): ${rejected.join(', ')}`);
   }
-  function handleDrop(e) {
-    e.preventDefault();
-    setDragOver(false);
-    addFiles([...e.dataTransfer.files]);
+
+  // ── Type button: file-based ───────────────────────────────────────
+  function handleFileTypeClick(type, accept) {
+    pendingType.current = type;
+    fileInputRef.current.accept = accept;
+    fileInputRef.current.multiple = true;
+    fileInputRef.current.click();
   }
 
   function handleFileInput(e) {
-    addFiles([...e.target.files]);
+    const type = pendingType.current;
+    const newCards = [...e.target.files].map(f => fileToCard(f, type));
+    if (newCards.length) setCards(prev => [...prev, ...newCards]);
     e.target.value = '';
+    pendingType.current = null;
   }
 
+  // ── DnD reorder ───────────────────────────────────────────────────
   function handleDndEnd({ active, over }) {
     if (!over || active.id === over.id) return;
     setCards(prev => {
@@ -255,6 +336,7 @@ export default function CardList({ cards, setCards }) {
     });
   }
 
+  // ── Card ops ──────────────────────────────────────────────────────
   function toggleEdit(index) {
     setEditingIndex(prev => prev === index ? null : index);
   }
@@ -287,113 +369,103 @@ export default function CardList({ cards, setCards }) {
 
   return (
     <div>
-      {/* ── Toolbar ────────────────────────────────────────────── */}
-      <Flex
-        justifyContent={{ default: 'justifyContentSpaceBetween' }}
+      {/* ── Add a card ───────────────────────────────────────────── */}
+      <Title headingLevel="h2" size="md" style={{ marginBottom: '0.75rem' }}>Add a card</Title>
+
+      <Flex wrap="wrap" style={{ gap: '0.5rem', marginBottom: '0.5rem' }}>
+        {FILE_TYPES.map(({ type, label, accept }) => (
+          <FlexItem key={type}>
+            <Button variant="secondary"
+              onClick={() => handleFileTypeClick(type, accept)}>
+              + {label}
+            </Button>
+          </FlexItem>
+        ))}
+        {URL_TYPES.map(({ type, label }) => (
+          <FlexItem key={type}>
+            <Button variant="secondary"
+              onClick={() => setUrlModal({ type })}>
+              + {label}
+            </Button>
+          </FlexItem>
+        ))}
+      </Flex>
+      <div style={{ fontSize: '0.8rem', color: '#6a6e73', marginBottom: '1.5rem' }}>
+        Or drag media files anywhere onto the page — type is inferred from the file extension.
+      </div>
+
+      <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileInput} />
+
+      <Divider style={{ marginBottom: '1rem' }} />
+
+      {/* ── Card list ─────────────────────────────────────────────── */}
+      <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }}
         alignItems={{ default: 'alignItemsCenter' }}
-        style={{ marginBottom: '1rem' }}
-        wrap="wrap"
-      >
+        style={{ marginBottom: '0.75rem' }}>
         <FlexItem>
-          <Flex alignItems={{ default: 'alignItemsCenter' }}>
-            <FlexItem>
-              <Title headingLevel="h2" size="lg" style={{ marginRight: '0.5rem' }}>
-                Cards
-                {cards.length > 0 && (
-                  <span style={{ fontWeight: 400, color: '#6a6e73', marginLeft: 6 }}>
-                    {cards.length}
-                    {incomplete > 0 && (
-                      <span style={{ color: '#795600', marginLeft: 6 }}>
-                        · {incomplete} incomplete
-                      </span>
-                    )}
+          <Title headingLevel="h2" size="lg">
+            Cards
+            {cards.length > 0 && (
+              <span style={{ fontWeight: 400, color: '#6a6e73', marginLeft: 8 }}>
+                {cards.length}
+                {incomplete > 0 && (
+                  <span style={{ color: '#795600', marginLeft: 8 }}>
+                    · {incomplete} need metadata
                   </span>
                 )}
-              </Title>
-            </FlexItem>
-          </Flex>
-        </FlexItem>
-
-        <FlexItem>
-          <Flex wrap="wrap">
-            <FlexItem>
-              <Button variant="secondary" onClick={() => fileInputRef.current.click()}>
-                <UploadIcon style={{ marginRight: 6 }} />
-                Add Files
-              </Button>
-              <input ref={fileInputRef} type="file" accept={ACCEPT} multiple
-                style={{ display: 'none' }} onChange={handleFileInput} />
-            </FlexItem>
-            {URL_TYPES.map(({ type, label }) => (
-              <FlexItem key={type}>
-                <Button variant="plain" onClick={() => setUrlModal({ type })}
-                  style={{ color: 'var(--pf-t--color--blue--40, #2b9af3)', fontWeight: 500 }}>
-                  {label}
-                </Button>
-              </FlexItem>
-            ))}
-          </Flex>
+              </span>
+            )}
+          </Title>
         </FlexItem>
       </Flex>
 
-      {rejected.length > 0 && (
-        <div style={{ marginBottom: 8, fontSize: '0.8rem', color: '#c9190b' }}>
-          Skipped (unsupported): {rejected.join(', ')}
+      {cards.length === 0 ? (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', minHeight: 120, color: '#6a6e73',
+          border: '1px dashed #d2d2d2', borderRadius: 6,
+        }}>
+          No cards yet — use the buttons above to add your first card.
         </div>
+      ) : (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDndEnd}>
+          <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+            <DataList aria-label="Cards" isCompact>
+              {cards.map((card, index) => (
+                <SortableRow
+                  key={getRowKey(card, index)}
+                  card={card}
+                  index={index}
+                  isEditing={editingIndex === index}
+                  onToggleEdit={toggleEdit}
+                  onCardChange={handleCardChange}
+                  onDelete={handleDelete}
+                  onToggle={handleToggle}
+                />
+              ))}
+            </DataList>
+          </SortableContext>
+        </DndContext>
       )}
 
-      {/* ── Drop target + card list ───────────────────────────── */}
-      <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        style={{
-          borderRadius: 6,
-          outline: dragOver ? '2px dashed var(--pf-t--color--blue--40, #2b9af3)' : '2px dashed transparent',
-          background: dragOver ? 'var(--pf-t--color--blue--10, #e7f1fa)' : 'transparent',
-          transition: 'outline 0.1s, background 0.1s',
-          minHeight: 120,
-        }}
-      >
-        {cards.length === 0 ? (
+      {/* ── File drag overlay ─────────────────────────────────────── */}
+      {dragOver && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0, 102, 204, 0.12)',
+          border: '3px dashed var(--pf-t--color--blue--40, #2b9af3)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
+        }}>
           <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-            justifyContent: 'center', minHeight: 160, color: '#6a6e73',
-            border: '1px dashed #d2d2d2', borderRadius: 6,
+            background: 'white', borderRadius: 8, padding: '2rem 3rem',
+            fontSize: '1.25rem', fontWeight: 600, color: '#06c',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
           }}>
-            <UploadIcon style={{ fontSize: '1.5rem', marginBottom: 8 }} />
-            <div>Use <strong>Add Files</strong> above, or drag files here</div>
-            <div style={{ fontSize: '0.8rem', marginTop: 4 }}>
-              Video · Slides · Terminal · Image — one file or many
-            </div>
+            Drop to add media files
           </div>
-        ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDndEnd}>
-            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-              <DataList aria-label="Cards" isCompact>
-                {cards.map((card, index) => (
-                  <SortableRow
-                    key={getRowKey(card, index)}
-                    card={card}
-                    index={index}
-                    isEditing={editingIndex === index}
-                    onToggleEdit={toggleEdit}
-                    onCardChange={handleCardChange}
-                    onDelete={handleDelete}
-                    onToggle={handleToggle}
-                  />
-                ))}
-              </DataList>
-            </SortableContext>
-          </DndContext>
-        )}
-
-        {dragOver && cards.length > 0 && (
-          <div style={{ textAlign: 'center', padding: '0.75rem', color: 'var(--pf-t--color--blue--40, #2b9af3)', fontSize: '0.875rem' }}>
-            Drop to add files
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {urlModal && (
         <UrlCardModal
