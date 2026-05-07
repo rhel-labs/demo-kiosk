@@ -29,12 +29,11 @@ function validateDemo(demo, cardLabel) {
   }
 
   if (type === 'video' || type === 'slides' || type === 'asciinema') {
-    if (!demo._mediaFile) {
+    if (!demo._mediaFile && !demo.src) {
       errors.push(`${cardLabel}: a media file is required for type "${type}"`);
     }
   } else if (type === 'image-text') {
-    if (!demo._mediaFile) errors.push(`${cardLabel}: an image file is required`);
-    if (!demo.caption || !demo.caption.trim()) errors.push(`${cardLabel}: caption is required`);
+    if (!demo._mediaFile && !demo.src) errors.push(`${cardLabel}: an image file is required`);
   } else if (type === 'external-url') {
     if (!demo.url) errors.push(`${cardLabel}: url is required`);
     else if (!isValidUrl(demo.url)) errors.push(`${cardLabel}: url must be a valid http/https URL`);
@@ -79,7 +78,9 @@ export function validateCards(cards) {
     }
 
     if (!card.title || !card.title.trim()) errors.push(`${label}: title is required`);
-    if (!card.summary || !card.summary.trim()) errors.push(`${label}: summary is required`);
+    if (card.demo?.type !== 'video-loop' && (!card.summary || !card.summary.trim())) {
+      errors.push(`${label}: summary is required`);
+    }
 
     errors.push(...validateDemo(card.demo, label));
   });

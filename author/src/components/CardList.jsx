@@ -10,21 +10,21 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Button, DataList, DataListItemRow, DataListItemCells,
   DataListCell, DataListAction, Switch, Label, Flex, FlexItem,
-  Title, TextInput, TextArea, FormGroup, Form, Divider,
+  Title, Divider,
 } from '@patternfly/react-core';
 import {
-  GripVerticalIcon, PencilAltIcon, TrashIcon, CheckIcon, TimesIcon,
+  GripVerticalIcon, PencilAltIcon, TrashIcon, EyeIcon,
 } from '@patternfly/react-icons';
-import { ACCEPT } from './MediaDropZone.jsx';
-import UrlCardModal from './UrlCardModal.jsx';
+import CardEditModal from './CardEditModal.jsx';
+import CardPreview from './CardPreview.jsx';
 
 // ── Card type definitions ─────────────────────────────────────────
 
 const FILE_TYPES = [
-  { type: 'video',      label: 'Video',     accept: '.mp4,.webm',                     hint: 'MP4, WebM' },
-  { type: 'slides',     label: 'Slides',    accept: '.pdf',                           hint: 'PDF' },
-  { type: 'asciinema',  label: 'Terminal',  accept: '.cast',                          hint: '.cast' },
-  { type: 'image-text', label: 'Image',     accept: '.png,.jpg,.jpeg,.svg,.webp',     hint: 'PNG, JPG, SVG' },
+  { type: 'video',      label: 'Video' },
+  { type: 'slides',     label: 'Slides' },
+  { type: 'asciinema',  label: 'Terminal' },
+  { type: 'image-text', label: 'Image' },
 ];
 
 const URL_TYPES = [
@@ -45,7 +45,7 @@ const TYPE_COLORS = {
   arcade: 'teal', 'video-loop': 'grey',
 };
 
-// ── Card factory ──────────────────────────────────────────────────
+// ── Card factories ────────────────────────────────────────────────
 
 function slugify(name) {
   return name
@@ -54,6 +54,24 @@ function slugify(name) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 64) || 'card';
+}
+
+function newCard(type) {
+  const base = { id: '', title: '', summary: '', enabled: true, _isNew: true };
+  if (type === 'video' || type === 'slides' || type === 'asciinema') {
+    base.demo = { type, _mediaFile: null };
+  } else if (type === 'image-text') {
+    base.demo = { type, _mediaFile: null, caption: '' };
+  } else if (type === 'external-url') {
+    base.demo = { type, url: 'https://', long_description: '' };
+  } else if (type === 'lab') {
+    base.demo = { type, url: 'https://', long_description: '', duration: '' };
+  } else if (type === 'arcade') {
+    base.demo = { type, share_url: 'https://', aspect_ratio: '' };
+  } else if (type === 'video-loop') {
+    base.demo = { type, _videoFiles: [] };
+  }
+  return base;
 }
 
 function fileToCard(file, type) {
@@ -67,90 +85,18 @@ function fileToCard(file, type) {
 }
 
 function isIncomplete(card) {
-  return !card.title?.trim() || !card.summary?.trim();
+  if (!card.title?.trim()) return true;
+  if (card.demo?.type !== 'video-loop' && !card.summary?.trim()) return true;
+  return false;
 }
 
 function getRowKey(card, index) {
   return card.id || `__idx_${index}`;
 }
 
-// ── Inline edit form ──────────────────────────────────────────────
-
-function InlineForm({ card, onChange, onDone }) {
-  const isImageText = card.demo?.type === 'image-text';
-  const mediaFile = card.demo?._mediaFile;
-
-  return (
-    <div style={{
-      padding: '0.875rem 1rem 1rem',
-      background: 'var(--pf-t--color--gray--10, #f9f9f9)',
-      borderTop: '1px solid #d2d2d2',
-    }}>
-      <Form isHorizontal>
-        <FormGroup label="ID" fieldId="inline-id" isRequired>
-          <TextInput id="inline-id"
-            value={card.id}
-            onChange={(_e, v) => onChange({
-              ...card,
-              id: v.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+/, ''),
-            })}
-            placeholder="card-id"
-            style={{ maxWidth: 220 }}
-          />
-        </FormGroup>
-        <FormGroup label="Title" fieldId="inline-title" isRequired>
-          <TextInput id="inline-title" autoFocus
-            value={card.title}
-            onChange={(_e, v) => onChange({ ...card, title: v })}
-            placeholder="Card title shown on the kiosk"
-          />
-        </FormGroup>
-        <FormGroup label="Summary" fieldId="inline-summary" isRequired>
-          <TextArea id="inline-summary"
-            value={card.summary}
-            onChange={(_e, v) => onChange({ ...card, summary: v })}
-            rows={2}
-            placeholder="One sentence shown under the title."
-          />
-        </FormGroup>
-        {isImageText && (
-          <FormGroup label="Caption" fieldId="inline-caption" isRequired>
-            <TextArea id="inline-caption"
-              value={card.demo.caption || ''}
-              onChange={(_e, v) => onChange({ ...card, demo: { ...card.demo, caption: v } })}
-              rows={3}
-              placeholder="Describe what is shown in the image."
-            />
-          </FormGroup>
-        )}
-        {mediaFile && (
-          <FormGroup label="File" fieldId="inline-file">
-            <Label color="green" isCompact>{mediaFile.name}</Label>
-            <span style={{ marginLeft: 8, fontSize: '0.8rem', color: '#6a6e73' }}>
-              ({(mediaFile.size / 1024 / 1024).toFixed(1)} MB)
-            </span>
-          </FormGroup>
-        )}
-      </Form>
-      <Flex style={{ marginTop: '0.75rem' }}>
-        <FlexItem>
-          <Button variant="primary" size="sm" onClick={onDone}>
-            <CheckIcon style={{ marginRight: 4 }} />Done
-          </Button>
-        </FlexItem>
-        <FlexItem>
-          <Button variant="plain" size="sm" onClick={onDone} aria-label="Close">
-            <TimesIcon />
-          </Button>
-        </FlexItem>
-      </Flex>
-    </div>
-  );
-}
-
 // ── Sortable card row ─────────────────────────────────────────────
 
-function SortableRow({ card, index, isEditing, onToggleEdit, onCardChange, onDelete, onToggle }) {
+function SortableRow({ card, index, onEdit, onDelete, onToggle, onPreview }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: getRowKey(card, index) });
 
@@ -168,12 +114,10 @@ function SortableRow({ card, index, isEditing, onToggleEdit, onCardChange, onDel
       <DataListItemRow>
         <DataListItemCells dataListCells={[
           <DataListCell key="drag" style={{ flex: '0 0 2rem' }}>
-            {!isEditing && (
-              <span {...attributes} {...listeners}
-                style={{ cursor: 'grab', color: '#6a6e73', display: 'block', padding: '2px 0' }}>
-                <GripVerticalIcon />
-              </span>
-            )}
+            <span {...attributes} {...listeners}
+              style={{ cursor: 'grab', color: '#6a6e73', display: 'block', padding: '2px 0' }}>
+              <GripVerticalIcon />
+            </span>
           </DataListCell>,
           <DataListCell key="order" style={{ flex: '0 0 2.5rem', color: '#6a6e73', fontSize: '0.8rem' }}>
             {(index + 1) * 10}
@@ -184,7 +128,7 @@ function SortableRow({ card, index, isEditing, onToggleEdit, onCardChange, onDel
             </Label>
           </DataListCell>,
           <DataListCell key="content" id={`card-${index}-title`}>
-            <div onClick={() => onToggleEdit(index)} style={{ cursor: 'pointer' }}>
+            <div onClick={() => onEdit(index)} style={{ cursor: 'pointer' }}>
               {incomplete ? (
                 <span style={{ color: '#795600', fontSize: '0.875rem' }}>
                   Needs title &amp; summary
@@ -198,11 +142,15 @@ function SortableRow({ card, index, isEditing, onToggleEdit, onCardChange, onDel
                   <div style={{ fontSize: '0.8rem', color: '#6a6e73', marginTop: 2 }}>
                     {card.summary.length > 90 ? card.summary.slice(0, 90) + '…' : card.summary}
                   </div>
-                  {card.demo?._mediaFile && (
+                  {card.demo?._mediaFile ? (
                     <div style={{ fontSize: '0.75rem', color: '#6a6e73', marginTop: 2 }}>
                       {card.demo._mediaFile.name}
                     </div>
-                  )}
+                  ) : card.demo?.src ? (
+                    <div style={{ fontSize: '0.75rem', color: '#999', marginTop: 2, fontStyle: 'italic' }}>
+                      {card.demo.src.split('/').pop()} (path ref — not embedded)
+                    </div>
+                  ) : null}
                 </>
               )}
             </div>
@@ -215,8 +163,10 @@ function SortableRow({ card, index, isEditing, onToggleEdit, onCardChange, onDel
         ]} />
         <DataListAction aria-label="actions" id={`card-${index}-actions`}
           aria-labelledby={`card-${index}-title`}>
-          <Button variant="plain" aria-label="Edit" onClick={() => onToggleEdit(index)}
-            style={{ color: isEditing ? 'var(--pf-t--color--blue--40, #2b9af3)' : undefined }}>
+          <Button variant="plain" aria-label="Preview" onClick={() => onPreview(index)}>
+            <EyeIcon />
+          </Button>
+          <Button variant="plain" aria-label="Edit" onClick={() => onEdit(index)}>
             <PencilAltIcon />
           </Button>
           <Button variant="plain" aria-label="Delete" onClick={() => onDelete(index)}
@@ -225,14 +175,6 @@ function SortableRow({ card, index, isEditing, onToggleEdit, onCardChange, onDel
           </Button>
         </DataListAction>
       </DataListItemRow>
-
-      {isEditing && (
-        <InlineForm
-          card={card}
-          onChange={updated => onCardChange(index, updated)}
-          onDone={() => onToggleEdit(index)}
-        />
-      )}
     </li>
   );
 }
@@ -240,12 +182,10 @@ function SortableRow({ card, index, isEditing, onToggleEdit, onCardChange, onDel
 // ── Main CardList ─────────────────────────────────────────────────
 
 export default function CardList({ cards, setCards }) {
-  const [editingIndex, setEditingIndex] = useState(null);
-  const [urlModal, setUrlModal] = useState(null);
+  const [editModal, setEditModal] = useState(null);
+  const [previewCard, setPreviewCard] = useState(null);
   const [dropZoneActive, setDropZoneActive] = useState(false);
-  const fileInputRef = useRef(null);
   const bulkInputRef = useRef(null);
-  const pendingType = useRef(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -272,22 +212,6 @@ export default function CardList({ cards, setCards }) {
     if (rejected.length) alert(`Skipped (unsupported): ${rejected.join(', ')}`);
   }
 
-  // ── Type button: file-based ───────────────────────────────────────
-  function handleFileTypeClick(type, accept) {
-    pendingType.current = type;
-    fileInputRef.current.accept = accept;
-    fileInputRef.current.multiple = true;
-    fileInputRef.current.click();
-  }
-
-  function handleFileInput(e) {
-    const type = pendingType.current;
-    const newCards = [...e.target.files].map(f => fileToCard(f, type));
-    if (newCards.length) setCards(prev => [...prev, ...newCards]);
-    e.target.value = '';
-    pendingType.current = null;
-  }
-
   // ── DnD reorder ───────────────────────────────────────────────────
   function handleDndEnd({ active, over }) {
     if (!over || active.id === over.id) return;
@@ -299,31 +223,27 @@ export default function CardList({ cards, setCards }) {
   }
 
   // ── Card ops ──────────────────────────────────────────────────────
-  function toggleEdit(index) {
-    setEditingIndex(prev => prev === index ? null : index);
+
+  function handleEdit(index) {
+    setEditModal({ card: cards[index], editIndex: index });
   }
 
-  function handleCardChange(index, updated) {
-    setCards(prev => prev.map((c, i) => i === index ? updated : c));
+  function handleCardSave(card) {
+    if (editModal.editIndex != null) {
+      setCards(prev => prev.map((c, i) => i === editModal.editIndex ? card : c));
+    } else {
+      setCards(prev => [...prev, card]);
+    }
+    setEditModal(null);
   }
 
   function handleDelete(index) {
     if (!confirm(`Delete "${cards[index].title || 'this card'}"?`)) return;
     setCards(prev => prev.filter((_, i) => i !== index));
-    if (editingIndex === index) setEditingIndex(null);
   }
 
   function handleToggle(index, checked) {
     setCards(prev => prev.map((c, i) => i === index ? { ...c, enabled: checked } : c));
-  }
-
-  function handleUrlSave(card) {
-    if (urlModal.editIndex != null) {
-      setCards(prev => prev.map((c, i) => i === urlModal.editIndex ? card : c));
-    } else {
-      setCards(prev => [...prev, card]);
-    }
-    setUrlModal(null);
   }
 
   const incomplete = cards.filter(isIncomplete).length;
@@ -335,18 +255,16 @@ export default function CardList({ cards, setCards }) {
       <Title headingLevel="h2" size="md" style={{ marginBottom: '0.75rem' }}>Add a card</Title>
 
       <Flex wrap="wrap" style={{ gap: '0.5rem', marginBottom: '0.5rem' }}>
-        {FILE_TYPES.map(({ type, label, accept }) => (
+        {FILE_TYPES.map(({ type, label }) => (
           <FlexItem key={type}>
-            <Button variant="secondary"
-              onClick={() => handleFileTypeClick(type, accept)}>
+            <Button variant="secondary" onClick={() => setEditModal({ card: newCard(type) })}>
               + {label}
             </Button>
           </FlexItem>
         ))}
         {URL_TYPES.map(({ type, label }) => (
           <FlexItem key={type}>
-            <Button variant="secondary"
-              onClick={() => setUrlModal({ type })}>
+            <Button variant="secondary" onClick={() => setEditModal({ card: newCard(type) })}>
               + {label}
             </Button>
           </FlexItem>
@@ -384,7 +302,6 @@ export default function CardList({ cards, setCards }) {
         </span>
       </div>
 
-      <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileInput} />
       <input ref={bulkInputRef} type="file" multiple accept=".mp4,.webm,.pdf,.cast,.png,.jpg,.jpeg,.svg,.webp" style={{ display: 'none' }}
         onChange={e => {
           const files = [...e.target.files];
@@ -438,6 +355,7 @@ export default function CardList({ cards, setCards }) {
                     <DataListCell key="enabled" style={{ flex: '0 0 5rem', fontSize: '0.7rem', fontWeight: 700, color: '#6a6e73', textTransform: 'uppercase' }}>Enabled</DataListCell>,
                   ]} />
                   <DataListAction aria-label="actions header" id="col-header-actions" aria-labelledby="col-header-actions" style={{ position: 'relative' }}>
+                    <Button variant="plain" tabIndex={-1} aria-hidden="true" style={{ visibility: 'hidden' }}><EyeIcon /></Button>
                     <Button variant="plain" tabIndex={-1} aria-hidden="true" style={{ visibility: 'hidden' }}><PencilAltIcon /></Button>
                     <Button variant="plain" tabIndex={-1} aria-hidden="true" style={{ visibility: 'hidden' }}><TrashIcon /></Button>
                     <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#6a6e73', textTransform: 'uppercase', pointerEvents: 'none' }}>Actions</span>
@@ -449,11 +367,10 @@ export default function CardList({ cards, setCards }) {
                   key={getRowKey(card, index)}
                   card={card}
                   index={index}
-                  isEditing={editingIndex === index}
-                  onToggleEdit={toggleEdit}
-                  onCardChange={handleCardChange}
+                  onEdit={handleEdit}
                   onDelete={handleDelete}
                   onToggle={handleToggle}
+                  onPreview={index => setPreviewCard(cards[index])}
                 />
               ))}
             </DataList>
@@ -461,13 +378,16 @@ export default function CardList({ cards, setCards }) {
         </DndContext>
       )}
 
-      {urlModal && (
-        <UrlCardModal
-          type={urlModal.type}
-          card={urlModal.editIndex != null ? cards[urlModal.editIndex] : undefined}
-          onSave={handleUrlSave}
-          onCancel={() => setUrlModal(null)}
+      {editModal && (
+        <CardEditModal
+          card={editModal.card}
+          onSave={handleCardSave}
+          onCancel={() => setEditModal(null)}
         />
+      )}
+
+      {previewCard && (
+        <CardPreview card={previewCard} onClose={() => setPreviewCard(null)} />
       )}
     </div>
   );

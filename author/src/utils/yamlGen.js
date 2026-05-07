@@ -29,10 +29,12 @@ export function cardToYaml(card, index) {
 function buildDemo(demo) {
   const { type } = demo;
   if (type === 'video' || type === 'slides' || type === 'asciinema') {
-    return { type, src: mediaPath(demo._mediaFile) };
+    const src = demo._mediaFile ? mediaPath(demo._mediaFile) : (demo.src || '');
+    return { type, src };
   }
   if (type === 'image-text') {
-    return { type, image: mediaPath(demo._mediaFile), caption: demo.caption };
+    const image = demo._mediaFile ? mediaPath(demo._mediaFile) : (demo.src || '');
+    return { type, image, caption: demo.caption };
   }
   if (type === 'external-url') {
     return { type, url: demo.url, long_description: demo.long_description };
