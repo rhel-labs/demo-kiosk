@@ -182,22 +182,21 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
     def _handle_zip_upload(self):
         if not self._is_writable():
             return self._send_json(self._not_writable_error(), 503)
-        parts = self._read_multipart()
-        if 'file' not in parts:
-            return self._send_json({'error': 'No file field in upload'}, 400)
-        file_data = parts['file']['data']
-        filename  = parts['file']['filename']
-        if not filename.lower().endswith('.zip'):
-            return self._send_json({'error': 'Expected a .zip file'}, 400)
 
         with tempfile.TemporaryDirectory() as tmp:
             zip_path = os.path.join(tmp, 'upload.zip')
-            with open(zip_path, 'wb') as f:
-                f.write(file_data)
+            try:
+                filename = self._stream_upload_file(zip_path)
+            except (ValueError, OSError) as exc:
+                return self._send_json({'error': f'Upload failed: {exc}'}, 400)
+            if not filename:
+                return self._send_json({'error': 'No file field in upload'}, 400)
+            if not filename.lower().endswith('.zip'):
+                return self._send_json({'error': 'Expected a .zip file'}, 400)
             try:
                 with zipfile.ZipFile(zip_path) as zf:
                     zf.extractall(tmp)
-            except zipfile.BadZipFile as exc:
+            except (zipfile.BadZipFile, zipfile.LargeZipFile) as exc:
                 return self._send_json({'error': f'Invalid zip file: {exc}'}, 400)
 
             # Find kiosk/ at any nesting depth — handles both Google Drive's
@@ -436,6 +435,73 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
                      'Mount a writable volume or bind mount at /srv/faq/content — '
                      'see README.md for options.',
         }
+
+    def _stream_upload_file(self, dest_path, chunk=65536):
+        """Stream the first file field of a multipart/form-data request to dest_path.
+
+        Reads multipart headers line-by-line (small), then computes the exact
+        file-data length from Content-Length minus envelope overhead, and streams
+        the payload in chunks so the full body is never held in RAM.  This
+        allows zip bundles of any size to be uploaded without OOM errors.
+
+        Returns the filename from Content-Disposition, or None if no file field
+        is found.  Raises ValueError on malformed multipart framing.
+        """
+        ct = self.headers.get('Content-Type', '')
+        boundary = None
+        for seg in ct.split(';'):
+            seg = seg.strip()
+            if seg.lower().startswith('boundary='):
+                boundary = seg[9:].strip().strip('"').encode('latin-1')
+                break
+        if not boundary:
+            raise ValueError('No boundary in Content-Type')
+
+        total = int(self.headers.get('Content-Length', 0))
+        if total <= 0:
+            raise ValueError('Missing or zero Content-Length')
+
+        header_bytes = 0
+        filename = None
+
+        # Read the opening boundary line: --boundary\r\n
+        line = self.rfile.readline(len(boundary) + 8)
+        header_bytes += len(line)
+        if line.rstrip(b'\r\n') != b'--' + boundary:
+            raise ValueError('Opening boundary not found')
+
+        # Read part headers until the blank line
+        while True:
+            line = self.rfile.readline(8192)
+            if not line:
+                raise ValueError('Unexpected end of part headers')
+            header_bytes += len(line)
+            if line == b'\r\n':
+                break
+            if line.lower().startswith(b'content-disposition:'):
+                for part in line.decode('latin-1', errors='replace').split(';'):
+                    part = part.strip()
+                    if part.lower().startswith('filename='):
+                        filename = part[9:].strip().strip('"')
+
+        # File data is everything between here and \r\n--boundary--\r\n
+        closing = b'\r\n--' + boundary + b'--\r\n'
+        file_length = total - header_bytes - len(closing)
+        if file_length < 0:
+            raise ValueError('Computed file length is negative; malformed multipart body')
+
+        with open(dest_path, 'wb') as f:
+            remaining = file_length
+            while remaining > 0:
+                data = self.rfile.read(min(chunk, remaining))
+                if not data:
+                    break
+                f.write(data)
+                remaining -= len(data)
+
+        # Drain the closing boundary so the connection stays clean
+        self.rfile.read(len(closing))
+        return filename
 
     def _read_multipart(self):
         """Parse multipart/form-data from the request body into a dict of
