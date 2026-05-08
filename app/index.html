@@ -1288,10 +1288,10 @@
     }
 
     // ---- Video loop ----
-    // Plays a playlist of videos sequentially, looping forever.
+    // Plays a shuffled playlist of videos, looping forever.
     // Always muted — designed for ambient/attract use at a conference booth.
     // Idle timer is suppressed for the full session; the loop is the kiosk resting state.
-    // No play state is retained between opens — index always resets to 0.
+    // No play state is retained between opens — playlist reshuffles on each open.
     function renderVideoLoop(demo, container) {
       if (!demo.videos || demo.videos.length === 0) {
         container.appendChild(missingAsset(null, 'video-loop requires at least one entry in the videos list'));
@@ -1304,6 +1304,16 @@
       video.controls = true;
       video.preload  = 'auto';
 
+      function shuffle(arr) {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+
+      let playlist = shuffle(demo.videos);
       let index = 0;
       let preloader = null;
 
@@ -1313,30 +1323,40 @@
       // gaps minimal without starving the playing video.
       function preloadNext() {
         if (preloader) { preloader.src = ''; preloader.remove(); }
-        const next = (index + 1) % demo.videos.length;
+        const next = (index + 1) % playlist.length;
         preloader = document.createElement('video');
         preloader.muted        = true;
         preloader.preload      = 'auto';
-        preloader.src          = demo.videos[next];
+        preloader.src          = playlist[next];
         preloader.style.display = 'none';
         preloader.load();
         container.appendChild(preloader);
       }
 
       function loadNext() {
-        video.src = demo.videos[index];
+        video.src = playlist[index];
         video.play().catch(() => {});
         preloadNext();
       }
 
       video.addEventListener('ended', () => {
-        index = (index + 1) % demo.videos.length;
+        index = (index + 1) % playlist.length;
+        if (index === 0) {
+          // Reshuffle for the next pass, ensuring the first clip of the new pass
+          // isn't the same as the last clip of the previous pass.
+          const last = playlist[playlist.length - 1];
+          playlist = shuffle(demo.videos);
+          if (playlist.length > 1 && playlist[0] === last) {
+            const j = 1 + Math.floor(Math.random() * (playlist.length - 1));
+            [playlist[0], playlist[j]] = [playlist[j], playlist[0]];
+          }
+        }
         loadNext();
       });
 
       video.addEventListener('error', () => {
         // skip unloadable files silently rather than stopping the loop
-        index = (index + 1) % demo.videos.length;
+        index = (index + 1) % playlist.length;
         loadNext();
       });
 
