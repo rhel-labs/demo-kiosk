@@ -233,8 +233,13 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
 
             # Find kiosk/ at any nesting depth — handles both Google Drive's
             # timestamped wrapper (kiosk-<ts>/kiosk/) and a flat kiosk/ root.
+            # Prune __MACOSX/ and hidden dirs in-place so os.walk never
+            # descends into them; macOS zips embed a kiosk/ inside __MACOSX/
+            # that would otherwise match before the real one.
             kiosk_dir = None
             for dirpath, dirs, _ in os.walk(tmp):
+                dirs[:] = [d for d in dirs
+                           if not d.startswith('.') and d != '__MACOSX']
                 if os.path.basename(dirpath) == 'kiosk':
                     kiosk_dir = dirpath
                     break
@@ -256,28 +261,35 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
             # don't persist alongside the zip's cards (duplicate order/id).
             # media/ is additive to preserve individually uploaded files.
             # Skip dotfiles (.DS_Store, __MACOSX metadata, etc.).
-            _REPLACE = {'faqs', 'branding'}
-            content_str = str(self._content_dir)
-            for item in os.listdir(kiosk_dir):
-                if item.startswith('.'):
-                    continue
-                src = os.path.join(kiosk_dir, item)
-                dst = os.path.join(content_str, item)
-                if os.path.isdir(src):
-                    if item in _REPLACE:
-                        if os.path.isdir(dst):
-                            shutil.rmtree(dst)
-                        shutil.move(src, dst)
+            # Wrap in OSError handler: an unhandled exception here drops the
+            # TCP connection before any HTTP response is sent, which the
+            # browser reports as "failed to fetch" with no useful message.
+            try:
+                _REPLACE = {'faqs', 'branding'}
+                content_str = str(self._content_dir)
+                for item in os.listdir(kiosk_dir):
+                    if item.startswith('.'):
+                        continue
+                    src = os.path.join(kiosk_dir, item)
+                    dst = os.path.join(content_str, item)
+                    if os.path.isdir(src):
+                        if item in _REPLACE:
+                            if os.path.isdir(dst):
+                                shutil.rmtree(dst)
+                            shutil.move(src, dst)
+                        else:
+                            # Additive (media): move individual files so we
+                            # don't clobber files uploaded outside this bundle.
+                            os.makedirs(dst, exist_ok=True)
+                            for fname in os.listdir(src):
+                                if not fname.startswith('.'):
+                                    shutil.move(os.path.join(src, fname),
+                                                os.path.join(dst, fname))
                     else:
-                        # Additive (media): move individual files so we don't
-                        # clobber files uploaded outside this bundle.
-                        os.makedirs(dst, exist_ok=True)
-                        for fname in os.listdir(src):
-                            if not fname.startswith('.'):
-                                shutil.move(os.path.join(src, fname),
-                                            os.path.join(dst, fname))
-                else:
-                    shutil.move(src, dst)
+                        shutil.move(src, dst)
+            except OSError as exc:
+                return self._send_json(
+                    {'error': f'Bundle extracted but content install failed: {exc}'}, 500)
 
         order_fixes = self._fix_duplicate_orders()
         ok, output = self._rebuild()
