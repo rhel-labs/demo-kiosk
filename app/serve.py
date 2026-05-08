@@ -208,12 +208,14 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
         if not self._is_writable():
             return self._send_json(self._not_writable_error(), 503)
 
-        # Temp dir lives next to content/ (same filesystem as the destination)
-        # so that extraction + the subsequent moves are inodes-only operations,
-        # not disk copies.  Using /tmp would require ~2× the zip size there
-        # (zip file + extracted tree) before the copy to content — that OOMs
-        # or exhausts tmpfs on any reasonably sized container.
-        with tempfile.TemporaryDirectory(dir=self._content_dir.parent) as tmp:
+        # Temp dir lives inside content/ — the one directory _is_writable()
+        # already verified.  Using content/../ (/srv/faq) fails if that parent
+        # directory is not writable by the process user (WORKDIR permissions
+        # depend on the base image; only the COPY --chown files are guaranteed).
+        # Using /tmp would exhaust tmpfs in a container for large bundles.
+        # Being inside content/ means every subsequent shutil.move is an atomic
+        # rename within the same filesystem.
+        with tempfile.TemporaryDirectory(dir=self._content_dir) as tmp:
             zip_path = os.path.join(tmp, 'upload.zip')
             try:
                 filename = self._stream_upload_file(zip_path)
