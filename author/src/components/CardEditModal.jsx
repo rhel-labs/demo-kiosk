@@ -76,21 +76,44 @@ function FileField({ type, demo, error, onChange }) {
   );
 }
 
+function fmtMB(bytes) {
+  const mb = bytes / 1024 / 1024;
+  return mb < 1 ? '<1 MB' : `${Math.round(mb)} MB`;
+}
+
 function VideoLoopField({ demo, error, onChange }) {
   const inputRef = useRef(null);
+  const [picking, setPicking] = useState(false);
+  const [lastAdded, setLastAdded] = useState(0);
   const files = demo._videoFiles || [];
+  const totalBytes = files.reduce((s, f) => s + f.size, 0);
+
+  function openPicker() {
+    setPicking(true);
+    inputRef.current.click();
+  }
 
   return (
     <FormGroup label="Video files" fieldId="ef-videos" isRequired>
       <div style={{ marginBottom: 8 }}>
-        {files.length === 0 && (
+        {files.length === 0 && !picking && (
           <span style={{ color: error ? '#c9190b' : '#6a6e73', fontSize: '0.875rem' }}>
             No videos added yet
           </span>
         )}
+        {picking && files.length === 0 && (
+          <span style={{ color: '#6a6e73', fontSize: '0.875rem' }}>
+            Waiting for file selection…
+          </span>
+        )}
         {files.map((f, i) => (
           <Flex key={i} alignItems={{ default: 'alignItemsCenter' }} style={{ marginBottom: 4 }}>
-            <FlexItem><Label color="blue" isCompact>{f.name}</Label></FlexItem>
+            <FlexItem>
+              <Label color="blue" isCompact>
+                {f.name}
+                <span style={{ opacity: 0.65, marginLeft: 6 }}>({fmtMB(f.size)})</span>
+              </Label>
+            </FlexItem>
             <FlexItem>
               <Button variant="plain" aria-label="Remove" onClick={() =>
                 onChange({ ...demo, _videoFiles: files.filter((_, j) => j !== i) })}>
@@ -99,12 +122,27 @@ function VideoLoopField({ demo, error, onChange }) {
             </FlexItem>
           </Flex>
         ))}
+        {files.length > 0 && (
+          <div style={{ fontSize: '0.8rem', color: '#6a6e73', marginTop: 4 }}>
+            {files.length} video{files.length !== 1 ? 's' : ''} · {fmtMB(totalBytes)} total
+            {lastAdded > 0 && (
+              <span style={{ color: '#3e8635', marginLeft: 8, fontWeight: 500 }}>
+                +{lastAdded} added
+              </span>
+            )}
+          </div>
+        )}
       </div>
-      <Button variant="secondary" onClick={() => inputRef.current.click()}>Add videos</Button>
+      <Button variant="secondary" onClick={openPicker}>Add videos</Button>
       <input ref={inputRef} type="file" accept=".mp4,.webm" multiple style={{ display: 'none' }}
         onChange={e => {
           const newFiles = [...e.target.files];
-          if (newFiles.length) onChange({ ...demo, _videoFiles: [...files, ...newFiles] });
+          setPicking(false);
+          if (newFiles.length) {
+            onChange({ ...demo, _videoFiles: [...files, ...newFiles] });
+            setLastAdded(newFiles.length);
+            setTimeout(() => setLastAdded(0), 3000);
+          }
           e.target.value = '';
         }} />
       {error && errText(error)}
