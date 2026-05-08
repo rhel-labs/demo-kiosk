@@ -17,9 +17,14 @@ content/media/*.m4v
 kiosk*.zip
 
 # Event-specific FAQ content — delivered per-event, not stored in git.
-# _template.yaml is the exception: it documents the schema for content authors.
+# _template.yaml and the default onboarding cards are exceptions.
 content/faqs/*.yaml
 !content/faqs/_template.yaml
+!content/faqs/00-upload.yaml
+!content/faqs/01-creating-bundle.yaml
+!content/faqs/02-card-types.yaml
+!content/faqs/03-stats.yaml
+!content/faqs/03-manage.yaml
 content/*.yaml
 
 # Generated files built from the YAML content above.

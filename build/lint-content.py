@@ -56,7 +56,7 @@ def warn(msg): print(f"{YELLOW}  !{RESET} {msg}")
 def err(msg):  print(f"{RED}  ✗{RESET} {msg}")
 
 # ── Valid FAQ demo types ──────────────────────────────────────────
-VALID_TYPES = {"video", "slides", "asciinema", "image-text", "external-url", "arcade", "lab", "video-loop"}
+VALID_TYPES = {"video", "slides", "asciinema", "image-text", "external-url", "arcade", "lab", "video-loop", "upload"}
 REQUIRED_FAQ_FIELDS = {"id", "order", "title", "summary", "demo"}
 
 # ── Arcade share URL patterns ─────────────────────────────────────
@@ -94,9 +94,12 @@ rules:
 # ── Helpers ───────────────────────────────────────────────────────
 
 def is_valid_url(value):
-    """Return True if value is a plausible http/https URL (no network call)."""
+    """Return True if value is a plausible http/https URL or a hash anchor (no network call)."""
+    s = str(value)
+    if s.startswith('#'):
+        return bool(s[1:])  # '#admin' is valid; bare '#' is not
     try:
-        p = urlparse(str(value))
+        p = urlparse(s)
         return p.scheme in ("http", "https") and bool(p.netloc)
     except Exception:
         return False
@@ -247,6 +250,9 @@ def _validate_demo(demo, path, content_dir):
                 errors.append(
                     f"demo 'src' file not found: {demo['src']!r}"
                 )
+
+    elif dtype == "upload":
+        pass  # no extra fields required — renderer is kiosk-internal
 
     elif dtype == "video-loop":
         if "videos" not in demo:
