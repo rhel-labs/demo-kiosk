@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import yaml from 'js-yaml';
 import { cardToYaml, brandingToYaml, sanitizeFilename } from './yamlGen.js';
 
-export async function exportZip(cards, branding) {
+export async function exportZip(cards, branding, onProgress) {
   const zip = new JSZip();
   const kiosk = zip.folder('kiosk');
   const faqs = kiosk.folder('faqs');
@@ -17,14 +17,76 @@ export async function exportZip(cards, branding) {
   brandingFolder.file('branding.yaml', brandingToYaml(branding));
   addBrandingLogos(brandingFolder, branding);
 
-  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `kiosk-${timestamp}.zip`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const filename = `kiosk-${timestamp}.zip`;
+
+  if ('showSaveFilePicker' in window) {
+    // Stream directly to disk — avoids buffering the full zip in RAM.
+    // Videos can be multiple GB; buffering them as a Blob exhausts memory.
+    let handle;
+    try {
+      handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: 'Kiosk Bundle', accept: { 'application/zip': ['.zip'] } }],
+      });
+    } catch (e) {
+      if (e.name === 'AbortError') return; // user cancelled the save dialog
+      throw e;
+    }
+    const writable = await handle.createWritable();
+    const readable = new ReadableStream({
+      start(controller) {
+        zip.generateInternalStream({ type: 'uint8array' })
+          .on('data', (chunk, meta) => { controller.enqueue(chunk); onProgress?.(meta.percent); })
+          .on('error', e => controller.error(e))
+          .on('end', () => controller.close())
+          .resume();
+      },
+    });
+    await readable.pipeTo(writable);
+  } else {
+    // Fallback for Firefox / Safari: entire zip is buffered in memory before download.
+    // Warn if the bundle is large enough to risk exhausting RAM.
+    const mediaMB = Math.round(totalMediaSize(cards) / 1024 / 1024);
+    if (mediaMB > 500) {
+      const proceed = window.confirm(
+        `This bundle contains ~${mediaMB} MB of media.\n\n` +
+        `Firefox must hold the entire zip in memory before downloading, which may exhaust RAM and crash the tab.\n\n` +
+        `For large bundles, Chrome or Edge handle this without buffering.\n\n` +
+        `Proceed anyway?`
+      );
+      if (!proceed) return;
+    }
+    const blob = await zip.generateAsync(
+      { type: 'blob' },
+      onProgress ? ({ percent }) => onProgress(percent) : undefined,
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+}
+
+// Returns total size in bytes of all media files across all cards.
+export function totalMediaSize(cards) {
+  let total = 0;
+  for (const card of cards) {
+    const { demo } = card;
+    if (!demo) continue;
+    if (demo._mediaFile) total += demo._mediaFile.size;
+    if (demo._videoFiles) demo._videoFiles.forEach(f => { total += f.size; });
+  }
+  return total;
+}
+
+// Already-compressed formats gain nothing from DEFLATE and waste memory trying.
+function fileCompression(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  const store = ['mp4', 'webm', 'pdf', 'cast', 'png', 'jpg', 'jpeg', 'webp', 'gif'];
+  return store.includes(ext) ? { compression: 'STORE' } : {};
 }
 
 function addCardMedia(mediaFolder, card) {
@@ -32,10 +94,14 @@ function addCardMedia(mediaFolder, card) {
   if (!demo) return;
   const { type } = demo;
   if ((type === 'video' || type === 'slides' || type === 'asciinema' || type === 'image-text') && demo._mediaFile) {
-    mediaFolder.file(sanitizeFilename(demo._mediaFile.name), demo._mediaFile);
+    const name = sanitizeFilename(demo._mediaFile.name);
+    mediaFolder.file(name, demo._mediaFile, fileCompression(name));
   }
   if (type === 'video-loop' && demo._videoFiles) {
-    demo._videoFiles.forEach(f => mediaFolder.file(sanitizeFilename(f.name), f));
+    demo._videoFiles.forEach(f => {
+      const name = sanitizeFilename(f.name);
+      mediaFolder.file(name, f, fileCompression(name));
+    });
   }
 }
 

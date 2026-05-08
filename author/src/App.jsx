@@ -9,7 +9,7 @@ import WelcomeScreen from './components/WelcomeScreen.jsx';
 import CardList from './components/CardList.jsx';
 import BrandingEditor from './components/BrandingEditor.jsx';
 import { validateCards, validateBranding } from './utils/validation.js';
-import { exportZip, defaultBranding } from './utils/zipHandler.js';
+import { exportZip, defaultBranding, totalMediaSize } from './utils/zipHandler.js';
 
 export default function App() {
   const [view, setView] = useState('welcome'); // 'welcome' | 'editor'
@@ -18,6 +18,8 @@ export default function App() {
   const [branding, setBranding] = useState(defaultBranding);
   const [errors, setErrors] = useState([]);
   const [exportSuccess, setExportSuccess] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
 
   const handleStart = useCallback((initialCards, initialBranding) => {
     setCards(initialCards);
@@ -36,12 +38,17 @@ export default function App() {
       return;
     }
     setErrors([]);
+    setIsExporting(true);
+    setExportProgress(0);
     try {
-      await exportZip(cards, branding);
+      await exportZip(cards, branding, pct => setExportProgress(Math.round(pct)));
       setExportSuccess(true);
       setTimeout(() => setExportSuccess(false), 4000);
     } catch (e) {
       setErrors([`Export failed: ${e.message}`]);
+    } finally {
+      setIsExporting(false);
+      setExportProgress(0);
     }
   }, [cards, branding]);
 
@@ -57,8 +64,10 @@ export default function App() {
           <Toolbar>
             <ToolbarContent>
               <ToolbarItem>
-                <Button variant="primary" onClick={handleExport}>
-                  Download Bundle
+                <Button variant="primary" onClick={handleExport} isDisabled={isExporting}>
+                  {isExporting
+                    ? (exportProgress > 0 ? `Preparing… ${exportProgress}%` : 'Preparing…')
+                    : 'Download Bundle'}
                 </Button>
               </ToolbarItem>
               <ToolbarItem align={{ default: 'alignEnd' }}>
