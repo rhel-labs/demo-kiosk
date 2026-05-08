@@ -189,6 +189,12 @@ COPY --from=builder --chown=65532:65532 \
 COPY --from=builder --chown=65532:65532 \
      /tmp/.local/lib/python3.14/site-packages/markupsafe \
      /tmp/.local/lib/python3.14/site-packages/markupsafe
+# qtfaststart — pure-Python MP4 moov-atom mover; applied to every MP4 uploaded
+# at runtime so Firefox can play videos without dozens of range requests.
+# No re-encoding: pure remux, no quality change.
+COPY --from=builder --chown=65532:65532 \
+     /tmp/.local/lib/python3.14/site-packages/qtfaststart \
+     /tmp/.local/lib/python3.14/site-packages/qtfaststart
 
 # Linter script — available for manual invocation against a mounted content directory.
 # Usage: podman run --rm -v ./content:/mnt/content:ro IMAGE \
