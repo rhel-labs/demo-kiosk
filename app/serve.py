@@ -90,7 +90,7 @@ _LOGO_EXTS         = {'.svg', '.png', '.jpg', '.jpeg', '.webp'}
 _CARD_REQUIRED     = {'id', 'order', 'title', 'summary', 'demo'}
 _VALID_DEMO_TYPES  = {
     'video', 'slides', 'asciinema', 'image-text',
-    'external-url', 'arcade', 'lab', 'video-loop',
+    'external-url', 'arcade', 'lab', 'video-loop', 'upload',
 }
 
 

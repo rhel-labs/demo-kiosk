@@ -130,13 +130,11 @@ COPY --chown=65532:65532 package.json         ./
 COPY --chown=65532:65532 start.sh             ./
 
 # Bundle all author tooling into a single tarball for `podman cp` extraction.
-# content/faqs.js is excluded — authors generate it themselves after editing.
 # Uses python3 tarfile (stdlib) — tar is not available in this builder image.
 RUN python3 - << 'EOF'
 import tarfile, os
 
 WORKDIR = "/tmp"
-EXCLUDE = {"content/faqs/faqs.js"}
 MEMBERS = [
     "build",
     "app/faqs",
@@ -147,12 +145,9 @@ MEMBERS = [
     "start.sh",
 ]
 
-def filter_fn(info):
-    return None if info.name in EXCLUDE else info
-
 with tarfile.open(os.path.join(WORKDIR, "extras.tar.gz"), "w:gz") as tf:
     for member in MEMBERS:
-        tf.add(os.path.join(WORKDIR, member), arcname=member, filter=filter_fn)
+        tf.add(os.path.join(WORKDIR, member), arcname=member, filter=None)
 EOF
 
 
