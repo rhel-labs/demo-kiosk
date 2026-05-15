@@ -146,14 +146,16 @@ export default function CardPreview({ card, onClose }) {
         <ModalBody>
           {!files.length
             ? <p style={{ color: '#6a6e73' }}>No video files attached yet.</p>
-            : <>
-                <video controls style={{ width: '100%', maxHeight: 450, background: '#000', borderRadius: 6 }} src={blobUrl(files[0])} />
-                {files.length > 1 && (
-                  <div style={{ fontSize: '0.8rem', color: '#6a6e73', marginTop: 6 }}>
-                    Showing 1 of {files.length} videos in the loop.
-                  </div>
-                )}
-              </>
+            : !(files[0] instanceof Blob)
+              ? <p style={{ color: '#6a6e73' }}>{files.length} video file{files.length > 1 ? 's' : ''} from bundle — re-attach to preview.</p>
+              : <>
+                  <video controls style={{ width: '100%', maxHeight: 450, background: '#000', borderRadius: 6 }} src={blobUrl(files[0])} />
+                  {files.length > 1 && (
+                    <div style={{ fontSize: '0.8rem', color: '#6a6e73', marginTop: 6 }}>
+                      Showing 1 of {files.length} videos in the loop.
+                    </div>
+                  )}
+                </>
           }
         </ModalBody>
         <ModalFooter><Button variant="primary" onClick={onClose}>Close</Button></ModalFooter>
@@ -163,18 +165,22 @@ export default function CardPreview({ card, onClose }) {
 
   function renderPopupBody() {
     if (type === 'video') {
-      if (!demo._mediaFile) return (
+      if (!(demo._mediaFile instanceof Blob)) return (
         <p style={{ color: '#6a6e73', alignSelf: 'flex-start' }}>
-          {demo.src ? `File referenced by path: ${demo.src.split('/').pop()} — re-attach to embed it.` : 'No video file attached yet.'}
+          {demo._mediaFile?.name
+            ? `File from bundle: ${demo._mediaFile.name} — re-attach to preview.`
+            : demo.src ? `File referenced by path: ${demo.src.split('/').pop()} — re-attach to embed it.` : 'No video file attached yet.'}
         </p>
       );
       return <video controls style={{ width: '100%', borderRadius: 6, background: '#000' }} src={blobUrl(demo._mediaFile)} />;
     }
 
     if (type === 'slides') {
-      if (!demo._mediaFile) return (
+      if (!(demo._mediaFile instanceof Blob)) return (
         <p style={{ color: '#6a6e73', alignSelf: 'flex-start' }}>
-          {demo.src ? `File referenced by path: ${demo.src.split('/').pop()} — re-attach to embed it.` : 'No PDF attached yet.'}
+          {demo._mediaFile?.name
+            ? `File from bundle: ${demo._mediaFile.name} — re-attach to preview.`
+            : demo.src ? `File referenced by path: ${demo.src.split('/').pop()} — re-attach to embed it.` : 'No PDF attached yet.'}
         </p>
       );
       return <iframe src={blobUrl(demo._mediaFile)} style={{ width: '100%', height: 480, border: 'none', borderRadius: 6 }} title="Slides preview" />;
@@ -199,9 +205,11 @@ export default function CardPreview({ card, onClose }) {
     }
 
     if (type === 'image-text') {
-      if (!demo._mediaFile) return (
+      if (!(demo._mediaFile instanceof Blob)) return (
         <p style={{ color: '#6a6e73', alignSelf: 'flex-start' }}>
-          {demo.src ? `File referenced by path: ${demo.src.split('/').pop()} — re-attach to embed it.` : 'No image attached yet.'}
+          {demo._mediaFile?.name
+            ? `File from bundle: ${demo._mediaFile.name} — re-attach to preview.`
+            : demo.src ? `File referenced by path: ${demo.src.split('/').pop()} — re-attach to embed it.` : 'No image attached yet.'}
         </p>
       );
       return (

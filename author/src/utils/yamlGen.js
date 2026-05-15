@@ -57,6 +57,11 @@ function buildDemo(demo) {
 }
 
 export function brandingToYaml(branding) {
+  const primaryFile   = branding.logos.primary?._file;
+  const primaryPath   = primaryFile
+    ? `content/branding/${primaryFile.name}`
+    : (branding.logos.primary?._existingPath || 'content/branding/logo-redhat.svg');
+
   const secondaryFile = branding.logos.secondary._file;
   const secondaryPath = secondaryFile
     ? logoPath(secondaryFile, 'secondary')
@@ -64,13 +69,13 @@ export function brandingToYaml(branding) {
 
   const obj = {
     event: {
-      header: branding.event.header,
-      ...(branding.event.tagline ? { tagline: branding.event.tagline } : {}),
-      ...(branding.event.title ? { title: branding.event.title } : {}),
+      header:  branding.event.header,
+      tagline: branding.event.tagline || '',
+      title:   branding.event.title   || '',
     },
     logos: {
       primary: {
-        file: 'content/branding/logo-redhat.svg',
+        file: primaryPath,
         alt_text: 'Red Hat',
         url: 'https://www.redhat.com',
       },
