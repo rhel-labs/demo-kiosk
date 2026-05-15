@@ -8,9 +8,9 @@
 
 window.BRANDING = {
   event: {
-    title: {{ branding.event.title | tojson }},
+    title: {{ branding.event.title | default('') | tojson }},
     header: {{ branding.event.header | tojson }},
-    tagline: {{ branding.event.tagline | tojson }},
+    tagline: {{ branding.event.tagline | default('') | tojson }},
   },
   logos: {
     primary: {
