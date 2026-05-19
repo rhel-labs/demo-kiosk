@@ -47,6 +47,31 @@ try:
 except ImportError:
     yaml = None
 
+try:
+    from qtfaststart import processor as _qs_processor
+except ImportError:
+    _qs_processor = None
+
+
+def _apply_faststart(path):
+    """Move the moov atom to the front of an MP4 in-place.
+
+    No-op if qtfaststart is unavailable or the file is already faststart.
+    Pure remux — no re-encoding, no quality change.
+    """
+    if _qs_processor is None:
+        return
+    fd, tmp = tempfile.mkstemp(suffix='.mp4', dir=os.path.dirname(path))
+    os.close(fd)
+    try:
+        _qs_processor.process(path, tmp)
+        shutil.move(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+
 
 # File extensions accepted for media upload, and the demo type inferred from each.
 _MEDIA_DEMO_TYPE = {
@@ -65,7 +90,7 @@ _LOGO_EXTS         = {'.svg', '.png', '.jpg', '.jpeg', '.webp'}
 _CARD_REQUIRED     = {'id', 'order', 'title', 'summary', 'demo'}
 _VALID_DEMO_TYPES  = {
     'video', 'slides', 'asciinema', 'image-text',
-    'external-url', 'arcade', 'lab', 'video-loop',
+    'external-url', 'arcade', 'lab', 'video-loop', 'upload',
 }
 
 
@@ -182,28 +207,39 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
     def _handle_zip_upload(self):
         if not self._is_writable():
             return self._send_json(self._not_writable_error(), 503)
-        parts = self._read_multipart()
-        if 'file' not in parts:
-            return self._send_json({'error': 'No file field in upload'}, 400)
-        file_data = parts['file']['data']
-        filename  = parts['file']['filename']
-        if not filename.lower().endswith('.zip'):
-            return self._send_json({'error': 'Expected a .zip file'}, 400)
 
-        with tempfile.TemporaryDirectory() as tmp:
+        # Temp dir lives inside content/ — the one directory _is_writable()
+        # already verified.  Using content/../ (/srv/faq) fails if that parent
+        # directory is not writable by the process user (WORKDIR permissions
+        # depend on the base image; only the COPY --chown files are guaranteed).
+        # Using /tmp would exhaust tmpfs in a container for large bundles.
+        # Being inside content/ means every subsequent shutil.move is an atomic
+        # rename within the same filesystem.
+        with tempfile.TemporaryDirectory(dir=self._content_dir) as tmp:
             zip_path = os.path.join(tmp, 'upload.zip')
-            with open(zip_path, 'wb') as f:
-                f.write(file_data)
+            try:
+                filename = self._stream_upload_file(zip_path)
+            except (ValueError, OSError) as exc:
+                return self._send_json({'error': f'Upload failed: {exc}'}, 400)
+            if not filename:
+                return self._send_json({'error': 'No file field in upload'}, 400)
+            if not filename.lower().endswith('.zip'):
+                return self._send_json({'error': 'Expected a .zip file'}, 400)
             try:
                 with zipfile.ZipFile(zip_path) as zf:
                     zf.extractall(tmp)
-            except zipfile.BadZipFile as exc:
+            except (zipfile.BadZipFile, zipfile.LargeZipFile) as exc:
                 return self._send_json({'error': f'Invalid zip file: {exc}'}, 400)
 
             # Find kiosk/ at any nesting depth — handles both Google Drive's
             # timestamped wrapper (kiosk-<ts>/kiosk/) and a flat kiosk/ root.
+            # Prune __MACOSX/ and hidden dirs in-place so os.walk never
+            # descends into them; macOS zips embed a kiosk/ inside __MACOSX/
+            # that would otherwise match before the real one.
             kiosk_dir = None
             for dirpath, dirs, _ in os.walk(tmp):
+                dirs[:] = [d for d in dirs
+                           if not d.startswith('.') and d != '__MACOSX']
                 if os.path.basename(dirpath) == 'kiosk':
                     kiosk_dir = dirpath
                     break
@@ -212,20 +248,48 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
                     {'error': "No 'kiosk/' directory found in zip. "
                               "Expected structure: kiosk/faqs/, kiosk/branding/, kiosk/media/"}, 400)
 
+            # Apply faststart to every MP4 in the bundle before moving to
+            # content/ — mirrors the build-time step so Firefox can play
+            # uploaded videos without making dozens of range requests.
+            media_src = os.path.join(kiosk_dir, 'media')
+            if os.path.isdir(media_src):
+                for fname in os.listdir(media_src):
+                    if fname.lower().endswith('.mp4'):
+                        _apply_faststart(os.path.join(media_src, fname))
+
             # faqs/ and branding/ are replaced entirely so baked-in cards
             # don't persist alongside the zip's cards (duplicate order/id).
             # media/ is additive to preserve individually uploaded files.
-            _REPLACE = {'faqs', 'branding'}
-            content_str = str(self._content_dir)
-            for item in os.listdir(kiosk_dir):
-                src = os.path.join(kiosk_dir, item)
-                dst = os.path.join(content_str, item)
-                if os.path.isdir(src):
-                    if item in _REPLACE and os.path.isdir(dst):
-                        shutil.rmtree(dst)
-                    shutil.copytree(src, dst, dirs_exist_ok=True)
-                else:
-                    shutil.copy2(src, dst)
+            # Skip dotfiles (.DS_Store, __MACOSX metadata, etc.).
+            # Wrap in OSError handler: an unhandled exception here drops the
+            # TCP connection before any HTTP response is sent, which the
+            # browser reports as "failed to fetch" with no useful message.
+            try:
+                _REPLACE = {'faqs', 'branding'}
+                content_str = str(self._content_dir)
+                for item in os.listdir(kiosk_dir):
+                    if item.startswith('.'):
+                        continue
+                    src = os.path.join(kiosk_dir, item)
+                    dst = os.path.join(content_str, item)
+                    if os.path.isdir(src):
+                        if item in _REPLACE:
+                            if os.path.isdir(dst):
+                                shutil.rmtree(dst)
+                            shutil.move(src, dst)
+                        else:
+                            # Additive (media): move individual files so we
+                            # don't clobber files uploaded outside this bundle.
+                            os.makedirs(dst, exist_ok=True)
+                            for fname in os.listdir(src):
+                                if not fname.startswith('.'):
+                                    shutil.move(os.path.join(src, fname),
+                                                os.path.join(dst, fname))
+                    else:
+                        shutil.move(src, dst)
+            except OSError as exc:
+                return self._send_json(
+                    {'error': f'Bundle extracted but content install failed: {exc}'}, 500)
 
         order_fixes = self._fix_duplicate_orders()
         ok, output = self._rebuild()
@@ -239,37 +303,53 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
     def _handle_media_upload(self):
         if not self._is_writable():
             return self._send_json(self._not_writable_error(), 503)
-        parts = self._read_multipart()
-        if 'file' not in parts:
-            return self._send_json({'error': 'No file field in upload'}, 400)
-        file_data = parts['file']['data']
-        filename  = parts['file']['filename']
-        if not filename:
-            return self._send_json({'error': 'No filename in upload'}, 400)
-
-        ext = Path(filename).suffix.lower()
-        if ext not in _MEDIA_DEMO_TYPE:
-            return self._send_json(
-                {'error': f'Unsupported file type {ext!r}. '
-                          f'Supported: {", ".join(sorted(_MEDIA_DEMO_TYPE))}'}, 400)
-
-        # Sanitize: keep alphanumeric, dots, hyphens, spaces, underscores.
-        safe_name = re.sub(r'[^\w.\- ]', '_', filename).strip()
-        if not safe_name:
-            return self._send_json({'error': 'Filename contains no usable characters'}, 400)
 
         media_dir = self._content_dir / 'media'
         media_dir.mkdir(parents=True, exist_ok=True)
-        dest = media_dir / safe_name
-        with open(dest, 'wb') as f:
-            f.write(file_data)
 
-        demo_type = _MEDIA_DEMO_TYPE[ext]
-        self._send_json({
-            'filename':  safe_name,
-            'path':      f'content/media/{safe_name}',
-            'demo_type': demo_type,
-        })
+        # Stream to a temp file in media_dir (same filesystem) so the final
+        # os.replace() is an atomic rename rather than a disk copy, and the
+        # full video is never held in RAM regardless of size.
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=media_dir)
+        os.close(tmp_fd)
+        try:
+            try:
+                filename = self._stream_upload_file(tmp_path)
+            except (ValueError, OSError) as exc:
+                return self._send_json({'error': f'Upload failed: {exc}'}, 400)
+            if not filename:
+                return self._send_json({'error': 'No file field in upload'}, 400)
+
+            ext = Path(filename).suffix.lower()
+            if ext not in _MEDIA_DEMO_TYPE:
+                return self._send_json(
+                    {'error': f'Unsupported file type {ext!r}. '
+                              f'Supported: {", ".join(sorted(_MEDIA_DEMO_TYPE))}'}, 400)
+
+            # Sanitize: keep alphanumeric, dots, hyphens, spaces, underscores.
+            safe_name = re.sub(r'[^\w.\- ]', '_', filename).strip()
+            if not safe_name:
+                return self._send_json({'error': 'Filename contains no usable characters'}, 400)
+
+            if ext == '.mp4':
+                _apply_faststart(tmp_path)
+
+            dest = media_dir / safe_name
+            os.replace(tmp_path, dest)
+            tmp_path = None  # ownership transferred — skip cleanup
+
+            demo_type = _MEDIA_DEMO_TYPE[ext]
+            self._send_json({
+                'filename':  safe_name,
+                'path':      f'content/media/{safe_name}',
+                'demo_type': demo_type,
+            })
+        finally:
+            if tmp_path is not None:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
     def _handle_create_card(self):
         if not self._is_writable():
@@ -397,29 +477,40 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
     def _handle_logo_upload(self):
         if not self._is_writable():
             return self._send_json(self._not_writable_error(), 503)
-        parts = self._read_multipart()
-        if 'file' not in parts:
-            return self._send_json({'error': 'No file field in upload'}, 400)
-        file_data = parts['file']['data']
-        filename  = parts['file']['filename']
-        if not filename:
-            return self._send_json({'error': 'No filename in upload'}, 400)
-        ext = Path(filename).suffix.lower()
-        if ext not in _LOGO_EXTS:
-            return self._send_json(
-                {'error': f'Unsupported logo type {ext!r}. '
-                          f'Supported: {", ".join(sorted(_LOGO_EXTS))}'}, 400)
-        safe_name = re.sub(r'[^\w.\-]', '_', filename).strip()
-        if not safe_name:
-            return self._send_json({'error': 'Filename contains no usable characters'}, 400)
+
         branding_dir = self._content_dir / 'branding'
         branding_dir.mkdir(parents=True, exist_ok=True)
-        with open(branding_dir / safe_name, 'wb') as f:
-            f.write(file_data)
-        self._send_json({
-            'filename': safe_name,
-            'path':     f'content/branding/{safe_name}',
-        })
+
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=branding_dir)
+        os.close(tmp_fd)
+        try:
+            try:
+                filename = self._stream_upload_file(tmp_path)
+            except (ValueError, OSError) as exc:
+                return self._send_json({'error': f'Upload failed: {exc}'}, 400)
+            if not filename:
+                return self._send_json({'error': 'No file field in upload'}, 400)
+            ext = Path(filename).suffix.lower()
+            if ext not in _LOGO_EXTS:
+                return self._send_json(
+                    {'error': f'Unsupported logo type {ext!r}. '
+                              f'Supported: {", ".join(sorted(_LOGO_EXTS))}'}, 400)
+            safe_name = re.sub(r'[^\w.\-]', '_', filename).strip()
+            if not safe_name:
+                return self._send_json({'error': 'Filename contains no usable characters'}, 400)
+            dest = branding_dir / safe_name
+            os.replace(tmp_path, dest)
+            tmp_path = None
+            self._send_json({
+                'filename': safe_name,
+                'path':     f'content/branding/{safe_name}',
+            })
+        finally:
+            if tmp_path is not None:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
     # ── Helpers ───────────────────────────────────────────────────
 
@@ -437,55 +528,72 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
                      'see README.md for options.',
         }
 
-    def _read_multipart(self):
-        """Parse multipart/form-data from the request body into a dict of
-        {field_name: {'filename': str, 'data': bytes}}."""
+    def _stream_upload_file(self, dest_path, chunk=65536):
+        """Stream the first file field of a multipart/form-data request to dest_path.
+
+        Reads multipart headers line-by-line (small), then computes the exact
+        file-data length from Content-Length minus envelope overhead, and streams
+        the payload in chunks so the full body is never held in RAM.  This
+        allows zip bundles of any size to be uploaded without OOM errors.
+
+        Returns the filename from Content-Disposition, or None if no file field
+        is found.  Raises ValueError on malformed multipart framing.
+        """
         ct = self.headers.get('Content-Type', '')
-        boundary = ''
+        boundary = None
         for seg in ct.split(';'):
             seg = seg.strip()
             if seg.lower().startswith('boundary='):
-                boundary = seg[9:].strip().strip('"')
+                boundary = seg[9:].strip().strip('"').encode('latin-1')
                 break
         if not boundary:
-            return {}
+            raise ValueError('No boundary in Content-Type')
 
-        length = int(self.headers.get('Content-Length', 0))
-        body   = self.rfile.read(length)
-        delim  = b'--' + boundary.encode('ascii')
-        result = {}
+        total = int(self.headers.get('Content-Length', 0))
+        if total <= 0:
+            raise ValueError('Missing or zero Content-Length')
 
-        for raw in body.split(delim)[1:]:     # [0] is the prelude (empty)
-            if raw.startswith(b'--'):          # final boundary marker
+        header_bytes = 0
+        filename = None
+
+        # Read the opening boundary line: --boundary\r\n
+        line = self.rfile.readline(len(boundary) + 8)
+        header_bytes += len(line)
+        if line.rstrip(b'\r\n') != b'--' + boundary:
+            raise ValueError('Opening boundary not found')
+
+        # Read part headers until the blank line
+        while True:
+            line = self.rfile.readline(8192)
+            if not line:
+                raise ValueError('Unexpected end of part headers')
+            header_bytes += len(line)
+            if line == b'\r\n':
                 break
-            if raw.startswith(b'\r\n'):
-                raw = raw[2:]
-            if b'\r\n\r\n' not in raw:
-                continue
+            if line.lower().startswith(b'content-disposition:'):
+                for part in line.decode('latin-1', errors='replace').split(';'):
+                    part = part.strip()
+                    if part.lower().startswith('filename='):
+                        filename = part[9:].strip().strip('"')
 
-            header_bytes, data = raw.split(b'\r\n\r\n', 1)
-            if data.endswith(b'\r\n'):         # strip framing bytes
-                data = data[:-2]
+        # File data is everything between here and \r\n--boundary--\r\n
+        closing = b'\r\n--' + boundary + b'--\r\n'
+        file_length = total - header_bytes - len(closing)
+        if file_length < 0:
+            raise ValueError('Computed file length is negative; malformed multipart body')
 
-            headers = {}
-            for line in header_bytes.split(b'\r\n'):
-                if b':' in line:
-                    k, v = line.split(b':', 1)
-                    headers[k.strip().lower().decode()] = v.strip().decode()
+        with open(dest_path, 'wb') as f:
+            remaining = file_length
+            while remaining > 0:
+                data = self.rfile.read(min(chunk, remaining))
+                if not data:
+                    break
+                f.write(data)
+                remaining -= len(data)
 
-            cd = headers.get('content-disposition', '')
-            name = filename = ''
-            for item in cd.split(';'):
-                item = item.strip()
-                if item.startswith('name='):
-                    name = item[5:].strip('"')
-                elif item.startswith('filename='):
-                    filename = item[9:].strip('"')
-
-            if name:
-                result[name] = {'filename': filename, 'data': data}
-
-        return result
+        # Drain the closing boundary so the connection stays clean
+        self.rfile.read(len(closing))
+        return filename
 
     def _read_json_body(self):
         length = int(self.headers.get('Content-Length', 0))

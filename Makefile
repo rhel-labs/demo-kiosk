@@ -1,4 +1,4 @@
-.PHONY: build test test-volume lint clean push help
+.PHONY: build test test-volume test-upload lint clean push help
 
 # Configuration
 IMAGE_REGISTRY ?= quay.io/mmicene
@@ -6,6 +6,7 @@ IMAGE_NAME := demo-kiosk
 IMAGE_TAG ?= latest
 PORT := 8181
 CONTENT_DIR ?= $(PWD)/content
+UPLOAD_ZIP  ?= $(PWD)/kiosk.zip
 
 # Construct full image reference
 ifdef IMAGE_REGISTRY
@@ -32,6 +33,9 @@ test-volume: build ## Test with local content volume mount
 	podman run --rm -p 127.0.0.1:$(PORT):8181 \
 	  -v $(CONTENT_DIR):/srv/faq/content:ro \
 	  $(IMAGE)
+
+test-upload: build ## End-to-end upload test: POST $(UPLOAD_ZIP) to a fresh container
+	IMAGE=$(IMAGE) PORT=$(PORT) UPLOAD_ZIP=$(UPLOAD_ZIP) bash test-upload.sh
 
 push: build ## Build and push to registry
 	podman push $(IMAGE)

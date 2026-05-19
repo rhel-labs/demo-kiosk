@@ -553,6 +553,19 @@
     .upload-status-msg.success  { color: var(--pf-t--global--icon--color--status--success--default, #1e4620); font-weight: 600; }
     .upload-status-msg.error    { color: var(--pf-t--global--icon--color--status--danger--default, #c9190b); }
 
+    @keyframes upload-spin { to { transform: rotate(360deg); } }
+    .upload-status-msg.progress::before {
+      content: '';
+      display: inline-block;
+      width: 0.9em; height: 0.9em;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: upload-spin 0.75s linear infinite;
+      margin-right: 0.5em;
+      vertical-align: middle;
+    }
+
     /* --- Footer ------------------------------------------------- */
     #site-footer {
       text-align: center;
@@ -822,13 +835,14 @@
     // STATE
     // ==========================================================
     let state = {
-      modalOpen:      false,
-      currentEntry:   null,
-      modalOpenedAt:  null,
-      isPlaying:      false,   // true while video/asciinema is actively playing
-      idleTimer:      null,
-      countdownTimer: null,
-      countdownValue: 0,
+      modalOpen:          false,
+      currentEntry:       null,
+      modalOpenedAt:      null,
+      isPlaying:          false,   // true while video/asciinema is actively playing
+      uploadInProgress:   false,
+      idleTimer:          null,
+      countdownTimer:     null,
+      countdownValue:     0,
     };
 
     // ==========================================================
@@ -917,6 +931,15 @@
     }
 
     function closeModal() {
+      if (state.uploadInProgress) {
+        const statusEl = document.querySelector('.upload-status-msg');
+        if (statusEl) {
+          const prev = statusEl.textContent;
+          statusEl.textContent = 'Upload in progress — please wait';
+          setTimeout(() => { if (statusEl.textContent === 'Upload in progress — please wait') statusEl.textContent = prev; }, 2000);
+        }
+        return;
+      }
       if (!state.modalOpen) return;
 
       // Log the view
@@ -1446,6 +1469,8 @@
         statusEl.className   = 'upload-status-msg progress';
         statusEl.textContent = `Uploading ${file.name}…`;
         setZoneLocked(true);
+        state.uploadInProgress = true;
+        IdleTimer.pause();
 
         const form = new FormData();
         form.append('file', file, file.name);
@@ -1453,6 +1478,7 @@
         fetch('/api/upload/zip', { method: 'POST', body: form })
           .then(r => r.json().then(data => ({ ok: r.ok, data })))
           .then(({ ok: success, data }) => {
+            state.uploadInProgress = false;
             if (success) {
               statusEl.className   = 'upload-status-msg success';
               statusEl.textContent = 'Content loaded — reloading…';
@@ -1461,7 +1487,11 @@
               showUploadError(data.error || 'Upload failed.');
             }
           })
-          .catch(() => showUploadError('Network error — could not reach the server.'));
+          .catch(() => {
+            state.uploadInProgress = false;
+            IdleTimer.reset();
+            showUploadError('Network error — could not reach the server.');
+          });
       }
     }
 
