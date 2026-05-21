@@ -120,13 +120,15 @@ def bootstrap_content_index():
 
 
 def load_content_index():
-    """Load card sequence from content/index.yaml, bootstrapping if absent."""
+    """Load card sequence and categories from content/index.yaml, bootstrapping if absent."""
     bootstrap_content_index()
     try:
         data = yaml.safe_load(INDEX_FILE.read_text(encoding="utf-8"))
-        return data.get("card_order", [])
+        if not isinstance(data, dict):
+            return [], []
+        return data.get("card_order", []), data.get("categories", [])
     except Exception:
-        return []
+        return [], []
 
 
 # ── Arcade share URL resolver ─────────────────────────────────────
@@ -403,10 +405,14 @@ def main():
         sys.exit(1)
 
     # Sort by content/index.yaml card_order sequence
-    card_order = load_content_index()
+    card_order, categories = load_content_index()
     order_map = {card_id: i for i, card_id in enumerate(card_order)}
     entries.sort(key=lambda e: order_map.get(e["id"], len(card_order)))
     info(f"Card order: {' → '.join(e['id'] for e in entries)}")
+
+    # Ensure each entry has a spotlight field (defaults False if absent from YAML)
+    for entry in entries:
+        entry.setdefault("spotlight", False)
 
     # Render via Jinja2 (template lives in app/faqs/)
     env = Environment(
@@ -416,7 +422,7 @@ def main():
     )
     template = env.get_template("faqs.js.j2")
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    output = template.render(entries=entries, generated_at=generated_at)
+    output = template.render(entries=entries, categories=categories, generated_at=generated_at)
 
     OUTPUT.write_text(output, encoding="utf-8")
 

@@ -1,8 +1,17 @@
+schema_version: 2
 card_order:
 - upload-bundle
 - creating-bundle
 - card-types
 - stats-visibility
 - manage
-categories: []
-schema_version: 2
+categories:
+  - name: Content
+    cards:
+      - upload-bundle
+      - creating-bundle
+      - card-types
+  - name: Administration
+    cards:
+      - manage
+      - stats-visibility

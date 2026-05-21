@@ -353,66 +353,6 @@
       text-align: center;
     }
 
-    /* --- Admin visibility panel --------------------------------- */
-    #admin-visibility {
-      margin-bottom: 2rem;
-    }
-
-    #admin-visibility h3 {
-      font-size: 1.2rem;
-      font-weight: 700;
-      margin-bottom: 0.25rem;
-    }
-
-    .admin-visibility-subtitle {
-      color: var(--pf-t--global--text--color--subtle);
-      font-size: 0.9rem;
-      margin-bottom: 1rem;
-    }
-
-    .visibility-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 1rem;
-    }
-
-    .visibility-table th,
-    .visibility-table td {
-      padding: 0.6rem 0.8rem;
-      text-align: left;
-      border-bottom: 1px solid var(--pf-t--global--border--color--default);
-      font-size: 0.95rem;
-    }
-
-    .visibility-table th {
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--pf-t--global--text--color--subtle);
-      font-weight: 600;
-    }
-
-    .visibility-table th:last-child,
-    .visibility-table td:last-child {
-      text-align: right;
-    }
-
-    .visibility-drag-handle {
-      cursor: grab;
-      color: var(--pf-t--global--text--color--subtle);
-      width: 2rem;
-      text-align: center;
-      user-select: none;
-    }
-
-    .visibility-table tr.dragging {
-      opacity: 0.4;
-    }
-
-    .visibility-table tr.drag-over td {
-      border-top: 2px solid var(--pf-t--global--color--brand--default, #ee0000);
-    }
-
     /* --- Idle overlay ------------------------------------------ */
     #idle-overlay {
       display: none;
@@ -450,68 +390,42 @@
       margin-bottom: 1.5rem;
     }
 
-    /* --- Admin view -------------------------------------------- */
-    #admin-view {
+    /* --- Spotlight row ----------------------------------------- */
+    #spotlight-row {
       display: none;
-      padding: 2.5rem 3rem;
-      max-width: 1200px;
-      margin: 0 auto;
       width: 100%;
-      flex: 1;
+      padding: 1rem 2rem 0;
     }
-
-    #admin-view > h2 {
-      font-size: 1.8rem;
+    #spotlight-row.visible { display: block; }
+    #spotlight-row h2 {
+      font-size: 1rem;
       font-weight: 700;
-      margin-bottom: 0.4rem;
-    }
-
-    .admin-subtitle {
-      color: var(--pf-t--global--text--color--subtle);
-      margin-bottom: 2rem;
-    }
-
-    #admin-stats {
-      --pf-v6-l-gallery--GridTemplateColumns--min: 200px;
-      margin-bottom: 2rem;
-    }
-
-    .stat-card .pf-v6-c-card__title-text {
-      font-size: 0.85rem;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: var(--pf-t--global--text--color--subtle);
+      color: var(--pf-t--global--color--brand--default, #ee0000);
+      margin: 0 0 0.75rem;
     }
-
-    .stat-value {
-      font-size: 1.6rem;
-      font-weight: 700;
-      color: var(--pf-t--global--color--brand--default);
-    }
-
-    .stat-detail {
-      font-size: 0.9rem;
-      color: var(--pf-t--global--text--color--subtle);
-      margin-top: 0.2rem;
-    }
-
-    .admin-actions {
+    #spotlight-cards {
       display: flex;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
       flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1rem;
     }
+    #spotlight-cards .pf-v6-c-card { flex: 1 1 260px; max-width: 400px; }
 
-    .admin-table-wrap {
-      overflow-x: auto;
+    /* --- Category sections ------------------------------------- */
+    .cat-section { width: 100%; padding: 0.5rem 2rem 1rem; }
+    .cat-section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #6a6e73;
+      margin: 0 0 0.75rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 2px solid var(--pf-t--global--color--brand--default, #ee0000);
     }
-
-    .admin-empty {
-      text-align: center;
-      color: var(--pf-t--global--text--color--subtle);
-      padding: 3rem;
-    }
-
+    .cat-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
 
     /* --- Upload zone ------------------------------------------- */
     #upload-container {
@@ -569,11 +483,18 @@
     /* --- Footer ------------------------------------------------- */
     #site-footer {
       text-align: center;
-      padding: 1rem;
-      font-size: 0.8rem;
+      padding: 1.2rem;
+      font-size: 0.95rem;
       color: var(--pf-t--global--text--color--subtle);
       border-top: 1px solid var(--pf-t--global--border--color--default);
     }
+    #site-footer a {
+      display: inline-block;
+      padding: 0.4rem 0.6rem;
+      color: inherit;
+      text-decoration: none;
+    }
+    #site-footer a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -595,58 +516,17 @@
   </header>
 
   <!-- ============================================================
-       FAQ CARD GRID (populated by FAQ.register calls)
+       SPOTLIGHT ROW (cards with spotlight:true appear here)
        ============================================================ -->
-  <main class="pf-v6-l-gallery pf-m-gutter" id="faq-grid" role="main"></main>
+  <section id="spotlight-row" aria-label="Featured demos">
+    <h2>Featured</h2>
+    <div id="spotlight-cards"></div>
+  </section>
 
   <!-- ============================================================
-       ADMIN VIEW — navigate to index.html#admin to access
+       FAQ CARD GRID (populated by FAQ.register calls)
        ============================================================ -->
-  <section id="admin-view" aria-label="Admin statistics">
-    <h2>View Statistics</h2>
-    <p class="admin-subtitle">All interactions logged locally in this browser. Navigate to <code>index.html</code> to return to the kiosk.</p>
-
-    <div class="pf-v6-l-gallery pf-m-gutter" id="admin-stats"></div>
-
-    <!-- Card visibility panel -->
-    <div id="admin-visibility">
-      <h3>Card Visibility</h3>
-      <p class="admin-visibility-subtitle">Changes apply immediately to the kiosk view. Overrides are stored in this browser.</p>
-      <table class="visibility-table" aria-label="Card visibility controls">
-        <thead>
-          <tr>
-            <th scope="col"></th>
-            <th scope="col">Card</th>
-            <th scope="col">Default</th>
-            <th scope="col">Visibility</th>
-          </tr>
-        </thead>
-        <tbody id="visibility-tbody"></tbody>
-      </table>
-    </div>
-
-    <div class="admin-actions">
-      <button class="pf-v6-c-button pf-m-primary" id="btn-back-to-faq">&#8592; Back to Kiosk</button>
-      <button class="pf-v6-c-button pf-m-secondary" id="btn-download-csv">&#8681; Download CSV</button>
-      <button class="pf-v6-c-button pf-m-danger pf-m-secondary" id="btn-clear-log">Clear Log</button>
-      <button class="pf-v6-c-button pf-m-secondary" id="btn-reset-visibility" style="margin-left:auto">Reset visibility</button>
-      <button class="pf-v6-c-button pf-m-secondary" id="btn-reset-order">Reset card order</button>
-    </div>
-
-    <div class="admin-table-wrap">
-      <table class="pf-v6-c-table pf-m-compact pf-m-grid-md" id="admin-table" role="grid" aria-label="View log">
-        <thead class="pf-v6-c-table__thead">
-          <tr class="pf-v6-c-table__tr" role="row">
-            <th class="pf-v6-c-table__th" scope="col">Timestamp</th>
-            <th class="pf-v6-c-table__th" scope="col">Question</th>
-            <th class="pf-v6-c-table__th" scope="col">Type</th>
-            <th class="pf-v6-c-table__th" scope="col">Time Open</th>
-          </tr>
-        </thead>
-        <tbody class="pf-v6-c-table__tbody" id="admin-tbody" role="rowgroup"></tbody>
-      </table>
-    </div>
-  </section>
+  <main id="faq-grid" role="main"></main>
 
   <!-- ============================================================
        MODAL OVERLAY
@@ -909,7 +789,7 @@
     // Reset idle timer on any user interaction
     ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
       document.addEventListener(evt, () => {
-        if (!state.isPlaying) IdleTimer.reset();
+        if (!state.isPlaying && !state.uploadInProgress) IdleTimer.reset();
       }, { passive: true });
     });
 
@@ -1412,7 +1292,7 @@
 
       const sub = document.createElement('p');
       sub.className = 'upload-dropzone-sub';
-      sub.textContent = 'or';
+      sub.textContent = 'Replaces all existing content · or';
 
       const chooseBtn = document.createElement('button');
       chooseBtn.className = 'pf-v6-c-button pf-m-secondary';
@@ -1429,6 +1309,11 @@
       const statusEl = document.createElement('p');
       statusEl.className = 'upload-status-msg';
       wrapper.appendChild(statusEl);
+
+      const hint = document.createElement('p');
+      hint.style.cssText = 'font-size:0.85rem;color:#6a6e73;text-align:center;margin:0.5rem 0 0';
+      hint.innerHTML = 'To add content without replacing existing cards, use <a href="/setup">/setup</a>.';
+      wrapper.appendChild(hint);
 
       container.appendChild(wrapper);
 
@@ -1470,12 +1355,12 @@
         statusEl.textContent = `Uploading ${file.name}…`;
         setZoneLocked(true);
         state.uploadInProgress = true;
-        IdleTimer.pause();
+        IdleTimer.stop(); // clear any active countdown, not just the pending timeout
 
         const form = new FormData();
         form.append('file', file, file.name);
 
-        fetch('/api/upload/zip', { method: 'POST', body: form })
+        fetch('/api/upload/zip', { method: 'POST', body: form, headers: { 'X-Overwrite': 'true' } })
           .then(r => r.json().then(data => ({ ok: r.ok, data })))
           .then(({ ok: success, data }) => {
             state.uploadInProgress = false;
@@ -1573,34 +1458,81 @@
       const grid = document.getElementById('faq-grid');
       grid.innerHTML = '';
 
-      // video-loop cards are never shown in the grid — they are launched from the
-      // header button. Filter them out regardless of their enabled/visibility state.
-      const entries = Order.apply(FAQ.all()).filter(e => Visibility.get(e) && e.demo?.type !== 'video-loop');
+      buildSpotlightRow();
 
-      if (entries.length === 0) {
-        const msg = document.createElement('p');
-        msg.className = 'faq-grid-empty';
-        msg.textContent = 'No FAQ entries to display. Enable cards from the admin view.';
-        grid.appendChild(msg);
-      } else {
-        entries.forEach(entry => {
-          const card = document.createElement('article');
-          card.className = 'pf-v6-c-card pf-m-clickable faq-card';
-          card.setAttribute('tabindex', '0');
-          card.setAttribute('aria-label', entry.title);
-          card.innerHTML =
-            `<div class="pf-v6-c-card__title">` +
-              `<h2 class="pf-v6-c-card__title-text">${escHtml(entry.title)}</h2>` +
-            `</div>` +
-            (entry.summary
-              ? `<div class="pf-v6-c-card__body">${escHtml(entry.summary)}</div>`
-              : '');
-          card.addEventListener('click', () => openModal(entry));
-          card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') openModal(entry); });
-          grid.appendChild(card);
-        });
+      const allEntries = Order.apply(FAQ.all()).filter(e => Visibility.get(e) && e.demo?.type !== 'video-loop');
+      const cats = getEffectiveCategories();
+
+      if (cats.length === 0) {
+        // No categories defined — flat gallery
+        if (allEntries.length === 0) {
+          const msg = document.createElement('p');
+          msg.className = 'faq-grid-empty';
+          msg.textContent = 'No FAQ entries to display. Visit /setup to manage cards.';
+          grid.appendChild(msg);
+        } else {
+          const section = document.createElement('section');
+          section.className = 'cat-section';
+          const row = document.createElement('div');
+          row.className = 'cat-cards';
+          allEntries.forEach(e => row.appendChild(makeCard(e)));
+          section.appendChild(row);
+          grid.appendChild(section);
+        }
+        return;
       }
 
+      // Grouped by category
+      const catVisOverrides = (() => {
+        try { return JSON.parse(localStorage.getItem('faq_category_visible') || '{}'); } catch { return {}; }
+      })();
+
+      const placed = new Set();
+      cats.forEach(cat => {
+        const catEntries = allEntries.filter(e => cat.cards.has(e.id));
+        catEntries.forEach(e => placed.add(e.id)); // always claim, even if hidden
+
+        if (catVisOverrides[cat.name] === false) return; // hidden — claimed but not rendered
+        if (catEntries.length === 0) return;
+
+        const section = document.createElement('section');
+        section.className = 'cat-section';
+
+        const h2 = document.createElement('h2');
+        h2.className = 'cat-section-title';
+        h2.textContent = cat.name;
+        section.appendChild(h2);
+
+        const row = document.createElement('div');
+        row.className = 'cat-cards';
+        catEntries.forEach(e => row.appendChild(makeCard(e)));
+        section.appendChild(row);
+
+        grid.appendChild(section);
+      });
+
+      // Uncategorized cards
+      const remaining = allEntries.filter(e => !placed.has(e.id));
+      if (remaining.length > 0) {
+        const section = document.createElement('section');
+        section.className = 'cat-section';
+        const h2 = document.createElement('h2');
+        h2.className = 'cat-section-title';
+        h2.textContent = 'Other';
+        section.appendChild(h2);
+        const row = document.createElement('div');
+        row.className = 'cat-cards';
+        remaining.forEach(e => row.appendChild(makeCard(e)));
+        section.appendChild(row);
+        grid.appendChild(section);
+      }
+
+      if (grid.children.length === 0) {
+        const msg = document.createElement('p');
+        msg.className = 'faq-grid-empty';
+        msg.textContent = 'No FAQ entries to display. Visit /setup to manage cards.';
+        grid.appendChild(msg);
+      }
     }
 
     function escHtml(str) {
@@ -1608,217 +1540,95 @@
     }
 
     // ==========================================================
-    // ADMIN VIEW
+    // CATEGORIES + SPOTLIGHT
     // ==========================================================
-    function showAdminView() {
-      document.getElementById('faq-grid').style.display  = 'none';
-      document.getElementById('admin-view').style.display = 'block';
-      renderAdminStats();
-      renderVisibilityPanel();
-      renderAdminTable();
-    }
+    const SPOTLIGHT_KEY  = 'faq_spotlight';
+    const CATEGORIES_KEY = 'faq_categories';
+    const CAT_ORDER_KEY  = 'faq_category_order';
 
-    function showFaqView() {
-      document.getElementById('admin-view').style.display = 'none';
-      document.getElementById('faq-grid').style.display  = '';
-      window.location.hash = '';
-    }
+    const Spotlight = {
+      _read() {
+        try { return JSON.parse(localStorage.getItem(SPOTLIGHT_KEY) || '{}'); } catch { return {}; }
+      },
+      get(entry) {
+        const ov = this._read();
+        return Object.prototype.hasOwnProperty.call(ov, entry.id) ? ov[entry.id] : entry.spotlight === true;
+      },
+    };
 
-    function renderAdminStats() {
-      const log = Log.read();
-      const statsEl = document.getElementById('admin-stats');
+    function getEffectiveCategories() {
+      const serverCats = (window.KIOSK_INDEX?.categories || []);
+      const savedOrder = (() => {
+        try { return JSON.parse(localStorage.getItem(CAT_ORDER_KEY) || 'null'); } catch { return null; }
+      })();
+      const catOverrides = (() => {
+        try { return JSON.parse(localStorage.getItem(CATEGORIES_KEY) || '{}'); } catch { return {}; }
+      })();
 
-      const totalViews = log.length;
-      const avgTime    = totalViews
-        ? Math.round(log.reduce((s, e) => s + (e.time_open_seconds || 0), 0) / totalViews)
-        : 0;
-
-      // Most viewed
-      const counts = {};
-      log.forEach(e => { counts[e.question_title] = (counts[e.question_title] || 0) + 1; });
-      const topTitle = Object.keys(counts).sort((a,b) => counts[b]-counts[a])[0] || '—';
-      const topCount = counts[topTitle] || 0;
-
-      // Type breakdown
-      const types = {};
-      log.forEach(e => { types[e.demo_type] = (types[e.demo_type] || 0) + 1; });
-      const typeBreakdown = Object.entries(types).map(([t,c]) => `${t}: ${c}`).join(', ') || '—';
-
-      statsEl.innerHTML =
-        statCard('Total Views', `${totalViews}`) +
-        statCard('Avg. Time Open', `${avgTime}s`) +
-        statCard('Most Viewed', escHtml(topTitle), `${topCount} view${topCount !== 1 ? 's' : ''}`) +
-        statCard('By Type', escHtml(typeBreakdown));
-    }
-
-    function statCard(label, value, detail) {
-      return `<div class="pf-v6-c-card stat-card">` +
-        `<div class="pf-v6-c-card__title"><h3 class="pf-v6-c-card__title-text">${label}</h3></div>` +
-        `<div class="pf-v6-c-card__body">` +
-          `<div class="stat-value">${value}</div>` +
-          (detail ? `<div class="stat-detail">${detail}</div>` : '') +
-        `</div>` +
-      `</div>`;
-    }
-
-    function renderAdminTable() {
-      const log  = Log.read();
-      const tbody = document.getElementById('admin-tbody');
-
-      if (log.length === 0) {
-        tbody.innerHTML =
-          `<tr class="pf-v6-c-table__tr" role="row">` +
-          `<td class="pf-v6-c-table__td admin-empty" colspan="4">No views recorded yet.</td>` +
-          `</tr>`;
-        return;
+      // Reorder by saved preference
+      let cats = [...serverCats];
+      if (savedOrder) {
+        const nameMap = new Map(cats.map(c => [c.name, c]));
+        cats = [...new Set([...savedOrder, ...cats.map(c => c.name)])]
+          .map(n => nameMap.get(n)).filter(Boolean);
       }
 
-      // Show newest first
-      tbody.innerHTML = [...log].reverse().map(e =>
-        `<tr class="pf-v6-c-table__tr" role="row">` +
-          `<td class="pf-v6-c-table__td" data-label="Timestamp">${escHtml(e.timestamp)}</td>` +
-          `<td class="pf-v6-c-table__td" data-label="Question">${escHtml(e.question_title)}</td>` +
-          `<td class="pf-v6-c-table__td" data-label="Type">${escHtml(e.demo_type)}</td>` +
-          `<td class="pf-v6-c-table__td" data-label="Time Open">${e.time_open_seconds}s</td>` +
-        `</tr>`
-      ).join('');
+      // Apply per-card category overrides
+      return cats.map(cat => ({
+        name: cat.name,
+        cards: new Set(cat.cards || []),
+      })).map(cat => {
+        // Apply overrides: if a card has an explicit override, use that
+        const overriddenCards = new Set(cat.cards);
+        Object.entries(catOverrides).forEach(([cardId, assignedCats]) => {
+          if (assignedCats.includes(cat.name)) {
+            overriddenCards.add(cardId);
+          } else if (!assignedCats.includes(cat.name) && catOverrides[cardId] !== undefined) {
+            overriddenCards.delete(cardId);
+          }
+        });
+        return { name: cat.name, cards: overriddenCards };
+      });
     }
 
-    function renderVisibilityPanel() {
-      const tbody   = document.getElementById('visibility-tbody');
-      const entries = Order.apply(FAQ.all());
+    function buildSpotlightRow() {
+      const row     = document.getElementById('spotlight-row');
+      const cards   = document.getElementById('spotlight-cards');
+      const entries = FAQ.all().filter(e => Spotlight.get(e) && e.demo?.type !== 'video-loop' && Visibility.get(e));
 
       if (entries.length === 0) {
-        tbody.innerHTML =
-          `<tr><td colspan="4" style="padding:1rem;color:var(--pf-t--global--text--color--subtle)">No cards loaded.</td></tr>`;
+        row.classList.remove('visible');
         return;
       }
-
-      tbody.innerHTML = '';
-
+      row.classList.add('visible');
+      cards.innerHTML = '';
       entries.forEach(entry => {
-        const defaultOn   = entry.enabled !== false;
-        const effectiveOn = Visibility.get(entry);
-        const btnLabel    = effectiveOn ? 'Hide' : 'Show';
-        const btnClass    = effectiveOn ? 'pf-m-secondary' : 'pf-m-primary';
-
-        const tr = document.createElement('tr');
-        tr.draggable = true;
-        tr.dataset.entryId = entry.id;
-        tr.innerHTML =
-          `<td class="visibility-drag-handle" aria-hidden="true">&#8597;</td>` +
-          `<td>${escHtml(entry.title)}</td>` +
-          `<td>${defaultOn ? 'enabled' : 'disabled'}</td>` +
-          `<td>` +
-            `<button class="pf-v6-c-button pf-m-small ${btnClass}" ` +
-              `data-vis-id="${escHtml(entry.id)}" ` +
-              `data-vis-val="${effectiveOn ? 'false' : 'true'}">${btnLabel}</button>` +
-          `</td>`;
-
-        tbody.appendChild(tr);
-      });
-
-      // Drag-to-reorder
-      let dragSrc = null;
-      tbody.querySelectorAll('tr').forEach(row => {
-        row.addEventListener('dragstart', e => {
-          dragSrc = row;
-          row.classList.add('dragging');
-          e.dataTransfer.effectAllowed = 'move';
-        });
-
-        row.addEventListener('dragend', () => {
-          row.classList.remove('dragging');
-          tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
-        });
-
-        row.addEventListener('dragover', e => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-          if (row !== dragSrc) {
-            tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
-            row.classList.add('drag-over');
-          }
-        });
-
-        row.addEventListener('drop', e => {
-          e.preventDefault();
-          if (!dragSrc || dragSrc === row) return;
-          const rect = row.getBoundingClientRect();
-          if (e.clientY < rect.top + rect.height / 2) {
-            tbody.insertBefore(dragSrc, row);
-          } else {
-            tbody.insertBefore(dragSrc, row.nextSibling);
-          }
-          row.classList.remove('drag-over');
-
-          // Persist new order
-          const allEntries = FAQ.all();
-          const idMap = new Map(allEntries.map(e => [e.id, e]));
-          const ordered = [...tbody.querySelectorAll('tr')]
-            .map(r => idMap.get(r.dataset.entryId))
-            .filter(Boolean);
-          Order.save(ordered);
-          buildGrid();
-        });
-      });
-
-      // Attach visibility toggle listeners
-      tbody.querySelectorAll('button[data-vis-id]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          Visibility.set(btn.dataset.visId, btn.dataset.visVal === 'true');
-          renderVisibilityPanel();
-        });
+        const card = makeCard(entry);
+        cards.appendChild(card);
       });
     }
 
-    function downloadCsv() {
-      const log = Log.read();
-      const header = ['Timestamp','Question ID','Question Title','Demo Type','Time Open (s)'];
-      const rows   = log.map(e => [
-        e.timestamp, e.question_id, e.question_title, e.demo_type, e.time_open_seconds
-      ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
-      const csv = [header.join(','), ...rows].join('\r\n');
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = `faq-views-${new Date().toISOString().slice(0,10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+    function makeCard(entry) {
+      const card = document.createElement('article');
+      card.className = 'pf-v6-c-card pf-m-clickable faq-card';
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('aria-label', entry.title);
+      card.innerHTML =
+        `<div class="pf-v6-c-card__title">` +
+          `<h2 class="pf-v6-c-card__title-text">${escHtml(entry.title)}</h2>` +
+        `</div>` +
+        (entry.summary
+          ? `<div class="pf-v6-c-card__body">${escHtml(entry.summary)}</div>`
+          : '');
+      card.addEventListener('click', () => openModal(entry));
+      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') openModal(entry); });
+      return card;
     }
 
-    document.getElementById('btn-reset-visibility').addEventListener('click', () => {
-      Visibility.reset();
-      renderVisibilityPanel();
-    });
-    document.getElementById('btn-reset-order').addEventListener('click', () => {
-      Order.reset();
-      renderVisibilityPanel();
-    });
-    document.getElementById('btn-download-csv').addEventListener('click', downloadCsv);
-    document.getElementById('btn-clear-log').addEventListener('click', () => {
-      if (confirm('Clear all view history? This cannot be undone.')) {
-        Log.clear();
-        renderAdminStats();
-        renderAdminTable();
-      }
-    });
-    document.getElementById('btn-back-to-faq').addEventListener('click', showFaqView);
+
 
     // ==========================================================
-    // ROUTING (hash-based)
-    // ==========================================================
-    function route() {
-      if (window.location.hash === '#admin') {
-        showAdminView();
-      } else {
-        showFaqView();
-      }
-    }
-
-    window.addEventListener('hashchange', route);
-
+    // BOOT
     // ==========================================================
     // BOOT
     // ==========================================================
@@ -1827,19 +1637,13 @@
 
     // Make header clickable to return to main page
     document.getElementById('site-header').addEventListener('click', (e) => {
-      // Don't intercept clicks on links inside the header (e.g. event logo link)
       if (e.target.closest('a')) return;
-      // If a video-loop card is configured and visible, the header launches it.
-      // Multiple loops can be defined; the first visible one is active.
-      // Use the admin panel to toggle which loop plays.
-      // Otherwise fall back to closing any open modal and returning to the grid.
       const loopEntry = FAQ.all().find(en => en.demo?.type === 'video-loop' && Visibility.get(en));
       if (loopEntry) {
         closeModal();
         openModal(loopEntry);
       } else {
         closeModal();
-        showFaqView();
       }
     });
 
@@ -1945,7 +1749,7 @@
     function loadFaqsJs() {
       const script = document.createElement('script');
       script.src = 'content/faqs.js';
-      script.onload = () => { buildGrid(); route(); };
+      script.onload = () => { buildGrid(); };
       script.onerror = () => {
         console.error('[FAQ] Failed to load content/faqs.js — run: python3 build-faqs.py');
       };
@@ -1955,8 +1759,9 @@
   </script>
 
   <footer id="site-footer">
-    <a href="#admin">Statistics</a> &nbsp;&middot;&nbsp;
-    <a href="containerfile.html">Containerfile</a> &nbsp;&middot;&nbsp;
+    <a href="/setup">Setup</a> &nbsp;&middot;&nbsp;
+    <a href="/display">Display</a> &nbsp;&middot;&nbsp;
+    <a href="/stats">Stats</a> &nbsp;&middot;&nbsp;
     &copy; Red Hat, Inc.
   </footer>
 

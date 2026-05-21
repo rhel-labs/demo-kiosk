@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kiosk Setup</title>
+  <link rel="stylesheet" href="/patternfly.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: var(--pf-t--global--font--family--body, RedHatText, Overpass, overpass, helvetica, arial, sans-serif);
+      font-size: 1rem;
+      background: #f0f0f0;
+      margin: 0;
+      color: #151515;
+    }
+
+    /* ── Page layout ── */
+    .km-header {
+      background: #151515;
+      color: #fff;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+    .km-header h1 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+    .km-header nav { display: flex; gap: 1.5rem; align-items: center; }
+    .km-header a  { color: #73bcf7; font-size: 1rem; font-weight: 600; text-decoration: none; display: inline-block; padding: 0.3rem 0; }
+    .km-header a:hover { text-decoration: underline; }
+    .km-header a[aria-current="page"] { color: #fff; border-bottom: 2px solid #73bcf7; }
+
+    .km-main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* ── Sections ── */
+    .km-section {
+      background: #fff;
+      border: 1px solid #d2d2d2;
+      border-radius: 4px;
+    }
+    .km-section-header {
+      padding: 1rem 1.25rem 0.75rem;
+      border-bottom: 1px solid #d2d2d2;
+    }
+    .km-section-header h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+    .km-section-header p  { margin: 0.25rem 0 0; font-size: 0.875rem; color: #6a6e73; }
+    .km-section-body { padding: 1.25rem; }
+
+    /* ── Alerts ── */
+    .km-alert {
+      padding: 0.75rem 1rem;
+      border-radius: 3px;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    .km-alert.show { display: block; }
+    .km-alert-info    { background: #e7f1fa; border-left: 4px solid #2b9af3; color: #002952; }
+    .km-alert-success { background: #f3faf2; border-left: 4px solid #3e8635; color: #1e4f18; }
+    .km-alert-warning { background: #fdf7e7; border-left: 4px solid #f0ab00; color: #795600; }
+    .km-alert-danger  { background: #faeae8; border-left: 4px solid #c9190b; color: #7d1007; }
+    .km-alert pre {
+      margin: 0.5rem 0 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.8rem;
+      max-height: 200px;
+      overflow-y: auto;
+      background: rgba(0,0,0,0.06);
+      padding: 0.5rem;
+      border-radius: 2px;
+    }
+
+    /* ── Status banner ── */
+    #writable-banner { font-size: 0.875rem; padding: 0.6rem 1.25rem; border-radius: 3px; display: none; }
+    #writable-banner.show { display: block; }
+
+    /* ── Forms ── */
+    .km-form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-bottom: 1rem;
+    }
+    .km-form-row label { font-size: 0.875rem; font-weight: 600; }
+    .km-form-row .km-hint { font-size: 0.8rem; color: #6a6e73; margin: 0; }
+    .km-form-row input[type="text"],
+    .km-form-row input[type="number"],
+    .km-form-row input[type="url"],
+    .km-form-row select,
+    .km-form-row textarea {
+      border: 1px solid #8a8d90;
+      border-radius: 3px;
+      padding: 0.375rem 0.5rem;
+      font-size: 0.875rem;
+      font-family: inherit;
+      width: 100%;
+    }
+    .km-form-row input:focus,
+    .km-form-row select:focus,
+    .km-form-row textarea:focus {
+      outline: 2px solid #2b9af3;
+      outline-offset: 1px;
+      border-color: #2b9af3;
+    }
+    .km-form-row textarea { resize: vertical; min-height: 80px; }
+    .km-form-row.km-inline { flex-direction: row; align-items: center; gap: 0.5rem; }
+    .km-form-row.km-inline label { font-weight: normal; margin: 0; }
+    .km-form-row input[readonly] { background: #f5f5f5; color: #6a6e73; cursor: default; }
+
+    .km-demo-fields { display: none; }
+    .km-demo-fields.active { display: contents; }
+
+    .km-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 1rem;
+    }
+    @media (max-width: 600px) { .km-form-grid { grid-template-columns: 1fr; } }
+
+    .km-file-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-top: 0.35rem;
+    }
+    .km-file-row input[type="file"] { flex: 1; font-size: 0.875rem; }
+
+    .km-uploaded-file {
+      font-size: 0.8rem;
+      color: #3e8635;
+      font-weight: 600;
+      padding: 0.1rem 0;
+      display: none;
+    }
+
+    /* ── Buttons ── */
+    .km-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 1rem;
+      border: 1px solid transparent;
+      border-radius: 3px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .km-btn:disabled { opacity: 0.5; cursor: default; }
+    .km-btn-primary   { background: #ee0000; color: #fff; border-color: #c9190b; }
+    .km-btn-primary:hover:not(:disabled)   { background: #c9190b; }
+    .km-btn-secondary { background: #fff; color: #151515; border-color: #8a8d90; }
+    .km-btn-secondary:hover:not(:disabled) { background: #f5f5f5; }
+    .km-btn-sm { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
+
+    .km-btn-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; }
+
+    /* ── Card table ── */
+    .km-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    .km-table th, .km-table td {
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #d2d2d2;
+    }
+    .km-table th { font-weight: 600; background: #f5f5f5; }
+    .km-table tr[data-row-id]:hover > td { background: #fafafa; }
+    .km-table tr[data-row-id].km-row-editing > td { background: #e7f1fa; }
+    .km-table .km-type-badge {
+      display: inline-block;
+      padding: 0.1rem 0.4rem;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      background: #e7f1fa;
+      color: #002952;
+      font-weight: 600;
+    }
+
+    .km-empty { text-align: center; color: #6a6e73; padding: 2rem; font-size: 0.875rem; }
+
+    /* ── Inline edit panel ── */
+    .km-edit-panel {
+      padding: 1.25rem;
+      background: #f0f4f8;
+      border-top: 3px solid #2b9af3;
+    }
+
+    /* ── Misc ── */
+    .km-spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+    }
+    .km-spinner-dark { border-color: rgba(0,0,0,0.2); border-top-color: #151515; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .km-separator { border: none; border-top: 1px solid #d2d2d2; margin: 1.25rem 0; }
+  </style>
+</head>
+<body>
+
+<header class="km-header">
+  <h1>Setup</h1>
+  <nav>
+    <a href="/">Kiosk</a>
+    <a href="/setup" aria-current="page">Setup</a>
+    <a href="/display">Display</a>
+    <a href="/stats">Stats</a>
+  </nav>
+</header>
+
+<main class="km-main">
+
+  <!-- Writable status banner -->
+  <div id="writable-banner"></div>
+
+  <!-- ── Upload kiosk bundle ── -->
+  <section class="km-section">
+    <div class="km-section-header">
+      <h2>Upload Kiosk Bundle</h2>
+      <p>Replace all content (cards, branding, media) from a <code>kiosk-*.zip</code> file.
+         The zip must contain a <code>kiosk/</code> directory with <code>faqs/</code>,
+         <code>branding/</code>, and <code>media/</code> subdirectories.</p>
+    </div>
+    <div class="km-section-body">
+      <div id="zip-alert" class="km-alert"></div>
+      <div class="km-form-row km-inline" style="margin-bottom:0.5rem">
+        <input type="checkbox" id="zip-overwrite">
+        <label for="zip-overwrite">Overwrite existing content — replaces all cards with bundle contents</label>
+      </div>
+      <div class="km-file-row">
+        <input type="file" id="zip-file" accept=".zip">
+        <button class="km-btn km-btn-primary" id="zip-upload-btn" onclick="uploadZip()">Upload &amp; Rebuild</button>
+      </div>
+      <div id="zip-summary" style="display:none;margin-top:0.75rem;font-size:0.875rem"></div>
+    </div>
+  </section>
+
+  <!-- ── Add Card ── -->
+  <section class="km-section">
+    <div class="km-section-header">
+      <h2>Add Card</h2>
+      <p>Create a new card for the kiosk grid. To edit existing cards, use the table below.</p>
+    </div>
+    <div class="km-section-body">
+      <div id="card-alert" class="km-alert"></div>
+
+      <div class="km-form-row">
+        <label for="f-id">ID <span style="color:#c9190b">*</span></label>
+        <input type="text" id="f-id" placeholder="my-card" pattern="[a-z0-9][a-z0-9\-]*">
+        <p class="km-hint">Lowercase letters, digits, hyphens. Must be unique.</p>
+      </div>
+
+      <div class="km-form-row">
+        <label for="f-title">Title <span style="color:#c9190b">*</span></label>
+        <input type="text" id="f-title" placeholder="What is X?">
+      </div>
+
+      <div class="km-form-row">
+        <label for="f-summary">Summary <span style="color:#c9190b">*</span></label>
+        <input type="text" id="f-summary" placeholder="One sentence shown under the title on the card.">
+      </div>
+
+      <div class="km-form-row km-inline">
+        <input type="checkbox" id="f-enabled" checked>
+        <label for="f-enabled">Visible on kiosk grid</label>
+      </div>
+
+      <hr class="km-separator">
+
+      <div class="km-form-row">
+        <label for="f-type">Demo type <span style="color:#c9190b">*</span></label>
+        <select id="f-type" onchange="updateDemoFields()">
+          <option value="">— select —</option>
+          <option value="video">video — MP4/WebM playback</option>
+          <option value="slides">slides — PDF presentation</option>
+          <option value="asciinema">asciinema — terminal recording (.cast)</option>
+          <option value="image-text">image-text — image with caption</option>
+          <option value="external-url">external-url — link to a website</option>
+          <option value="lab">lab — Red Hat Demo Platform hands-on lab</option>
+          <option value="arcade">arcade — Arcade interactive demo</option>
+          <option value="video-loop">video-loop — ambient booth reel (not shown in grid)</option>
+        </select>
+      </div>
+
+      <!-- video / slides / asciinema -->
+      <div class="km-demo-fields" id="df-src">
+        <div class="km-form-row">
+          <label>Media file <span style="color:#c9190b">*</span></label>
+          <div class="km-file-row">
+            <input type="file" id="media-file-src">
+            <button class="km-btn km-btn-secondary km-btn-sm" id="media-upload-src-btn"
+                    onclick="uploadAddMedia('src')">Upload</button>
+          </div>
+          <p id="media-src-status" class="km-uploaded-file"></p>
+          <div id="media-src-alert" class="km-alert" style="margin-top:0.5rem;margin-bottom:0"></div>
+        </div>
+      </div>
+
+      <!-- image-text -->
+      <div class="km-demo-fields" id="df-image-text">
+        <div class="km-form-row">
+          <label>Image file <span style="color:#c9190b">*</span></label>
+          <div class="km-file-row">
+            <input type="file" id="media-file-image" accept=".png,.jpg,.jpeg,.svg,.webp">
+            <button class="km-btn km-btn-secondary km-btn-sm" id="media-upload-image-btn"
+                    onclick="uploadAddMedia('image')">Upload</button>
+          </div>
+          <p id="media-image-status" class="km-uploaded-file"></p>
+          <div id="media-image-alert" class="km-alert" style="margin-top:0.5rem;margin-bottom:0"></div>
+        </div>
+        <div class="km-form-row">
+          <label for="f-caption">Caption <span style="color:#c9190b">*</span></label>
+          <input type="text" id="f-caption" placeholder="Short description shown below the image.">
+        </div>
+      </div>
+
+      <!-- external-url / lab -->
+      <div class="km-demo-fields" id="df-url">
+        <div class="km-form-row">
+          <label for="f-url">URL <span style="color:#c9190b">*</span></label>
+          <input type="url" id="f-url" placeholder="https://...">
+        </div>
+        <div class="km-form-row">
+          <label for="f-long-desc">Description <span style="color:#c9190b">*</span></label>
+          <textarea id="f-long-desc" rows="3" placeholder="Shown to attendees when they open the card."></textarea>
+        </div>
+        <div class="km-demo-fields" id="df-lab-duration">
+          <div class="km-form-row">
+            <label for="f-duration">Estimated duration</label>
+            <input type="text" id="f-duration" placeholder="e.g. 45 minutes">
+            <p class="km-hint">Optional. Displayed as a hint to attendees.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- arcade -->
+      <div class="km-demo-fields" id="df-arcade">
+        <div class="km-form-row">
+          <label for="f-share-url">Arcade share URL <span style="color:#c9190b">*</span></label>
+          <input type="url" id="f-share-url" placeholder="https://interact.redhat.com/share/...">
+          <p class="km-hint">The share link from interact.redhat.com or app.arcade.software.</p>
+        </div>
+        <div class="km-form-grid">
+          <div class="km-form-row">
+            <label for="f-arcade-title">Title override</label>
+            <input type="text" id="f-arcade-title" placeholder="Fetched from Arcade if blank">
+            <p class="km-hint">Optional.</p>
+          </div>
+          <div class="km-form-row">
+            <label for="f-arcade-ratio">Aspect ratio override</label>
+            <input type="text" id="f-arcade-ratio" placeholder="e.g. 56.25%">
+            <p class="km-hint">Optional.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- video-loop -->
+      <div class="km-demo-fields" id="df-video-loop">
+        <div class="km-form-row">
+          <label>Video files <span style="color:#c9190b">*</span></label>
+          <div class="km-file-row">
+            <input type="file" id="media-file-video-loop" accept=".mp4,.webm" multiple>
+            <button class="km-btn km-btn-secondary km-btn-sm" id="media-upload-loop-btn"
+                    onclick="uploadAddMedia('video-loop')">Upload</button>
+          </div>
+          <p id="media-loop-status" class="km-uploaded-file"></p>
+          <div id="media-loop-alert" class="km-alert" style="margin-top:0.5rem;margin-bottom:0"></div>
+          <p class="km-hint">Hold Ctrl / ⌘ to select multiple files. These play as a muted ambient loop.</p>
+        </div>
+      </div>
+
+      <div class="km-btn-row">
+        <button class="km-btn km-btn-primary" id="card-save-btn" onclick="saveCard()">Add Card</button>
+        <button class="km-btn km-btn-secondary" onclick="resetCardForm()">Clear</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Manage Cards ── -->
+  <section class="km-section">
+    <div class="km-section-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <h2 style="margin:0">Manage Cards</h2>
+        <p style="margin:0.25rem 0 0;font-size:0.875rem;color:#6a6e73">
+          Click <strong>Edit</strong> to expand an inline editor below the row.
+          Click <strong>Delete</strong> to remove a card permanently.
+        </p>
+      </div>
+      <button class="km-btn km-btn-secondary km-btn-sm" onclick="loadCards()">↻ Refresh</button>
+    </div>
+    <div class="km-section-body" style="padding:0">
+      <div id="card-list-alert" class="km-alert" style="margin:1rem 1.25rem 0"></div>
+      <div id="card-list-container">
+        <div class="km-empty">Loading cards…</div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ── Branding ── -->
+  <section class="km-section">
+    <div class="km-section-header">
+      <h2>Update Branding</h2>
+      <p>Change the event name, tagline, and logo shown in the kiosk header.
+         Colors and the Red Hat logo are not changed here.</p>
+    </div>
+    <div class="km-section-body">
+      <div id="brand-alert" class="km-alert"></div>
+
+      <div class="km-form-row">
+        <label for="b-header">Event header <span style="color:#c9190b">*</span></label>
+        <input type="text" id="b-header" placeholder="Red Hat Summit">
+        <p class="km-hint">Large centered text in the kiosk header.</p>
+      </div>
+
+      <div class="km-form-row">
+        <label for="b-tagline">Tagline</label>
+        <input type="text" id="b-tagline" placeholder="Navigate what's now. Unlock what's next.">
+        <p class="km-hint">Optional. Appears below the header text.</p>
+      </div>
+
+      <div class="km-form-row">
+        <label for="b-title">Browser tab title</label>
+        <input type="text" id="b-title" placeholder="Red Hat Summit 2026 - Demo Kiosk">
+        <p class="km-hint">Optional. Defaults to the event header if blank.</p>
+      </div>
+
+      <hr class="km-separator">
+
+      <div class="km-form-row">
+        <label>Event logo</label>
+        <div class="km-file-row">
+          <input type="file" id="logo-file" accept=".svg,.png,.jpg,.jpeg,.webp">
+          <button class="km-btn km-btn-secondary km-btn-sm" id="logo-upload-btn"
+                  onclick="uploadLogo()">Upload</button>
+        </div>
+        <p id="logo-status" class="km-uploaded-file"></p>
+        <div id="logo-alert" class="km-alert" style="margin-top:0.5rem;margin-bottom:0"></div>
+      </div>
+
+      <div class="km-form-grid">
+        <div class="km-form-row">
+          <label for="b-logo-alt">Logo alt text</label>
+          <input type="text" id="b-logo-alt" placeholder="Red Hat Summit">
+          <p class="km-hint">Shown to screen readers and on load error.</p>
+        </div>
+        <div class="km-form-row">
+          <label for="b-logo-url">Logo link URL</label>
+          <input type="url" id="b-logo-url" placeholder="https://www.redhat.com/en/summit">
+          <p class="km-hint">Optional. Opens when the logo is clicked.</p>
+        </div>
+      </div>
+
+      <div class="km-btn-row">
+        <button class="km-btn km-btn-primary" id="brand-save-btn" onclick="saveBranding()">Save Branding</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────────
+
+let editingCardId    = null;  // id of card expanded for inline edit
+let pendingMediaPath = null;  // uploaded path for Add Card (single-file types)
+let pendingVideoPaths = [];   // uploaded paths for Add Card video-loop
+let mediaFiles       = [];   // cached /api/media result
+let cardMap          = {};   // id → card object
+
+// ── Init ───────────────────────────────────────────────────────────────
+
+(async function init() {
+  await checkWritable();
+  await Promise.all([loadCards(), loadMedia(), loadBranding()]);
+})();
+
+// ── Writable status ────────────────────────────────────────────────────
+
+async function checkWritable() {
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    const banner = document.getElementById('writable-banner');
+    if (!d.writable) {
+      banner.className = 'km-alert km-alert-warning show';
+      banner.innerHTML =
+        '<strong>Read-only content directory.</strong> Uploads and card edits are disabled. ' +
+        'Mount a writable volume or bind mount at <code>/srv/faq/content</code> — ' +
+        'see <a href="https://github.com/rhel-labs/demo-kiosk#runtime-uploads" ' +
+        'target="_blank">README</a> for instructions.';
+    }
+  } catch (e) { /* ignore */ }
+}
+
+// ── Media list ─────────────────────────────────────────────────────────
+
+async function loadMedia() {
+  try {
+    const r = await fetch('/api/media');
+    if (r.ok) mediaFiles = await r.json();
+  } catch (e) { /* non-fatal */ }
+}
+
+function populateMediaSelect(selectId, demoTypes, currentPath) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  let relevant = mediaFiles.filter(f => demoTypes.includes(f.demo_type));
+  // Always include the currently-assigned file even if it doesn't match the expected type
+  if (currentPath && !relevant.find(f => f.path === currentPath)) {
+    const current = mediaFiles.find(f => f.path === currentPath);
+    if (current) relevant = [{ ...current, _wrongType: true }, ...relevant];
+  }
+  sel.innerHTML = relevant.length
+    ? relevant.map(f =>
+        `<option value="${esc(f.path)}"${f.path === currentPath ? ' selected' : ''}>${esc(f.filename)}${f._wrongType ? ' ⚠ wrong type' : ''}</option>`
+      ).join('')
+    : '<option value="" disabled>No files found</option>';
+  if (!currentPath && relevant.length) sel.value = relevant[0].path;
+}
+
+// ── Card list ──────────────────────────────────────────────────────────
+
+async function loadCards() {
+  const container = document.getElementById('card-list-container');
+  container.innerHTML = '<div class="km-empty">Loading…</div>';
+  try {
+    const r = await fetch('/api/cards');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const cards = await r.json();
+    renderCardTable(cards);
+  } catch (e) {
+    container.innerHTML =
+      `<div class="km-empty" style="color:#c9190b">Failed to load cards: ${e.message}</div>`;
+  }
+}
+
+document.getElementById('card-list-container').addEventListener('click', e => {
+  const editBtn   = e.target.closest('.km-edit-btn');
+  const deleteBtn = e.target.closest('.km-delete-btn');
+  if (editBtn)   startEdit(editBtn.dataset.id);
+  if (deleteBtn) deleteCard(deleteBtn.dataset.id);
+});
+
+function renderCardTable(cards) {
+  const container = document.getElementById('card-list-container');
+  if (!cards.length) {
+    container.innerHTML = '<div class="km-empty">No cards found.</div>';
+    return;
+  }
+  cards.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  cardMap = {};
+  cards.forEach(c => { cardMap[c.id] = c; });
+  const rows = cards.map(c => {
+    const enabled = c.enabled !== false
+      ? '<span style="color:#3e8635">✓ visible</span>'
+      : '<span style="color:#6a6e73">hidden</span>';
+    const type = c.demo?.type ?? '—';
+    return `<tr data-row-id="${esc(c.id)}">
+      <td>${c.order ?? '—'}</td>
+      <td><code>${esc(c.id)}</code></td>
+      <td>${esc(c.title)}</td>
+      <td><span class="km-type-badge">${esc(type)}</span></td>
+      <td>${enabled}</td>
+      <td>
+        <button class="km-btn km-btn-secondary km-btn-sm km-edit-btn"
+                data-id="${esc(c.id)}">Edit</button>
+        <button class="km-btn km-btn-secondary km-btn-sm km-delete-btn"
+                data-id="${esc(c.id)}" style="margin-left:4px;color:#c9190b">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+  container.innerHTML = `
+    <table class="km-table">
+      <thead><tr>
+        <th>Order</th><th>ID</th><th>Title</th><th>Type</th><th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ── Inline edit ────────────────────────────────────────────────────────
+
+function startEdit(cardId) {
+  closeEditPanel();
+  const card = cardMap[cardId];
+  if (!card) return;
+  editingCardId = cardId;
+
+  const row = document.querySelector(`tr[data-row-id="${CSS.escape(cardId)}"]`);
+  if (!row) return;
+  row.classList.add('km-row-editing');
+
+  const editRow = document.createElement('tr');
+  editRow.id = 'edit-panel-row';
+  editRow.innerHTML = `<td colspan="6" style="padding:0">
+    <div class="km-edit-panel">
+      <div id="edit-alert" class="km-alert" style="margin-bottom:1rem"></div>
+      <div class="km-form-grid">
+        <div class="km-form-row">
+          <label>ID</label>
+          <input type="text" value="${esc(card.id)}" readonly>
+        </div>
+        <div class="km-form-row">
+          <label for="edit-f-order">Order</label>
+          <input type="number" id="edit-f-order" value="${esc(String(card.order ?? ''))}" min="0" step="1">
+          <p class="km-hint">Lower numbers appear first.</p>
+        </div>
+      </div>
+      <div class="km-form-row">
+        <label for="edit-f-title">Title</label>
+        <input type="text" id="edit-f-title" value="${esc(card.title ?? '')}">
+      </div>
+      <div class="km-form-row">
+        <label for="edit-f-summary">Summary</label>
+        <input type="text" id="edit-f-summary" value="${esc(card.summary ?? '')}">
+      </div>
+      <div class="km-form-row km-inline">
+        <input type="checkbox" id="edit-f-enabled" ${card.enabled !== false ? 'checked' : ''}>
+        <label for="edit-f-enabled">Visible on kiosk grid</label>
+      </div>
+      ${buildEditDemoFields(card)}
+      <div class="km-btn-row">
+        <button class="km-btn km-btn-primary" onclick="saveEditCard()">Save Changes</button>
+        <button class="km-btn km-btn-secondary" onclick="closeEditPanel()">Cancel</button>
+      </div>
+    </div>
+  </td>`;
+
+  row.insertAdjacentElement('afterend', editRow);
+  populateEditMediaSelects(card);
+  editRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function buildEditDemoFields(card) {
+  const demo = card.demo ?? {};
+  const type = demo.type ?? '';
+
+  if (type === 'video' || type === 'slides' || type === 'asciinema') {
+    return `<div class="km-form-row">
+      <label for="edit-f-src">Media file</label>
+      <select id="edit-f-src"></select>
+    </div>`;
+  }
+  if (type === 'image-text') {
+    return `<div class="km-form-row">
+      <label for="edit-f-image">Image file</label>
+      <select id="edit-f-image"></select>
+    </div>
+    <div class="km-form-row">
+      <label for="edit-f-caption">Caption</label>
+      <input type="text" id="edit-f-caption" value="${esc(demo.caption ?? '')}">
+    </div>`;
+  }
+  if (type === 'external-url' || type === 'lab') {
+    const dur = type === 'lab'
+      ? `<div class="km-form-row">
+          <label for="edit-f-duration">Estimated duration</label>
+          <input type="text" id="edit-f-duration" value="${esc(demo.duration ?? '')}">
+          <p class="km-hint">Optional.</p>
+        </div>`
+      : '';
+    return `<div class="km-form-row">
+      <label for="edit-f-url">URL</label>
+      <input type="url" id="edit-f-url" value="${esc(demo.url ?? '')}">
+    </div>
+    <div class="km-form-row">
+      <label for="edit-f-long-desc">Description</label>
+      <textarea id="edit-f-long-desc">${esc(demo.long_description ?? '')}</textarea>
+    </div>
+    ${dur}`;
+  }
+  if (type === 'arcade') {
+    return `<div class="km-form-row">
+      <label for="edit-f-share-url">Arcade share URL</label>
+      <input type="url" id="edit-f-share-url" value="${esc(demo.share_url ?? '')}">
+    </div>
+    <div class="km-form-grid">
+      <div class="km-form-row">
+        <label for="edit-f-arcade-title">Title override</label>
+        <input type="text" id="edit-f-arcade-title" value="${esc(demo.title ?? '')}">
+        <p class="km-hint">Optional.</p>
+      </div>
+      <div class="km-form-row">
+        <label for="edit-f-arcade-ratio">Aspect ratio</label>
+        <input type="text" id="edit-f-arcade-ratio" value="${esc(demo.aspect_ratio ?? '')}">
+        <p class="km-hint">Optional.</p>
+      </div>
+    </div>`;
+  }
+  if (type === 'video-loop') {
+    return `<div class="km-form-row">
+      <label for="edit-f-videos">Video files</label>
+      <select id="edit-f-videos" multiple style="min-height:6rem"></select>
+      <p class="km-hint">Hold Ctrl / ⌘ to select multiple files.</p>
+    </div>`;
+  }
+  return '';
+}
+
+function populateEditMediaSelects(card) {
+  const demo = card.demo ?? {};
+  const type = demo.type ?? '';
+  if (type === 'video' || type === 'slides' || type === 'asciinema') {
+    const demoTypes = { video: ['video'], slides: ['slides'], asciinema: ['asciinema'] };
+    populateMediaSelect('edit-f-src', demoTypes[type], demo.src ?? '');
+  } else if (type === 'image-text') {
+    populateMediaSelect('edit-f-image', ['image-text'], demo.image ?? '');
+  } else if (type === 'video-loop') {
+    const existing = demo.videos ?? [];
+    const sel = document.getElementById('edit-f-videos');
+    if (!sel) return;
+    const relevant = mediaFiles.filter(f => f.demo_type === 'video');
+    sel.innerHTML = relevant.length
+      ? relevant.map(f =>
+          `<option value="${esc(f.path)}"${existing.includes(f.path) ? ' selected' : ''}>${esc(f.filename)}</option>`
+        ).join('')
+      : '<option value="" disabled>No video files found</option>';
+  }
+}
+
+function closeEditPanel() {
+  const panel = document.getElementById('edit-panel-row');
+  if (panel) panel.remove();
+  if (editingCardId) {
+    const row = document.querySelector(`tr[data-row-id="${CSS.escape(editingCardId)}"]`);
+    if (row) row.classList.remove('km-row-editing');
+  }
+  editingCardId = null;
+}
+
+async function saveEditCard() {
+  const card = cardMap[editingCardId];
+  if (!card) return;
+  const alert = document.getElementById('edit-alert');
+
+  const order   = parseInt(document.getElementById('edit-f-order').value, 10);
+  const title   = document.getElementById('edit-f-title').value.trim();
+  const summary = document.getElementById('edit-f-summary').value.trim();
+  const enabled = document.getElementById('edit-f-enabled').checked;
+
+  if (!title || !summary || isNaN(order)) {
+    return showAlert(alert, 'danger', 'Title, summary, and order are required.');
+  }
+
+  const demo = { type: card.demo?.type ?? '' };
+  const type = demo.type;
+
+  if (type === 'video' || type === 'slides' || type === 'asciinema') {
+    demo.src = document.getElementById('edit-f-src')?.value ?? '';
+    if (!demo.src) return showAlert(alert, 'danger', 'Media file is required.');
+  } else if (type === 'image-text') {
+    demo.image   = document.getElementById('edit-f-image')?.value ?? '';
+    demo.caption = document.getElementById('edit-f-caption')?.value.trim() ?? '';
+    if (!demo.image || !demo.caption) return showAlert(alert, 'danger', 'Image and caption are required.');
+  } else if (type === 'external-url') {
+    demo.url              = document.getElementById('edit-f-url')?.value.trim() ?? '';
+    demo.long_description = document.getElementById('edit-f-long-desc')?.value.trim() ?? '';
+    if (!demo.url || !demo.long_description) return showAlert(alert, 'danger', 'URL and description are required.');
+  } else if (type === 'lab') {
+    demo.url              = document.getElementById('edit-f-url')?.value.trim() ?? '';
+    demo.long_description = document.getElementById('edit-f-long-desc')?.value.trim() ?? '';
+    const dur = document.getElementById('edit-f-duration')?.value.trim() ?? '';
+    if (dur) demo.duration = dur;
+    if (!demo.url || !demo.long_description) return showAlert(alert, 'danger', 'URL and description are required.');
+  } else if (type === 'arcade') {
+    demo.share_url = document.getElementById('edit-f-share-url')?.value.trim() ?? '';
+    const t = document.getElementById('edit-f-arcade-title')?.value.trim() ?? '';
+    const r = document.getElementById('edit-f-arcade-ratio')?.value.trim() ?? '';
+    if (t) demo.title = t;
+    if (r) demo.aspect_ratio = r;
+    if (!demo.share_url) return showAlert(alert, 'danger', 'Share URL is required.');
+  } else if (type === 'video-loop') {
+    demo.videos = Array.from(document.getElementById('edit-f-videos')?.selectedOptions ?? [])
+      .map(o => o.value).filter(Boolean);
+    if (!demo.videos.length) return showAlert(alert, 'danger', 'Select at least one video.');
+  }
+
+  const payload = { id: editingCardId, order, title, summary, enabled, demo };
+  const btn = document.querySelector('#edit-panel-row .km-btn-primary');
+  setLoading(btn, true, 'Saving…');
+
+  try {
+    const r = await fetch(`/api/cards/${encodeURIComponent(editingCardId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      showAlert(alert, 'danger', d.error || 'Save failed.', d.output);
+      setLoading(btn, false, 'Save Changes');
+    } else {
+      closeEditPanel();
+      loadCards();
+    }
+  } catch (e) {
+    showAlert(alert, 'danger', `Save error: ${e.message}`);
+    setLoading(btn, false, 'Save Changes');
+  }
+}
+
+// ── Zip upload ─────────────────────────────────────────────────────────
+
+async function uploadZip() {
+  const input     = document.getElementById('zip-file');
+  const btn       = document.getElementById('zip-upload-btn');
+  const alert     = document.getElementById('zip-alert');
+  const summaryEl = document.getElementById('zip-summary');
+  const overwrite = document.getElementById('zip-overwrite').checked;
+  if (!input.files.length) return showAlert(alert, 'danger', 'Select a .zip file first.');
+  setLoading(btn, true, 'Uploading…');
+  hideAlert(alert);
+  summaryEl.style.display = 'none';
+  try {
+    const fd = new FormData();
+    fd.append('file', input.files[0]);
+    const headers = overwrite ? { 'X-Overwrite': 'true' } : {};
+    const r = await fetch('/api/upload/zip', { method: 'POST', body: fd, headers });
+    const d = await r.json();
+    if (!r.ok) {
+      showAlert(alert, 'danger', d.error || 'Upload failed.', d.output);
+    } else {
+      showAlert(alert, 'success', d.message);
+      if (d.summary) {
+        const s = d.summary;
+        const parts = [];
+        if (s.added?.length)   parts.push(`${s.added.length} card(s) added`);
+        if (s.renamed && Object.keys(s.renamed).length) {
+          const rn = Object.entries(s.renamed).map(([o, n]) => `${o} → ${n}`).join(', ');
+          parts.push(`1 renamed (${rn})`);
+        }
+        if (s.media_added?.length) parts.push(`${s.media_added.length} media file(s)`);
+        if (parts.length) {
+          summaryEl.textContent = parts.join(' · ');
+          summaryEl.style.display = '';
+        }
+      }
+      input.value = '';
+      await loadMedia();
+      loadCards();
+    }
+  } catch (e) {
+    showAlert(alert, 'danger', `Upload error: ${e.message}`);
+  }
+  setLoading(btn, false, 'Upload & Rebuild');
+}
+
+// ── Add Card media upload ──────────────────────────────────────────────
+
+async function uploadAddMedia(field) {
+  if (field === 'video-loop') {
+    const input  = document.getElementById('media-file-video-loop');
+    const btn    = document.getElementById('media-upload-loop-btn');
+    const alert  = document.getElementById('media-loop-alert');
+    const status = document.getElementById('media-loop-status');
+    if (!input.files.length) return showAlert(alert, 'danger', 'Select at least one file.');
+    setLoading(btn, true, 'Uploading…');
+    hideAlert(alert);
+    pendingVideoPaths = [];
+    try {
+      for (const file of input.files) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const r = await fetch('/api/upload/media', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || `Failed: ${file.name}`);
+        pendingVideoPaths.push(d.path);
+      }
+      showAlert(alert, 'success', `Uploaded ${pendingVideoPaths.length} file(s).`);
+      status.textContent = `✓ ${pendingVideoPaths.length} file(s) ready`;
+      status.style.display = '';
+      input.value = '';
+    } catch (e) {
+      showAlert(alert, 'danger', e.message);
+    }
+    setLoading(btn, false, 'Upload');
+    return;
+  }
+
+  const isImage  = field === 'image';
+  const inputId  = isImage ? 'media-file-image'      : 'media-file-src';
+  const btnId    = isImage ? 'media-upload-image-btn' : 'media-upload-src-btn';
+  const alertId  = isImage ? 'media-image-alert'      : 'media-src-alert';
+  const statusId = isImage ? 'media-image-status'     : 'media-src-status';
+
+  const input  = document.getElementById(inputId);
+  const btn    = document.getElementById(btnId);
+  const alert  = document.getElementById(alertId);
+  const status = document.getElementById(statusId);
+
+  if (!input.files.length) return showAlert(alert, 'danger', 'Select a file first.');
+
+  // Validate extension matches the selected demo type
+  const demoType = document.getElementById('f-type').value;
+  const validExts = {
+    video:     ['.mp4', '.webm'],
+    slides:    ['.pdf'],
+    asciinema: ['.cast'],
+    'image-text': ['.png', '.jpg', '.jpeg', '.svg', '.webp'],
+  };
+  if (!isImage) {
+    const allowed = validExts[demoType] || [];
+    const fname   = input.files[0].name.toLowerCase();
+    if (allowed.length && !allowed.some(ext => fname.endsWith(ext))) {
+      return showAlert(alert, 'danger',
+        `Wrong file type for "${demoType}". Expected: ${allowed.join(', ')}`);
+    }
+  }
+
+  setLoading(btn, true, 'Uploading…');
+  hideAlert(alert);
+  try {
+    const fd = new FormData();
+    fd.append('file', input.files[0]);
+    const r = await fetch('/api/upload/media', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Upload failed.');
+    pendingMediaPath = d.path;
+    showAlert(alert, 'success', `Uploaded: ${d.filename}`);
+    status.textContent = `✓ ${d.filename}`;
+    status.style.display = '';
+    input.value = '';
+    if (!document.getElementById('f-id').value) {
+      const base = d.filename.replace(/\.[^.]+$/, '')
+        .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      document.getElementById('f-id').value = base;
+    }
+  } catch (e) {
+    showAlert(alert, 'danger', e.message);
+  }
+  setLoading(btn, false, 'Upload');
+}
+
+// ── Add Card form ──────────────────────────────────────────────────────
+
+function updateDemoFields() {
+  const type = document.getElementById('f-type').value;
+  document.querySelectorAll('.km-demo-fields').forEach(el => el.classList.remove('active'));
+  pendingMediaPath  = null;
+  pendingVideoPaths = [];
+  ['media-src-status', 'media-image-status', 'media-loop-status'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = ''; el.style.display = 'none'; }
+  });
+
+  if (type === 'video' || type === 'slides' || type === 'asciinema') {
+    document.getElementById('df-src').classList.add('active');
+    const accepts = { video: '.mp4,.webm', slides: '.pdf', asciinema: '.cast' };
+    document.getElementById('media-file-src').accept = accepts[type] || '';
+  } else if (type === 'image-text') {
+    document.getElementById('df-image-text').classList.add('active');
+  } else if (type === 'external-url') {
+    document.getElementById('df-url').classList.add('active');
+  } else if (type === 'lab') {
+    document.getElementById('df-url').classList.add('active');
+    document.getElementById('df-lab-duration').classList.add('active');
+  } else if (type === 'arcade') {
+    document.getElementById('df-arcade').classList.add('active');
+  } else if (type === 'video-loop') {
+    document.getElementById('df-video-loop').classList.add('active');
+  }
+}
+
+function resetCardForm() {
+  pendingMediaPath  = null;
+  pendingVideoPaths = [];
+  ['f-id','f-title','f-summary','f-caption',
+   'f-url','f-long-desc','f-duration','f-share-url','f-arcade-title',
+   'f-arcade-ratio'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('f-enabled').checked = true;
+  document.getElementById('f-type').value = '';
+  updateDemoFields();
+  ['media-src-alert','media-image-alert','media-loop-alert'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) hideAlert(el);
+  });
+  hideAlert(document.getElementById('card-alert'));
+}
+
+function buildCardPayload() {
+  const id      = document.getElementById('f-id').value.trim();
+  const title   = document.getElementById('f-title').value.trim();
+  const summary = document.getElementById('f-summary').value.trim();
+  const enabled = document.getElementById('f-enabled').checked;
+  const type    = document.getElementById('f-type').value;
+
+  if (!id || !title || !summary || !type) return null;
+
+  const demo = { type };
+  if (type === 'video' || type === 'slides' || type === 'asciinema') {
+    if (!pendingMediaPath) return null;
+    demo.src = pendingMediaPath;
+  } else if (type === 'image-text') {
+    if (!pendingMediaPath) return null;
+    demo.image   = pendingMediaPath;
+    demo.caption = document.getElementById('f-caption').value.trim();
+    if (!demo.caption) return null;
+  } else if (type === 'external-url') {
+    demo.url              = document.getElementById('f-url').value.trim();
+    demo.long_description = document.getElementById('f-long-desc').value.trim();
+    if (!demo.url || !demo.long_description) return null;
+  } else if (type === 'lab') {
+    demo.url              = document.getElementById('f-url').value.trim();
+    demo.long_description = document.getElementById('f-long-desc').value.trim();
+    const dur = document.getElementById('f-duration').value.trim();
+    if (dur) demo.duration = dur;
+    if (!demo.url || !demo.long_description) return null;
+  } else if (type === 'arcade') {
+    demo.share_url = document.getElementById('f-share-url').value.trim();
+    const t = document.getElementById('f-arcade-title').value.trim();
+    const r = document.getElementById('f-arcade-ratio').value.trim();
+    if (t) demo.title = t;
+    if (r) demo.aspect_ratio = r;
+    if (!demo.share_url) return null;
+  } else if (type === 'video-loop') {
+    if (!pendingVideoPaths.length) return null;
+    demo.videos = pendingVideoPaths;
+  }
+
+  return { id, title, summary, enabled, demo };
+}
+
+async function saveCard() {
+  const alert = document.getElementById('card-alert');
+  const btn   = document.getElementById('card-save-btn');
+  const payload = buildCardPayload();
+  if (!payload) {
+    return showAlert(alert, 'danger',
+      'Please fill in all required fields. For media types, upload a file first.');
+  }
+  hideAlert(alert);
+  setLoading(btn, true, 'Saving…');
+  try {
+    const r = await fetch('/api/cards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      showAlert(alert, 'danger', d.error || 'Save failed.', d.output);
+    } else {
+      showAlert(alert, 'success', d.message);
+      setTimeout(() => { loadCards(); resetCardForm(); hideAlert(alert); }, 2000);
+    }
+  } catch (e) {
+    showAlert(alert, 'danger', `Save error: ${e.message}`);
+  }
+  setLoading(btn, false, 'Add Card');
+}
+
+async function deleteCard(cardId) {
+  const card  = cardMap[cardId];
+  const label = card ? card.title : cardId;
+  if (!confirm(`Delete "${label}"?\n\nThis removes the card permanently.`)) return;
+  const alert = document.getElementById('card-list-alert');
+  hideAlert(alert);
+  try {
+    const r = await fetch(`/api/cards/${encodeURIComponent(cardId)}`, { method: 'DELETE' });
+    const d = await r.json();
+    if (!r.ok) {
+      showAlert(alert, 'danger', d.error || 'Delete failed.', d.output);
+    } else {
+      showAlert(alert, 'success', d.message);
+      loadCards();
+    }
+  } catch (e) {
+    showAlert(alert, 'danger', `Delete error: ${e.message}`);
+  }
+}
+
+// ── Branding ───────────────────────────────────────────────────────────
+
+let pendingLogoPath = null;  // uploaded logo path, set before saveBranding
+
+async function loadBranding() {
+  try {
+    const r = await fetch('/api/branding');
+    if (!r.ok) return;
+    const d = await r.json();
+    document.getElementById('b-header').value   = d.header   ?? '';
+    document.getElementById('b-tagline').value  = d.tagline  ?? '';
+    document.getElementById('b-title').value    = d.title    ?? '';
+    document.getElementById('b-logo-alt').value = d.secondary_logo_alt ?? '';
+    document.getElementById('b-logo-url').value = d.secondary_logo_url ?? '';
+    if (d.secondary_logo_file) {
+      const status = document.getElementById('logo-status');
+      const fname  = d.secondary_logo_file.split('/').pop();
+      status.textContent = `Current: ${fname}`;
+      status.style.display = '';
+      pendingLogoPath = d.secondary_logo_file;
+    }
+  } catch (e) { /* non-fatal */ }
+}
+
+async function uploadLogo() {
+  const input = document.getElementById('logo-file');
+  const btn   = document.getElementById('logo-upload-btn');
+  const alert = document.getElementById('logo-alert');
+  const status = document.getElementById('logo-status');
+  if (!input.files.length) return showAlert(alert, 'danger', 'Select a file first.');
+  setLoading(btn, true, 'Uploading…');
+  hideAlert(alert);
+  try {
+    const fd = new FormData();
+    fd.append('file', input.files[0]);
+    const r = await fetch('/api/upload/logo', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Upload failed.');
+    pendingLogoPath = d.path;
+    showAlert(alert, 'success', `Uploaded: ${d.filename}`);
+    status.textContent = `✓ ${d.filename}`;
+    status.style.display = '';
+    input.value = '';
+    if (!document.getElementById('b-logo-alt').value) {
+      document.getElementById('b-logo-alt').value =
+        d.filename.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+    }
+  } catch (e) {
+    showAlert(alert, 'danger', e.message);
+  }
+  setLoading(btn, false, 'Upload');
+}
+
+async function saveBranding() {
+  const alert = document.getElementById('brand-alert');
+  const btn   = document.getElementById('brand-save-btn');
+  const header = document.getElementById('b-header').value.trim();
+  if (!header) return showAlert(alert, 'danger', 'Event header is required.');
+  hideAlert(alert);
+  setLoading(btn, true, 'Saving…');
+  try {
+    const r = await fetch('/api/branding', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        header,
+        tagline:             document.getElementById('b-tagline').value.trim(),
+        title:               document.getElementById('b-title').value.trim(),
+        secondary_logo_file: pendingLogoPath ?? '',
+        secondary_logo_alt:  document.getElementById('b-logo-alt').value.trim(),
+        secondary_logo_url:  document.getElementById('b-logo-url').value.trim(),
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      showAlert(alert, 'danger', d.error || 'Save failed.', d.output);
+    } else {
+      showAlert(alert, 'success', d.message + ' Use the Kiosk link to see the updated header.');
+    }
+  } catch (e) {
+    showAlert(alert, 'danger', `Save error: ${e.message}`);
+  }
+  setLoading(btn, false, 'Save Branding');
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────────
+
+function showAlert(el, type, message, details) {
+  el.className = `km-alert km-alert-${type} show`;
+  el.innerHTML = esc(message) + (details ? `<pre>${esc(details)}</pre>` : '');
+}
+
+function hideAlert(el) {
+  el.className = 'km-alert';
+  el.textContent = '';
+}
+
+function setLoading(btn, loading, label) {
+  if (!btn) return;
+  btn.disabled = loading;
+  const spinClass = btn.classList.contains('km-btn-primary')
+    ? 'km-spinner' : 'km-spinner km-spinner-dark';
+  btn.innerHTML = loading ? `<span class="${spinClass}"></span> ${label}` : label;
+}
+
+function esc(s) {
+  return String(s ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+</script>
+
+<footer style="text-align:center;padding:1.2rem;font-size:0.95rem;color:#6a6e73;border-top:1px solid #d2d2d2;margin-top:2rem">
+  <a href="/" style="display:inline-block;padding:0.4rem 0.6rem;color:#151515;text-decoration:none">Kiosk</a>
+  &nbsp;&middot;&nbsp;
+  <a href="/setup" style="display:inline-block;padding:0.4rem 0.6rem;color:#151515;text-decoration:none;font-weight:600" aria-current="page">Setup</a>
+  &nbsp;&middot;&nbsp;
+  <a href="/display" style="display:inline-block;padding:0.4rem 0.6rem;color:#151515;text-decoration:none">Display</a>
+  &nbsp;&middot;&nbsp;
+  <a href="/stats" style="display:inline-block;padding:0.4rem 0.6rem;color:#151515;text-decoration:none">Stats</a>
+</footer>
+</body>
+</html>

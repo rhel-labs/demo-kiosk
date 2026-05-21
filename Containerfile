@@ -68,6 +68,7 @@ COPY --chown=65532:65532 build/ ./build/
 COPY --chown=65532:65532 content/faqs/     ./content/faqs/
 COPY --chown=65532:65532 content/branding/ ./content/branding/
 COPY --chown=65532:65532 content/media/    ./content/media/
+COPY --chown=65532:65532 content/index.yaml ./content/
 RUN --mount=type=bind,source=.,target=/buildctx \
     ZIP=$(ls /buildctx/kiosk*.zip 2>/dev/null | head -1); \
     if [ -n "$ZIP" ]; then cp "$ZIP" ./kiosk-bundle.zip; else touch kiosk-bundle.zip; fi
