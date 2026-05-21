@@ -1,0 +1,6 @@
+id: test-asciinema
+title: Test Asciinema Demo
+summary: A test asciinema card.
+demo:
+  type: asciinema
+  src: content/media/demo.cast

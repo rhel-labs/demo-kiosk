@@ -1,0 +1,26 @@
+event:
+  header: Test Event
+  title: Test Event 2026
+  tagline: Testing the kiosk
+
+logos:
+  primary:
+    file: content/branding/logo.svg
+    alt_text: Test Event Logo
+  secondary:
+    file: content/branding/logo-secondary.svg
+    alt_text: Test Secondary Logo
+
+colors:
+  brand_primary: "#ee0000"
+  brand_hover: "#cc0000"
+  page_background: "#f0f0f0"
+  header_background: "#212427"
+
+layout:
+  card_columns: 3
+  idle_timeout_seconds: 120
+  countdown_seconds: 10
+
+footer:
+  copyright: "© 2026 Test Event"

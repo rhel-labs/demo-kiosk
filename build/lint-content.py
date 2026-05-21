@@ -55,9 +55,27 @@ def ok(msg):   print(f"{GREEN}  ✓{RESET} {msg}")
 def warn(msg): print(f"{YELLOW}  !{RESET} {msg}")
 def err(msg):  print(f"{RED}  ✗{RESET} {msg}")
 
-# ── Valid FAQ demo types ──────────────────────────────────────────
-VALID_TYPES = {"video", "slides", "asciinema", "image-text", "external-url", "arcade", "lab", "video-loop", "upload"}
-REQUIRED_FAQ_FIELDS = {"id", "order", "title", "summary", "demo"}
+
+# ── Spec loading ──────────────────────────────────────────────────
+
+def load_spec():
+    """Load build/bundle-spec.yaml relative to this script's location."""
+    spec_path = Path(__file__).parent / "bundle-spec.yaml"
+    try:
+        return yaml.safe_load(spec_path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        print(f"ERROR: cannot load bundle-spec.yaml — {exc}", file=sys.stderr)
+        sys.exit(1)
+
+_SPEC = load_spec()
+
+# ── Schema constants derived from spec ───────────────────────────
+VALID_TYPES           = set(_SPEC["card"]["demo_types"].keys())
+REQUIRED_FAQ_FIELDS   = set(_SPEC["card"]["required_fields"])
+SUMMARY_OPTIONAL_FOR  = set(_SPEC["card"].get("summary_optional_for_types", []))
+ID_PATTERN            = _SPEC["card"]["id_pattern"]
+REQUIRED_COLOR_FIELDS = set(_SPEC["branding"]["colors"]["required"])
+REQUIRED_LAYOUT_FIELDS = set(_SPEC["branding"]["layout"]["required"])
 
 # ── Arcade share URL patterns ─────────────────────────────────────
 ARCADE_SHARE_RE = re.compile(
@@ -67,8 +85,8 @@ ARCADE_DEMO_RE = re.compile(
     r'^https://demo\.arcade\.software/([A-Za-z0-9_-]+)'
 )
 
-# ── ID format: lowercase alphanumeric + hyphens, must start with alnum ──
-ID_RE = re.compile(r'^[a-z0-9][a-z0-9-]*$')
+# ── ID format: compiled from spec pattern ────────────────────────
+ID_RE = re.compile(ID_PATTERN)
 
 # ── Hex color: #rgb or #rrggbb ────────────────────────────────────
 HEX_COLOR_RE = re.compile(r'^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$')
@@ -155,7 +173,7 @@ def lint_yaml_style(yaml_files):
 
 # ── FAQ schema validation ─────────────────────────────────────────
 
-def validate_faq_entry(path, data, seen_ids, seen_orders, content_dir):
+def validate_faq_entry(path, data, seen_ids, content_dir):
     """
     Validate a single FAQ YAML dict.  Returns a list of error strings.
     Does NOT make network calls (arcade URL validated by regex only).
@@ -165,25 +183,18 @@ def validate_faq_entry(path, data, seen_ids, seen_orders, content_dir):
     if not isinstance(data, dict):
         return [f"{path.name}: top-level value must be a YAML mapping"]
 
-    # Required fields
-    missing = REQUIRED_FAQ_FIELDS - data.keys()
+    # Determine demo type early so summary requirement can be adjusted
+    demo_type = ""
+    if isinstance(data.get("demo"), dict):
+        demo_type = data["demo"].get("type", "")
+
+    # Required fields — summary optional for certain demo types
+    required = set(REQUIRED_FAQ_FIELDS)
+    if demo_type in SUMMARY_OPTIONAL_FOR:
+        required.discard("summary")
+    missing = required - data.keys()
     if missing:
         errors.append(f"missing required field(s): {', '.join(sorted(missing))}")
-
-    # order: must be a number, must be unique
-    if "order" in data:
-        if not isinstance(data["order"], (int, float)):
-            errors.append(
-                f"'order' must be a number, got {type(data['order']).__name__}"
-            )
-        else:
-            o = data["order"]
-            if o in seen_orders:
-                errors.append(
-                    f"duplicate order value {o} (also used in {seen_orders[o]})"
-                )
-            else:
-                seen_orders[o] = path.name
 
     # id: must be a string, unique, and match format
     if "id" in data:
@@ -208,6 +219,13 @@ def validate_faq_entry(path, data, seen_ids, seen_orders, content_dir):
         if not isinstance(data["enabled"], bool):
             errors.append(
                 f"'enabled' must be true or false, got {type(data['enabled']).__name__}"
+            )
+
+    # spotlight: must be bool if present
+    if "spotlight" in data:
+        if not isinstance(data["spotlight"], bool):
+            errors.append(
+                f"'spotlight' must be true or false, got {type(data['spotlight']).__name__}"
             )
 
     # title / summary: must be non-empty strings
@@ -241,74 +259,48 @@ def _validate_demo(demo, path, content_dir):
             f"Valid types: {', '.join(sorted(VALID_TYPES))}"
         ]
 
-    if dtype in ("video", "slides", "asciinema"):
-        if "src" not in demo:
-            errors.append(f"demo type {dtype!r} requires a 'src' field")
-        else:
-            p = resolve_path(demo["src"], content_dir)
+    type_spec = _SPEC["card"]["demo_types"][dtype]
+
+    # Required fields for this demo type
+    for field in type_spec.get("required", []):
+        if field not in demo:
+            errors.append(f"demo type {dtype!r} requires a '{field}' field")
+
+    # Media file existence checks
+    for field in type_spec.get("media_fields", []):
+        if field in demo:
+            p = resolve_path(demo[field], content_dir)
             if not p.exists():
-                errors.append(
-                    f"demo 'src' file not found: {demo['src']!r}"
-                )
+                errors.append(f"demo '{field}' file not found: {demo[field]!r}")
 
-    elif dtype == "upload":
-        pass  # no extra fields required — renderer is kiosk-internal
-
-    elif dtype == "video-loop":
-        if "videos" not in demo:
-            errors.append("demo type 'video-loop' requires a 'videos' field")
-        else:
-            videos = demo["videos"]
-            if not isinstance(videos, list) or not videos:
-                errors.append("demo 'videos' must be a non-empty list")
-            else:
-                for entry in videos:
-                    p = resolve_path(entry, content_dir)
-                    if not p.exists():
-                        errors.append(f"demo 'videos' file not found: {entry!r}")
-
-    elif dtype == "image-text":
-        for key in ("image", "caption"):
-            if key not in demo:
-                errors.append(f"demo type 'image-text' requires a '{key}' field")
-        if "image" in demo:
-            p = resolve_path(demo["image"], content_dir)
-            if not p.exists():
-                errors.append(
-                    f"demo 'image' file not found: {demo['image']!r}"
-                )
-
-    elif dtype == "external-url":
-        for key in ("url", "long_description"):
-            if key not in demo:
-                errors.append(f"demo type 'external-url' requires a '{key}' field")
-        if "url" in demo and not is_valid_url(demo["url"]):
+    # URL format checks
+    for field in type_spec.get("url_fields", []):
+        if field in demo and not is_valid_url(demo[field]):
             errors.append(
-                f"demo 'url' does not look like a valid http/https URL: {demo['url']!r}"
+                f"demo '{field}' does not look like a valid http/https URL: {demo[field]!r}"
             )
 
-    elif dtype == "lab":
-        for key in ("url", "long_description"):
-            if key not in demo:
-                errors.append(f"demo type 'lab' requires a '{key}' field")
-        if "url" in demo and not is_valid_url(demo["url"]):
-            errors.append(
-                f"demo 'url' does not look like a valid http/https URL: {demo['url']!r}"
-            )
-
-    elif dtype == "arcade":
-        if "share_url" not in demo:
-            errors.append(
-                "demo type 'arcade' requires a 'share_url' field "
-                "(e.g. https://interact.redhat.com/share/<ID>)"
-            )
-        else:
-            url = demo["share_url"]
+    # Arcade URL pattern checks
+    for field in type_spec.get("arcade_url_fields", []):
+        if field in demo:
+            url = demo[field]
             if not (ARCADE_SHARE_RE.match(url) or ARCADE_DEMO_RE.match(url)):
                 errors.append(
-                    f"demo 'share_url' must be an Arcade share link "
+                    f"demo '{field}' must be an Arcade share link "
                     f"(e.g. https://interact.redhat.com/share/<ID>), got: {url!r}"
                 )
+
+    # Media list fields (video-loop videos)
+    for field in type_spec.get("media_list_fields", []):
+        if field in demo:
+            items = demo[field]
+            if not isinstance(items, list) or not items:
+                errors.append(f"demo '{field}' must be a non-empty list")
+            else:
+                for entry in items:
+                    p = resolve_path(entry, content_dir)
+                    if not p.exists():
+                        errors.append(f"demo '{field}' file not found: {entry!r}")
 
     return errors
 
@@ -319,8 +311,7 @@ def lint_faq_schema(yaml_files, content_dir):
     Returns a list of error strings.
     """
     errors = []
-    seen_ids    = {}
-    seen_orders = {}
+    seen_ids = {}
 
     for path in yaml_files:
         try:
@@ -333,23 +324,13 @@ def lint_faq_schema(yaml_files, content_dir):
             errors.append(f"{path.name}: cannot read file — {exc}")
             continue
 
-        file_errors = validate_faq_entry(
-            path, data, seen_ids, seen_orders, content_dir
-        )
+        file_errors = validate_faq_entry(path, data, seen_ids, content_dir)
         errors.extend(file_errors)
 
     return errors
 
 
 # ── Branding schema validation ────────────────────────────────────
-
-REQUIRED_COLOR_FIELDS = {
-    "brand_primary", "brand_hover", "page_background", "header_background"
-}
-REQUIRED_LAYOUT_FIELDS = {
-    "card_columns", "idle_timeout_seconds", "countdown_seconds"
-}
-
 
 def lint_branding_schema(branding_file, content_dir):
     """
@@ -374,8 +355,10 @@ def lint_branding_schema(branding_file, content_dir):
     if not isinstance(data, dict):
         return [f"{branding_file.name}: top-level value must be a YAML mapping"]
 
+    branding_spec = _SPEC["branding"]
+
     # Top-level sections
-    required_sections = {"event", "logos", "colors", "layout", "footer"}
+    required_sections = set(branding_spec["required_sections"])
     missing = required_sections - data.keys()
     if missing:
         errors.append(

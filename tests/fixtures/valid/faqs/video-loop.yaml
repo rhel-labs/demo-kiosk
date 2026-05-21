@@ -1,0 +1,7 @@
+id: test-video-loop
+title: Test Video Loop
+demo:
+  type: video-loop
+  videos:
+    - content/media/loop1.mp4
+    - content/media/loop2.mp4

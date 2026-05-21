@@ -1,0 +1,6 @@
+id: test-slides
+title: Test Slides Demo
+summary: A test slides card.
+demo:
+  type: slides
+  src: content/media/presentation.pdf

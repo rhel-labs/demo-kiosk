@@ -1,0 +1,7 @@
+id: test-external-url
+title: Test External URL Demo
+summary: A test external URL card.
+demo:
+  type: external-url
+  url: https://demo.example.com/
+  long_description: Visit this external demo site.
