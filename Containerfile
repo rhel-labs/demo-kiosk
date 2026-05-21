@@ -57,12 +57,6 @@ COPY --chown=65532:65532 app/ ./app/
 # Build tools
 COPY --chown=65532:65532 build/ ./build/
 
-# generate-containerfile-page.py reads only the Containerfile — run it early
-# so Containerfile edits don't invalidate the content layers that follow.
-# Writes to app/containerfile.html.
-COPY --chown=65532:65532 Containerfile ./
-RUN python3 build/generate-containerfile-page.py
-
 # Content acquisition — local YAML, branding, and media.
 # The kiosk zip (Google Drive bundle) overlays the full content/ tree, so
 # build-faqs.py and lint must run after the bundle extraction to see the
@@ -199,8 +193,9 @@ COPY --from=builder --chown=65532:65532 /tmp/build/lint-content.py ./lint-conten
 # FAQ generator and its Jinja2 templates — used by serve.py to rebuild faqs.js
 # after runtime uploads via /manage. build-faqs.py resolves paths from its own
 # location, so it must live at ./build/build-faqs.py and templates at ./app/faqs/.
-COPY --from=builder --chown=65532:65532 /tmp/build/build-faqs.py  ./build/build-faqs.py
-COPY --from=builder --chown=65532:65532 /tmp/app/faqs/             ./app/faqs/
+COPY --from=builder --chown=65532:65532 /tmp/build/build-faqs.py    ./build/build-faqs.py
+COPY --from=builder --chown=65532:65532 /tmp/build/bundle-spec.yaml ./build/bundle-spec.yaml
+COPY --from=builder --chown=65532:65532 /tmp/app/faqs/              ./app/faqs/
 
 # Third-party libraries from the asset-builder npm stage.
 # These change only when package.json version pins are bumped — stable across
@@ -216,11 +211,11 @@ COPY --from=builder --chown=65532:65532 /tmp/content/media/ ./content/media/
 # (.containerignore excludes library files; logo-summit.svg and pdf-init.mjs come through here)
 COPY --chown=65532:65532 app/ ./
 COPY --chown=65532:65532 healthcheck.py ./
-COPY --from=builder --chown=65532:65532 /tmp/app/containerfile.html ./
 
 # FAQ content — changes with demo updates.
-COPY --from=builder --chown=65532:65532 /tmp/content/faqs/   ./content/faqs/
-COPY --from=builder --chown=65532:65532 /tmp/content/faqs.js ./content/
+COPY --from=builder --chown=65532:65532 /tmp/content/faqs/      ./content/faqs/
+COPY --from=builder --chown=65532:65532 /tmp/content/index.yaml ./content/
+COPY --from=builder --chown=65532:65532 /tmp/content/faqs.js    ./content/
 
 # Branding — most volatile; changes per event even when demo content is stable.
 COPY --from=builder --chown=65532:65532 /tmp/content/branding/    ./content/branding/

@@ -1,0 +1,10 @@
+schema_version: 2
+card_order:
+  - test-video
+  - nonexistent-card-id
+  - test-arcade
+categories:
+  - name: Media
+    cards:
+      - test-video
+      - does-not-exist

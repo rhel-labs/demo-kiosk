@@ -1,0 +1,8 @@
+id: test-arcade
+title: Test Arcade Demo
+summary: A test arcade card.
+demo:
+  type: arcade
+  share_url: https://interact.redhat.com/share/AbCdEf123
+  title: My Arcade Demo
+  aspect_ratio: "56.25%"

@@ -1,0 +1,5 @@
+id: missing-demo-src
+title: Missing Demo Src Card
+summary: This video card is missing the required src field.
+demo:
+  type: video

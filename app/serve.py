@@ -86,12 +86,70 @@ _MEDIA_DEMO_TYPE = {
     '.webp': 'image-text',
 }
 
-_LOGO_EXTS         = {'.svg', '.png', '.jpg', '.jpeg', '.webp'}
-_CARD_REQUIRED     = {'id', 'order', 'title', 'summary', 'demo'}
-_VALID_DEMO_TYPES  = {
+_LOGO_EXTS = {'.svg', '.png', '.jpg', '.jpeg', '.webp'}
+
+
+def _load_spec(directory='.'):
+    """Load build/bundle-spec.yaml relative to the serving directory."""
+    spec_path = Path(directory) / 'build' / 'bundle-spec.yaml'
+    if yaml is None or not spec_path.exists():
+        return None
+    try:
+        return yaml.safe_load(spec_path.read_text(encoding='utf-8'))
+    except Exception:
+        return None
+
+_SPEC = _load_spec()
+_CARD_REQUIRED    = set(_SPEC['card']['required_fields']) if _SPEC else {'id', 'title', 'summary', 'demo'}
+_VALID_DEMO_TYPES = set(_SPEC['card']['demo_types'].keys()) if _SPEC else {
     'video', 'slides', 'asciinema', 'image-text',
     'external-url', 'arcade', 'lab', 'video-loop', 'upload',
 }
+
+
+def _bootstrap_content_index(content_dir):
+    """Generate content/index.yaml from existing card order fields if absent."""
+    if yaml is None:
+        return
+    index_path = Path(content_dir) / 'index.yaml'
+    if index_path.exists():
+        return
+    faqs_dir = Path(content_dir) / 'faqs'
+    if not faqs_dir.is_dir():
+        return
+    cards = []
+    for path in sorted(faqs_dir.glob('*.yaml')):
+        if path.stem.startswith('_'):
+            continue
+        try:
+            data = yaml.safe_load(path.read_text(encoding='utf-8'))
+            if isinstance(data, dict) and 'id' in data:
+                cards.append((data.get('order', 0), path.stem, data['id']))
+        except Exception:
+            pass
+    cards.sort(key=lambda x: (x[0], x[1]))
+    index = {'schema_version': 2, 'card_order': [c[2] for c in cards], 'categories': []}
+    index_path.write_text(yaml.dump(index, default_flow_style=False), encoding='utf-8')
+
+
+def _read_content_index(content_dir):
+    """Load content/index.yaml, returning card_order list."""
+    if yaml is None:
+        return []
+    index_path = Path(content_dir) / 'index.yaml'
+    try:
+        data = yaml.safe_load(index_path.read_text(encoding='utf-8'))
+        return data.get('card_order', []) if isinstance(data, dict) else []
+    except Exception:
+        return []
+
+
+def _write_content_index(content_dir, index_data):
+    """Write content/index.yaml."""
+    if yaml is None:
+        return
+    index_path = Path(content_dir) / 'index.yaml'
+    index_path.write_text(yaml.dump(index_data, default_flow_style=False), encoding='utf-8')
 
 
 class KioskHandler(http.server.SimpleHTTPRequestHandler):
@@ -257,18 +315,38 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
                     if fname.lower().endswith('.mp4'):
                         _apply_faststart(os.path.join(media_src, fname))
 
-            # faqs/ and branding/ are replaced entirely so baked-in cards
-            # don't persist alongside the zip's cards (duplicate order/id).
-            # media/ is additive to preserve individually uploaded files.
+            # Read bundle manifest if present — determines which content areas to touch.
+            # Bundles without a manifest are treated as full bundles (backwards compat).
+            manifest_path = os.path.join(kiosk_dir, 'bundle.yaml')
+            bundle_type = 'full'
+            if os.path.exists(manifest_path) and yaml is not None:
+                try:
+                    manifest = yaml.safe_load(open(manifest_path, encoding='utf-8').read())
+                    if isinstance(manifest, dict):
+                        bundle_type = manifest.get('bundle_type', 'full')
+                except Exception:
+                    pass
+
+            # Determine which directories to replace vs skip based on bundle type.
+            # faqs/ replaced when bundle type is content or full.
+            # branding/ and media/ are always additive — overlay files from the
+            # bundle without removing existing ones, so baked-in logo assets
+            # survive an upload that only includes branding.yaml.
+            _REPLACE = set()
+            if bundle_type in ('content', 'full'):
+                _REPLACE.add('faqs')
+
+            # faqs/ in _REPLACE is replaced entirely.
+            # branding/ and media/ are additive to preserve installed assets.
+            # content/index.yaml is replaced when present in the bundle.
             # Skip dotfiles (.DS_Store, __MACOSX metadata, etc.).
             # Wrap in OSError handler: an unhandled exception here drops the
             # TCP connection before any HTTP response is sent, which the
             # browser reports as "failed to fetch" with no useful message.
             try:
-                _REPLACE = {'faqs', 'branding'}
                 content_str = str(self._content_dir)
                 for item in os.listdir(kiosk_dir):
-                    if item.startswith('.'):
+                    if item.startswith('.') or item == 'bundle.yaml':
                         continue
                     src = os.path.join(kiosk_dir, item)
                     dst = os.path.join(content_str, item)
@@ -287,18 +365,20 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
                                                 os.path.join(dst, fname))
                     else:
                         shutil.move(src, dst)
+
+                # content/index.yaml: replace when present in bundle
+                index_src = os.path.join(kiosk_dir, 'content', 'index.yaml')
+                if os.path.exists(index_src):
+                    shutil.move(index_src, os.path.join(content_str, 'index.yaml'))
+
             except OSError as exc:
                 return self._send_json(
                     {'error': f'Bundle extracted but content install failed: {exc}'}, 500)
 
-        order_fixes = self._fix_duplicate_orders()
         ok, output = self._rebuild()
         if not ok:
             return self._send_json({'error': 'Content extracted but rebuild failed', 'output': output}, 500)
-        msg = 'Bundle uploaded and content rebuilt'
-        if order_fixes:
-            msg += f'. Order values adjusted for {len(order_fixes)} card(s) to resolve duplicates.'
-        self._send_json({'message': msg, 'output': output, 'order_fixes': order_fixes})
+        self._send_json({'message': 'Bundle uploaded and content rebuilt', 'output': output})
 
     def _handle_media_upload(self):
         if not self._is_writable():
@@ -616,7 +696,8 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
             return None, (f"Unknown demo type {demo_type!r}. "
                           f"Valid types: {', '.join(sorted(_VALID_DEMO_TYPES))}")
         card_id = data.get('id', '')
-        if not re.fullmatch(r'[a-z0-9][a-z0-9\-]*', card_id):
+        id_pattern = _SPEC['card']['id_pattern'] if _SPEC else r'[a-z0-9][a-z0-9\-]*'
+        if not re.fullmatch(id_pattern, card_id):
             return None, ("'id' must start with a lowercase letter or digit "
                           "and contain only lowercase letters, digits, and hyphens")
         return data, None
@@ -641,40 +722,6 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
         card = {k: v for k, v in card.items() if not k.startswith('_')}
         with open(path, 'w', encoding='utf-8') as fh:
             yaml.dump(card, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
-
-    def _fix_duplicate_orders(self):
-        """Scan faqs/ for duplicate order values and increment conflicts until unique.
-
-        Returns a list of human-readable change descriptions. Called after zip
-        extraction so authoring errors in the bundle don't block the event team.
-        """
-        if yaml is None:
-            return []
-        faqs_dir = self._content_dir / 'faqs'
-        entries = []
-        for path in sorted(faqs_dir.glob('*.yaml')):
-            if path.stem.startswith('_'):
-                continue
-            try:
-                with open(path, encoding='utf-8') as fh:
-                    data = yaml.safe_load(fh)
-                if isinstance(data, dict) and isinstance(data.get('order'), (int, float)):
-                    entries.append((path, data))
-            except Exception:
-                pass
-
-        seen = {}
-        changes = []
-        for path, data in entries:
-            order = data['order']
-            while order in seen:
-                order += 1
-            if order != data['order']:
-                changes.append(f"{path.name}: order {data['order']} → {order}")
-                data['order'] = order
-                self._write_card(path, data)
-            seen[order] = path.name
-        return changes
 
     def _rebuild(self):
         """Run build-faqs.py and return (success, combined_output)."""
@@ -798,6 +845,11 @@ if __name__ == "__main__":
         def finish_request(self, request, client_address):
             self.RequestHandlerClass(request, client_address, self,
                                      directory=args.directory)
+
+    # Bootstrap content/index.yaml from card order fields if not present.
+    content_dir = Path(args.directory) / 'content'
+    if content_dir.is_dir():
+        _bootstrap_content_index(content_dir)
 
     http.server.test(
         HandlerClass=KioskHandler,

@@ -1,0 +1,6 @@
+id: "Bad ID Format!"
+title: Bad ID Format Card
+summary: This card has an id that fails the pattern check.
+demo:
+  type: arcade
+  share_url: https://interact.redhat.com/share/AbCdEf123

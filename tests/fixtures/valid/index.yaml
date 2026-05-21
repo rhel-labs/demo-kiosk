@@ -1,0 +1,13 @@
+schema_version: 2
+card_order:
+  - test-video
+  - test-slides
+  - test-arcade
+categories:
+  - name: Media
+    cards:
+      - test-video
+      - test-slides
+  - name: Interactive
+    cards:
+      - test-arcade

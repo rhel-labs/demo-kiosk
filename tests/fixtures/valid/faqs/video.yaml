@@ -1,0 +1,6 @@
+id: test-video
+title: Test Video Demo
+summary: A test video card.
+demo:
+  type: video
+  src: content/media/demo.mp4

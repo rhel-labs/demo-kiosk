@@ -1,0 +1,6 @@
+id: unknown-type-card
+title: Unknown Type Card
+summary: This card has an unrecognized demo type.
+demo:
+  type: hologram
+  src: content/media/demo.mp4

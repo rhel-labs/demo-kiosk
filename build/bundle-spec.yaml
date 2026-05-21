@@ -1,0 +1,79 @@
+spec_version: "2.0.0"
+
+# Card YAML schema (content/faqs/*.yaml)
+card:
+  required_fields: [id, title, summary, demo]
+  optional_fields: [enabled, spotlight]
+  id_pattern: "^[a-z0-9][a-z0-9-]*$"
+  # summary is optional for these demo types
+  summary_optional_for_types: [video-loop]
+  demo_types:
+    video:
+      required: [src]
+      media_fields: [src]
+    slides:
+      required: [src]
+      media_fields: [src]
+    asciinema:
+      required: [src]
+      media_fields: [src]
+    image-text:
+      required: [image, caption]
+      media_fields: [image]
+    external-url:
+      required: [url, long_description]
+      url_fields: [url]
+    lab:
+      required: [url, long_description]
+      optional: [duration]
+      url_fields: [url]
+    arcade:
+      required: [share_url]
+      optional: [title, aspect_ratio]
+      arcade_url_fields: [share_url]
+    video-loop:
+      required: [videos]
+      media_list_fields: [videos]
+    upload:
+      required: []
+      kiosk_reserved: true
+
+# Branding YAML schema (content/branding/branding.yaml)
+branding:
+  required_sections: [event, logos, colors, layout, footer]
+  event:
+    required: [header]
+    optional: [title, tagline]
+  logos:
+    primary:
+      required: [file, alt_text]
+      optional: [url]
+    secondary:
+      required: [file, alt_text]
+      optional: [url]
+  colors:
+    required: [brand_primary, brand_hover, page_background, header_background]
+    format: hex_color
+  layout:
+    required: [card_columns, idle_timeout_seconds, countdown_seconds]
+    format: positive_integer
+  footer:
+    required: [copyright]
+
+# Content index schema (content/index.yaml)
+content_index:
+  required_fields: [schema_version, card_order]
+  optional_fields: [categories]
+  category_fields:
+    required: [name, cards]
+
+# Bundle manifest schema (kiosk/bundle.yaml inside zip)
+bundle_manifest:
+  required_fields: [bundle_type, schema_version]
+  bundle_type_values: [branding, content, full]
+
+# Bundle ZIP layout
+bundle_layout:
+  manifest: kiosk/bundle.yaml
+  content_index: content/index.yaml
+  directories: [faqs, branding, media]

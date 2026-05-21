@@ -1,0 +1,8 @@
+id: test-lab
+title: Test Lab Demo
+summary: A test lab card.
+demo:
+  type: lab
+  url: https://demo.example.com/lab
+  long_description: Try this lab to learn more.
+  duration: 30 minutes

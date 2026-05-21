@@ -1,0 +1,7 @@
+id: test-image-text
+title: Test Image Text Demo
+summary: A test image-text card.
+demo:
+  type: image-text
+  image: content/media/hero.png
+  caption: A hero image for testing.
