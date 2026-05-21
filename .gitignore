@@ -16,6 +16,11 @@ content/media/*.m4v
 # Contains media files to overlay onto content/media/ during build
 kiosk*.zip
 
+# Test data — large binary fixtures (media files, import/export bundles)
+# not tracked in git; place any test inputs here regardless of which layer
+# they exercise (kiosk, author tool, branding, etc.)
+testdata/
+
 # Event-specific FAQ content — delivered per-event, not stored in git.
 # _template.yaml and the default onboarding cards are exceptions.
 content/faqs/*.yaml

@@ -1,0 +1,30 @@
+# ── Stage 1: build ───────────────────────────────────────────────
+# hummingbird nodejs:22-builder compiles the React app with Vite.
+FROM quay.io/hummingbird/nodejs:22-builder AS builder
+
+USER root
+WORKDIR /build
+
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
+
+COPY . .
+RUN npm run build
+
+
+# ── Stage 2: runtime ─────────────────────────────────────────────
+# hummingbird python:3.14 — distroless, no shell, no package manager.
+# Runs as UID 65532. Serves the compiled static React app.
+FROM quay.io/hummingbird/python:3.14
+
+WORKDIR /srv/author
+
+COPY --from=builder --chown=65532:65532 /build/dist/ ./
+COPY --chown=65532:65532 serve.py ./
+
+EXPOSE 8080
+
+STOPSIGNAL SIGKILL
+
+# No shell in distroless — CMD must be JSON exec form.
+CMD ["python3", "/srv/author/serve.py", "8080", "/srv/author"]
