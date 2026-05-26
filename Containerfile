@@ -192,7 +192,7 @@ COPY --from=builder --chown=65532:65532 \
 COPY --from=builder --chown=65532:65532 /tmp/build/lint-content.py ./lint-content.py
 
 # FAQ generator and its Jinja2 templates — used by serve.py to rebuild faqs.js
-# after runtime uploads via /manage. build-faqs.py resolves paths from its own
+# after runtime uploads via /setup. build-faqs.py resolves paths from its own
 # location, so it must live at ./build/build-faqs.py and templates at ./app/faqs/.
 COPY --from=builder --chown=65532:65532 /tmp/build/build-faqs.py    ./build/build-faqs.py
 COPY --from=builder --chown=65532:65532 /tmp/build/bundle-spec.yaml ./build/bundle-spec.yaml

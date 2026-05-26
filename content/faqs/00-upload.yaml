@@ -1,5 +1,4 @@
 id: upload-bundle
-order: 10
 title: "Upload a content bundle"
 summary: "Drop a kiosk-*.zip built with the authoring tool to load your demos. Replaces all existing content."
 enabled: true

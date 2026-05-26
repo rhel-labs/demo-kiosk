@@ -30,7 +30,6 @@
 id: my-topic
 
 # Controls position on the card grid. Lower numbers appear first.
-order: 100
 
 # The question shown on the card (keep it concise).
 title: "Your question goes here?"

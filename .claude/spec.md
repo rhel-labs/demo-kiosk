@@ -125,8 +125,8 @@ media files added.
 ### 3. Admin page restructure — three pages by function
 
 `/manage` removed (returns 404). Three purpose-named pages replace the old two-page
-structure. Nav on all admin pages: **Kiosk · Setup · Display · Stats**
-(Kiosk always first, no back-arrow labelling).
+structure. Nav on all admin pages: **Kiosk · Display · Stats · Setup**
+(Kiosk always first; Setup last as it is a one-time pre-event task).
 
 **Setup (`/setup`, `setup.html`, renamed from `manage.html`):**
 - Bundle upload with overwrite checkbox and upload summary

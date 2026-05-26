@@ -3,7 +3,7 @@
 # build-faqs.py — FAQ YAML → content/faqs.js
 # ================================================================
 # Reads all content/faqs/*.yaml files (skipping those starting
-# with _), validates them, sorts by the required `order` field,
+# with _), validates them, orders by content/index.yaml card_order,
 # and renders content/faqs.js via the Jinja2 template
 # app/faqs/faqs.js.j2.
 #

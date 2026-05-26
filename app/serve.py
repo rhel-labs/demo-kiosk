@@ -18,9 +18,9 @@
 #    patch browsers cannot seek or start playback before a full
 #    download of a large video file.
 #
-# 4. Content management API at /manage (HTML page) and /api/*
-#    endpoints for uploading content and editing cards at runtime.
-#    Writes require a writable content directory — see README.md
+# 4. Content management API at /setup, /display, /stats (HTML pages)
+#    and /api/* endpoints for uploading content and editing cards at
+#    runtime. Writes require a writable content directory — see README.md
 #    for volume mount options.
 #
 # Accepts the same CLI arguments as `python3 -m http.server`:
@@ -389,8 +389,9 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
                                 incoming_ids.add(final_id)
                                 summary['added'].append(final_id)
 
-                # ── branding/ and media/ — always additive ───────────────────
-                for item in ('branding', 'media'):
+                # ── branding/ and media/ ─────────────────────────────────────
+                # branding bundles must not touch media/
+                for item in ('branding',) if bundle_type == 'branding' else ('branding', 'media'):
                     item_src = os.path.join(kiosk_dir, item)
                     if os.path.isdir(item_src):
                         item_dst = os.path.join(content_str, item)

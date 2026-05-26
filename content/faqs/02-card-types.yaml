@@ -1,5 +1,4 @@
 id: card-types
-order: 30
 title: "What can this kiosk show?"
 summary: "Eight card types are supported — from screen recordings to interactive walkthroughs."
 enabled: true

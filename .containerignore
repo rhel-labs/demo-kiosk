@@ -3,6 +3,7 @@ app/faqs/faqs.js
 content/faqs.js
 content/branding.js
 app/containerfile.html
+app/manage.html
 
 # npm-managed libraries — installed by the asset-builder stage during container build.
 # Excluded from build context so the npm stage is the authoritative source.

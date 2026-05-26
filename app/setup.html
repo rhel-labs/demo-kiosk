@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kiosk Setup</title>
-  <link rel="stylesheet" href="/patternfly.min.css">
+  <link rel="stylesheet" href="patternfly.min.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; }
 
@@ -236,9 +236,9 @@
   <section class="km-section">
     <div class="km-section-header">
       <h2>Upload Kiosk Bundle</h2>
-      <p>Replace all content (cards, branding, media) from a <code>kiosk-*.zip</code> file.
-         The zip must contain a <code>kiosk/</code> directory with <code>faqs/</code>,
-         <code>branding/</code>, and <code>media/</code> subdirectories.</p>
+      <p>Upload a <code>kiosk-*.zip</code> bundle. By default, cards are merged additively
+         and conflicting IDs are renamed. Check <strong>Overwrite</strong> to replace all
+         existing cards with only those in the bundle.</p>
     </div>
     <div class="km-section-body">
       <div id="zip-alert" class="km-alert"></div>
@@ -849,7 +849,7 @@ async function uploadZip() {
         if (s.added?.length)   parts.push(`${s.added.length} card(s) added`);
         if (s.renamed && Object.keys(s.renamed).length) {
           const rn = Object.entries(s.renamed).map(([o, n]) => `${o} → ${n}`).join(', ');
-          parts.push(`1 renamed (${rn})`);
+          parts.push(`${Object.keys(s.renamed).length} renamed (${rn})`);
         }
         if (s.media_added?.length) parts.push(`${s.media_added.length} media file(s)`);
         if (parts.length) {

@@ -1,5 +1,4 @@
 id: stats-visibility
-order: 40
 title: "Statistics and card visibility"
 summary: "Track which demos visitors engage with and show or hide cards without reloading content."
 enabled: true

@@ -1,5 +1,4 @@
 id: creating-bundle
-order: 20
 title: "Creating a content bundle"
 summary: "Use the authoring tool to build a zip bundle — no manual YAML or file management needed."
 enabled: true

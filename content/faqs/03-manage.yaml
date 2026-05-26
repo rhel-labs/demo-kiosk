@@ -1,5 +1,4 @@
 id: manage
-order: 50
 title: "Managing this kiosk"
 summary: "The Setup page lets you upload content, manage cards, and update branding."
 enabled: true
