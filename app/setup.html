@@ -221,9 +221,9 @@
   <h1>Setup</h1>
   <nav>
     <a href="/">Kiosk</a>
-    <a href="/setup" aria-current="page">Setup</a>
     <a href="/display">Display</a>
     <a href="/stats">Stats</a>
+    <a href="/setup" aria-current="page">Setup</a>
   </nav>
 </header>
 
@@ -254,11 +254,31 @@
     </div>
   </section>
 
+  <!-- ── Manage Cards ── -->
+  <section class="km-section">
+    <div class="km-section-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <h2 style="margin:0">Manage Cards</h2>
+        <p style="margin:0.25rem 0 0;font-size:0.875rem;color:#6a6e73">
+          Click <strong>Edit</strong> to expand an inline editor below the row.
+          Click <strong>Delete</strong> to remove a card permanently.
+        </p>
+      </div>
+      <button class="km-btn km-btn-secondary km-btn-sm" onclick="loadCards()">↻ Refresh</button>
+    </div>
+    <div class="km-section-body" style="padding:0">
+      <div id="card-list-alert" class="km-alert" style="margin:1rem 1.25rem 0"></div>
+      <div id="card-list-container">
+        <div class="km-empty">Loading cards…</div>
+      </div>
+    </div>
+  </section>
+
   <!-- ── Add Card ── -->
   <section class="km-section">
     <div class="km-section-header">
       <h2>Add Card</h2>
-      <p>Create a new card for the kiosk grid. To edit existing cards, use the table below.</p>
+      <p>Create a new card for the kiosk grid. To edit existing cards, use the table above.</p>
     </div>
     <div class="km-section-body">
       <div id="card-alert" class="km-alert"></div>
@@ -391,26 +411,6 @@
       <div class="km-btn-row">
         <button class="km-btn km-btn-primary" id="card-save-btn" onclick="saveCard()">Add Card</button>
         <button class="km-btn km-btn-secondary" onclick="resetCardForm()">Clear</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── Manage Cards ── -->
-  <section class="km-section">
-    <div class="km-section-header" style="display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <h2 style="margin:0">Manage Cards</h2>
-        <p style="margin:0.25rem 0 0;font-size:0.875rem;color:#6a6e73">
-          Click <strong>Edit</strong> to expand an inline editor below the row.
-          Click <strong>Delete</strong> to remove a card permanently.
-        </p>
-      </div>
-      <button class="km-btn km-btn-secondary km-btn-sm" onclick="loadCards()">↻ Refresh</button>
-    </div>
-    <div class="km-section-body" style="padding:0">
-      <div id="card-list-alert" class="km-alert" style="margin:1rem 1.25rem 0"></div>
-      <div id="card-list-container">
-        <div class="km-empty">Loading cards…</div>
       </div>
     </div>
   </section>
@@ -1209,11 +1209,11 @@ function esc(s) {
 <footer style="text-align:center;padding:1.2rem;font-size:0.95rem;color:#6a6e73;border-top:1px solid #d2d2d2;margin-top:2rem">
   <a href="/" style="display:inline-block;padding:0.4rem 0.6rem;color:#151515;text-decoration:none">Kiosk</a>
   &nbsp;&middot;&nbsp;
-  <a href="/setup" style="display:inline-block;padding:0.4rem 0.6rem;color:#151515;text-decoration:none;font-weight:600" aria-current="page">Setup</a>
-  &nbsp;&middot;&nbsp;
   <a href="/display" style="display:inline-block;padding:0.4rem 0.6rem;color:#151515;text-decoration:none">Display</a>
   &nbsp;&middot;&nbsp;
   <a href="/stats" style="display:inline-block;padding:0.4rem 0.6rem;color:#151515;text-decoration:none">Stats</a>
+  &nbsp;&middot;&nbsp;
+  <a href="/setup" style="display:inline-block;padding:0.4rem 0.6rem;color:#151515;text-decoration:none;font-weight:600" aria-current="page">Setup</a>
 </footer>
 </body>
 </html>
