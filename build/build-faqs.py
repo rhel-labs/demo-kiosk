@@ -410,9 +410,10 @@ def main():
     entries.sort(key=lambda e: order_map.get(e["id"], len(card_order)))
     info(f"Card order: {' → '.join(e['id'] for e in entries)}")
 
-    # Ensure each entry has a spotlight field (defaults False if absent from YAML)
+    # Ensure each entry has spotlight and family fields (defaults if absent from YAML)
     for entry in entries:
         entry.setdefault("spotlight", False)
+        entry.setdefault("family", None)
 
     # Render via Jinja2 (template lives in app/faqs/)
     env = Environment(

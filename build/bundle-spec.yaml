@@ -3,7 +3,21 @@ spec_version: "2.0.0"
 # Card YAML schema (content/faqs/*.yaml)
 card:
   required_fields: [id, title, summary, demo]
-  optional_fields: [enabled, spotlight]
+  optional_fields: [enabled, spotlight, family]
+  family_values:
+    - RHEL
+    - RHEL AI
+    - OpenShift
+    - OpenShift AI
+    - OpenShift Virt
+    - AAP
+    - RHACS
+    - Satellite
+    - Lightspeed
+    - Developer Hub
+    - Quay
+    - Red Hat AI
+    - Edge
   id_pattern: "^[a-z0-9][a-z0-9-]*$"
   # summary is optional for these demo types
   summary_optional_for_types: [video-loop]

@@ -137,6 +137,27 @@
       font-size: 1rem;
     }
 
+    /* Product family and other card labels */
+    .faq-card .pf-v6-c-card__footer {
+      margin-top: auto;
+      padding-top: 0.5rem;
+    }
+
+    .faq-card-labels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+    }
+
+    .faq-label {
+      font-size: 0.75rem;
+      padding: 0.1rem 0.5rem;
+      border-radius: 2px;
+      background: #f0f0f0;
+      color: #151515;
+      white-space: nowrap;
+    }
+
     /* Error card variant */
     .faq-card-error {
       --pf-v6-c-card--BorderColor: var(--pf-t--global--border--color--status--danger--default);
@@ -1613,12 +1634,18 @@
       card.className = 'pf-v6-c-card pf-m-clickable faq-card';
       card.setAttribute('tabindex', '0');
       card.setAttribute('aria-label', entry.title);
+      const labels = [
+        entry.family ? `<span class="faq-label faq-label--family">${escHtml(entry.family)}</span>` : '',
+      ].filter(Boolean).join('');
       card.innerHTML =
         `<div class="pf-v6-c-card__title">` +
           `<h2 class="pf-v6-c-card__title-text">${escHtml(entry.title)}</h2>` +
         `</div>` +
         (entry.summary
           ? `<div class="pf-v6-c-card__body">${escHtml(entry.summary)}</div>`
+          : '') +
+        (labels
+          ? `<div class="pf-v6-c-card__footer"><div class="faq-card-labels">${labels}</div></div>`
           : '');
       card.addEventListener('click', () => openModal(entry));
       card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') openModal(entry); });

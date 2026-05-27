@@ -40,11 +40,19 @@ is ignored once `content/index.yaml` exists.
 
 ### New card fields
 
-One optional field added to card YAML (backwards-compatible; missing = `false`):
+Two optional fields added to card YAML (backwards-compatible):
 
 ```yaml
 spotlight: true       # boolean; defaults to false
+family: OpenShift     # string; constrained to allowed list; omit if not applicable
 ```
+
+`family` allowed values: `RHEL`, `RHEL AI`, `OpenShift`, `OpenShift AI`, `OpenShift Virt`,
+`AAP`, `RHACS`, `Satellite`, `Lightspeed`, `Developer Hub`, `Quay`, `Red Hat AI`, `Edge`.
+
+The `family` value is displayed as a label badge at the bottom of the card tile. Cards
+without `family` show no badge and no empty space. The label container is designed to
+accommodate additional label types in future without UI restructuring.
 
 Category membership is defined entirely in `content/index.yaml`, not on individual cards.
 
@@ -104,6 +112,7 @@ media files added.
   display.html
 - Cards not in any category appear in an "Other" section at the end of the grid
 - If no categories are defined, cards render as a flat grid (no headers)
+- Categories with no visible cards are not rendered (header suppressed)
 - Spotlight row appears above the category sections when at least one card has
   `spotlight` = true (YAML default) or is featured via display.html override;
   spotlighted cards appear in BOTH the spotlight row and their normal category section
@@ -234,3 +243,11 @@ restores server-side defaults from `content/faqs.js` / `content/index.yaml`.
 13. **Stats** — no visibility/order controls present; only stats cards, log, CSV download
 14. **Idle timer** — upload in progress suppresses idle countdown overlay
 15. **Footer** — links readable and tappable on touchscreen at kiosk viewing distance
+16. **Product family label** — card with `family: OpenShift` shows a badge at the bottom
+    of the tile; card without `family` shows no badge and no empty space at bottom
+17. **Invalid family value** — bundle with a card YAML containing an unknown `family` value
+    fails to build (lint catches it before image is finalised)
+18. **Empty category suppression** — categories defined in `content/index.yaml` with no
+    assigned cards do not render a section header on the kiosk
+19. **Kiosk category** — placeholder instruction cards appear under a "Kiosk" section;
+    Innovate/Protect/Simplify/Trust sections appear only when event content populates them

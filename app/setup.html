@@ -304,6 +304,26 @@
         <label for="f-enabled">Visible on kiosk grid</label>
       </div>
 
+      <div class="km-form-row">
+        <label for="f-family">Product family</label>
+        <select id="f-family">
+          <option value="">— none —</option>
+          <option>AAP</option>
+          <option>Developer Hub</option>
+          <option>Edge</option>
+          <option>Lightspeed</option>
+          <option>OpenShift</option>
+          <option>OpenShift AI</option>
+          <option>OpenShift Virt</option>
+          <option>Quay</option>
+          <option>Red Hat AI</option>
+          <option>RHACS</option>
+          <option>RHEL</option>
+          <option>RHEL AI</option>
+          <option>Satellite</option>
+        </select>
+      </div>
+
       <hr class="km-separator">
 
       <div class="km-form-row">
@@ -617,16 +637,9 @@ function startEdit(cardId) {
   editRow.innerHTML = `<td colspan="6" style="padding:0">
     <div class="km-edit-panel">
       <div id="edit-alert" class="km-alert" style="margin-bottom:1rem"></div>
-      <div class="km-form-grid">
-        <div class="km-form-row">
-          <label>ID</label>
-          <input type="text" value="${esc(card.id)}" readonly>
-        </div>
-        <div class="km-form-row">
-          <label for="edit-f-order">Order</label>
-          <input type="number" id="edit-f-order" value="${esc(String(card.order ?? ''))}" min="0" step="1">
-          <p class="km-hint">Lower numbers appear first.</p>
-        </div>
+      <div class="km-form-row">
+        <label>ID</label>
+        <input type="text" value="${esc(card.id)}" readonly>
       </div>
       <div class="km-form-row">
         <label for="edit-f-title">Title</label>
@@ -639,6 +652,25 @@ function startEdit(cardId) {
       <div class="km-form-row km-inline">
         <input type="checkbox" id="edit-f-enabled" ${card.enabled !== false ? 'checked' : ''}>
         <label for="edit-f-enabled">Visible on kiosk grid</label>
+      </div>
+      <div class="km-form-row">
+        <label for="edit-f-family">Product family</label>
+        <select id="edit-f-family">
+          <option value="">— none —</option>
+          <option ${card.family === 'AAP'           ? 'selected' : ''}>AAP</option>
+          <option ${card.family === 'Developer Hub' ? 'selected' : ''}>Developer Hub</option>
+          <option ${card.family === 'Edge'          ? 'selected' : ''}>Edge</option>
+          <option ${card.family === 'Lightspeed'    ? 'selected' : ''}>Lightspeed</option>
+          <option ${card.family === 'OpenShift'     ? 'selected' : ''}>OpenShift</option>
+          <option ${card.family === 'OpenShift AI'  ? 'selected' : ''}>OpenShift AI</option>
+          <option ${card.family === 'OpenShift Virt'? 'selected' : ''}>OpenShift Virt</option>
+          <option ${card.family === 'Quay'          ? 'selected' : ''}>Quay</option>
+          <option ${card.family === 'Red Hat AI'    ? 'selected' : ''}>Red Hat AI</option>
+          <option ${card.family === 'RHACS'         ? 'selected' : ''}>RHACS</option>
+          <option ${card.family === 'RHEL'          ? 'selected' : ''}>RHEL</option>
+          <option ${card.family === 'RHEL AI'       ? 'selected' : ''}>RHEL AI</option>
+          <option ${card.family === 'Satellite'     ? 'selected' : ''}>Satellite</option>
+        </select>
       </div>
       ${buildEditDemoFields(card)}
       <div class="km-btn-row">
@@ -755,13 +787,13 @@ async function saveEditCard() {
   if (!card) return;
   const alert = document.getElementById('edit-alert');
 
-  const order   = parseInt(document.getElementById('edit-f-order').value, 10);
   const title   = document.getElementById('edit-f-title').value.trim();
   const summary = document.getElementById('edit-f-summary').value.trim();
   const enabled = document.getElementById('edit-f-enabled').checked;
+  const family  = document.getElementById('edit-f-family').value || null;
 
-  if (!title || !summary || isNaN(order)) {
-    return showAlert(alert, 'danger', 'Title, summary, and order are required.');
+  if (!title || !summary) {
+    return showAlert(alert, 'danger', 'Title and summary are required.');
   }
 
   const demo = { type: card.demo?.type ?? '' };
@@ -797,7 +829,7 @@ async function saveEditCard() {
     if (!demo.videos.length) return showAlert(alert, 'danger', 'Select at least one video.');
   }
 
-  const payload = { id: editingCardId, order, title, summary, enabled, demo };
+  const payload = { id: editingCardId, title, summary, enabled, ...(family ? { family } : {}), demo };
   const btn = document.querySelector('#edit-panel-row .km-btn-primary');
   setLoading(btn, true, 'Saving…');
 
@@ -993,6 +1025,7 @@ function resetCardForm() {
     if (el) el.value = '';
   });
   document.getElementById('f-enabled').checked = true;
+  document.getElementById('f-family').value = '';
   document.getElementById('f-type').value = '';
   updateDemoFields();
   ['media-src-alert','media-image-alert','media-loop-alert'].forEach(id => {
@@ -1007,6 +1040,7 @@ function buildCardPayload() {
   const title   = document.getElementById('f-title').value.trim();
   const summary = document.getElementById('f-summary').value.trim();
   const enabled = document.getElementById('f-enabled').checked;
+  const family  = document.getElementById('f-family').value || null;
   const type    = document.getElementById('f-type').value;
 
   if (!id || !title || !summary || !type) return null;
@@ -1042,7 +1076,7 @@ function buildCardPayload() {
     demo.videos = pendingVideoPaths;
   }
 
-  return { id, title, summary, enabled, demo };
+  return { id, title, summary, enabled, ...(family ? { family } : {}), demo };
 }
 
 async function saveCard() {

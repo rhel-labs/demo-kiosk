@@ -1,4 +1,5 @@
 id: manage
+family: RHEL
 title: "Managing this kiosk"
 summary: "The Setup page lets you upload content, manage cards, and update branding."
 enabled: true

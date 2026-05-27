@@ -1,4 +1,5 @@
 id: card-types
+family: RHEL
 title: "What can this kiosk show?"
 summary: "Eight card types are supported — from screen recordings to interactive walkthroughs."
 enabled: true
