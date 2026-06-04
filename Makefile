@@ -1,47 +1,66 @@
-.PHONY: build test test-volume test-upload lint clean push help
+.PHONY: build push clean test test-volume test-upload lint \
+        build-author push-author clean-author help
 
-# Configuration
+# Tag convention:
+#   devel  — active development / unreleased work (default for all targets here)
+#   latest — stable release; set manually after a PR merges and is verified
+
 IMAGE_REGISTRY ?= quay.io/mmicene
-IMAGE_NAME := demo-kiosk
-IMAGE_TAG ?= latest
-PORT := 8181
+IMAGE_TAG      ?= devel
+
+KIOSK_IMAGE  := $(IMAGE_REGISTRY)/demo-kiosk:$(IMAGE_TAG)
+AUTHOR_IMAGE := $(IMAGE_REGISTRY)/demo-kiosk-author:$(IMAGE_TAG)
+
+PORT        := 8181
+AUTHOR_PORT := 8082
 CONTENT_DIR ?= $(PWD)/content
 UPLOAD_ZIP  ?= $(PWD)/kiosk.zip
 
-# Construct full image reference
-ifdef IMAGE_REGISTRY
-  IMAGE := $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
-else
-  IMAGE := $(IMAGE_NAME):$(IMAGE_TAG)
-endif
+# ── Kiosk ────────────────────────────────────────────────────────────
 
-build: ## Build container image (downloads all dependencies internally)
-	podman build -t $(IMAGE) .
+build: ## Build kiosk image
+	podman build -t $(KIOSK_IMAGE) .
 
-test: build ## Build and test container locally
-	podman run --rm -p 127.0.0.1:$(PORT):8181 $(IMAGE)
+push: build ## Build and push kiosk image
+	podman push $(KIOSK_IMAGE)
+
+clean: ## Remove kiosk image
+	podman rmi $(KIOSK_IMAGE)
+
+test: build ## Build and run kiosk locally
+	podman run --rm -p 127.0.0.1:$(PORT):8181 $(KIOSK_IMAGE)
 
 lint: ## Lint YAML content files (requires: pip3 install -r build/requirements.txt)
 	python3 build/lint-content.py
 
-test-volume: build ## Test with local content volume mount
+test-volume: build ## Build and run kiosk with local content volume
 	@echo "Linting content..."
 	@python3 build/lint-content.py
 	@echo "Building content locally..."
 	@python3 build/build-faqs.py
-	@echo "Starting container with volume mount: $(CONTENT_DIR)"
+	@echo "Starting kiosk with volume mount: $(CONTENT_DIR)"
 	podman run --rm -p 127.0.0.1:$(PORT):8181 \
 	  -v $(CONTENT_DIR):/srv/faq/content:ro \
-	  $(IMAGE)
+	  $(KIOSK_IMAGE)
 
 test-upload: build ## End-to-end upload test: POST $(UPLOAD_ZIP) to a fresh container
-	IMAGE=$(IMAGE) PORT=$(PORT) UPLOAD_ZIP=$(UPLOAD_ZIP) bash test-upload.sh
+	IMAGE=$(KIOSK_IMAGE) PORT=$(PORT) UPLOAD_ZIP=$(UPLOAD_ZIP) bash test-upload.sh
 
-push: build ## Build and push to registry
-	podman push $(IMAGE)
+# ── Author tool ──────────────────────────────────────────────────────
 
-clean: ## Remove container image
-	podman rmi $(IMAGE)
+build-author: ## Build author tool image
+	podman build -t $(AUTHOR_IMAGE) author/
+
+push-author: build-author ## Build and push author tool image
+	podman push $(AUTHOR_IMAGE)
+
+clean-author: ## Remove author tool image
+	podman rmi $(AUTHOR_IMAGE)
+
+run-author: build-author ## Build and run author tool locally on port $(AUTHOR_PORT)
+	podman run --rm -p 127.0.0.1:$(AUTHOR_PORT):8080 $(AUTHOR_IMAGE)
+
+# ────────────────────────────────────────────────────────────────────
 
 help: ## Show available targets
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
