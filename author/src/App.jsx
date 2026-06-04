@@ -8,22 +8,25 @@ import {
 import WelcomeScreen from './components/WelcomeScreen.jsx';
 import CardList from './components/CardList.jsx';
 import BrandingEditor from './components/BrandingEditor.jsx';
+import CategoryEditor from './components/CategoryEditor.jsx';
 import { validateCards, validateBranding } from './utils/validation.js';
-import { exportZip, defaultBranding, totalMediaSize } from './utils/zipHandler.js';
+import { exportZip, defaultBranding, totalMediaSize, DEFAULT_CATEGORIES } from './utils/zipHandler.js';
 
 export default function App() {
   const [view, setView] = useState('welcome'); // 'welcome' | 'editor'
-  const [activeTab, setActiveTab] = useState('cards'); // 'cards' | 'branding'
+  const [activeTab, setActiveTab] = useState('cards'); // 'cards' | 'branding' | 'categories'
   const [cards, setCards] = useState([]);
   const [branding, setBranding] = useState(defaultBranding);
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [errors, setErrors] = useState([]);
   const [exportSuccess, setExportSuccess] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
 
-  const handleStart = useCallback((initialCards, initialBranding) => {
+  const handleStart = useCallback((initialCards, initialBranding, initialCategories) => {
     setCards(initialCards);
     setBranding(initialBranding);
+    setCategories(initialCategories ?? DEFAULT_CATEGORIES);
     setErrors([]);
     setView('editor');
   }, []);
@@ -41,7 +44,7 @@ export default function App() {
     setIsExporting(true);
     setExportProgress(0);
     try {
-      await exportZip(cards, branding, pct => setExportProgress(Math.round(pct)));
+      await exportZip(cards, branding, categories, pct => setExportProgress(Math.round(pct)));
       setExportSuccess(true);
       setTimeout(() => setExportSuccess(false), 4000);
     } catch (e) {
@@ -50,7 +53,7 @@ export default function App() {
       setIsExporting(false);
       setExportProgress(0);
     }
-  }, [cards, branding]);
+  }, [cards, branding, categories]);
 
   const masthead = (
     <Masthead style={{ background: '#151515' }}>
@@ -75,6 +78,7 @@ export default function App() {
                   if (cards.length === 0 || confirm('Discard all changes and return to the start?')) {
                     setCards([]);
                     setBranding(defaultBranding());
+                    setCategories(DEFAULT_CATEGORIES);
                     setErrors([]);
                     setView('welcome');
                   }
@@ -99,6 +103,9 @@ export default function App() {
             </NavItem>
             <NavItem isActive={activeTab === 'branding'} onClick={() => setActiveTab('branding')}>
               Branding
+            </NavItem>
+            <NavItem isActive={activeTab === 'categories'} onClick={() => setActiveTab('categories')}>
+              Categories
             </NavItem>
           </NavList>
         </Nav>
@@ -146,6 +153,12 @@ export default function App() {
       {view === 'editor' && activeTab === 'branding' && (
         <PageSection>
           <BrandingEditor branding={branding} setBranding={setBranding} />
+        </PageSection>
+      )}
+
+      {view === 'editor' && activeTab === 'categories' && (
+        <PageSection>
+          <CategoryEditor cards={cards} categories={categories} setCategories={setCategories} />
         </PageSection>
       )}
     </Page>

@@ -403,7 +403,7 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
 
                 # ── Other top-level files (not faqs/, branding/, media/) ─────
                 for item in os.listdir(kiosk_dir):
-                    if item.startswith('.') or item in ('bundle.yaml', 'faqs', 'branding', 'media'):
+                    if item.startswith('.') or item in ('bundle.yaml', 'index.yaml', 'faqs', 'branding', 'media'):
                         continue
                     src = os.path.join(kiosk_dir, item)
                     dst = os.path.join(content_str, item)
@@ -411,7 +411,7 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
                         shutil.move(src, dst)
 
                 # ── content/index.yaml ───────────────────────────────────────
-                index_src = os.path.join(kiosk_dir, 'content', 'index.yaml')
+                index_src = os.path.join(kiosk_dir, 'index.yaml')
                 if overwrite and os.path.exists(index_src):
                     # Overwrite: replace index.yaml from bundle
                     shutil.move(index_src, os.path.join(content_str, 'index.yaml'))

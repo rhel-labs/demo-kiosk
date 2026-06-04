@@ -4,14 +4,14 @@ import {
   Title, Content, Button, Spinner,
   EmptyState, EmptyStateBody,
 } from '@patternfly/react-core';
-import { importZip, defaultBranding } from '../utils/zipHandler.js';
+import { importZip, defaultBranding, DEFAULT_CATEGORIES } from '../utils/zipHandler.js';
 
 export default function WelcomeScreen({ onStart }) {
   const zipInputRef = useRef(null);
   const [loading, setLoading] = useState(false);
 
   function handleNewBundle() {
-    onStart([], defaultBranding());
+    onStart([], defaultBranding(), DEFAULT_CATEGORIES);
   }
 
   async function handleZipFile(e) {
@@ -19,8 +19,8 @@ export default function WelcomeScreen({ onStart }) {
     if (!file) return;
     setLoading(true);
     try {
-      const { cards, branding } = await importZip(file);
-      onStart(cards, branding);
+      const { cards, branding, categories } = await importZip(file);
+      onStart(cards, branding, categories);
     } catch (err) {
       alert(`Could not load bundle: ${err.message}`);
       setLoading(false);

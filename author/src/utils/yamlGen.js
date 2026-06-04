@@ -103,4 +103,13 @@ export function brandingToYaml(branding) {
   return yaml.dump(obj, { lineWidth: 120 });
 }
 
+export function indexToYaml(cards, categories) {
+  const obj = {
+    schema_version: 2,
+    card_order: cards.map(c => c.id),
+    categories: categories.map(cat => ({ name: cat.name, cards: cat.cards })),
+  };
+  return yaml.dump(obj, { lineWidth: 120, quotingType: '"', forceQuotes: false });
+}
+
 export { sanitizeFilename, mediaPath, logoPath };

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Modal, ModalHeader, ModalBody, ModalFooter, Button,
 } from '@patternfly/react-core';
@@ -27,13 +27,6 @@ function renderMarkdown(text) {
   }).join('\n');
 }
 
-function arcadePaddingBottom(ratio) {
-  if (!ratio) return 'calc(56.25% + 41px)';
-  if (ratio.includes('%')) return `calc(${ratio} + 41px)`;
-  const parts = ratio.split(':').map(Number);
-  if (parts.length === 2 && parts[0] && parts[1]) return `calc(${(parts[1] / parts[0]) * 100}% + 41px)`;
-  return 'calc(56.25% + 41px)';
-}
 
 // Replicates the kiosk grid background + one card tile
 function KioskCardTile({ title, summary }) {
@@ -123,16 +116,69 @@ function KioskPopup({ title, children }) {
   );
 }
 
-export default function CardPreview({ card, onClose }) {
-  const blobUrls = useRef([]);
+async function fileToObjectUrl(file) {
+  if (!file) return null;
+  if (file instanceof Blob) return URL.createObjectURL(file);
 
-  useEffect(() => () => { blobUrls.current.forEach(u => URL.revokeObjectURL(u)); }, []);
-
-  function blobUrl(file) {
-    const url = URL.createObjectURL(file);
-    blobUrls.current.push(url);
-    return url;
+  // ZipEntryFile — try a direct Blob.slice() for STORE entries first.
+  // Videos are always STORE (already compressed), so this avoids reading
+  // the entire file into JS memory which causes silent failure for large files.
+  if (file._sourceFile instanceof Blob && file._entry != null) {
+    const e = file._entry;
+    try {
+      const lhBuf = await file._sourceFile.slice(e.localOff, e.localOff + 30).arrayBuffer();
+      const lh = new DataView(lhBuf);
+      const dataStart = e.localOff + 30 + lh.getUint16(26, true) + lh.getUint16(28, true);
+      if (e.compressType === 0) {
+        const blob = file._sourceFile.slice(dataStart, dataStart + e.compSize,
+          file.type || 'application/octet-stream');
+        return URL.createObjectURL(blob);
+      }
+    } catch { /* fall through to stream path */ }
   }
+
+  // DEFLATE entries (text files) — small enough to stream into memory
+  if (typeof file.stream !== 'function') return null;
+  try {
+    const reader = file.stream().getReader();
+    const chunks = [];
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    const blob = new Blob(chunks, { type: file.type || 'application/octet-stream' });
+    return URL.createObjectURL(blob);
+  } catch { return null; }
+}
+
+export default function CardPreview({ card, onClose }) {
+  const srcRef = useRef(null);
+  const [mediaSrc, setMediaSrc] = useState(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
+
+  useEffect(() => {
+    setMediaSrc(null);
+    setMediaLoading(false);
+    const { demo } = card;
+    const file = demo?._mediaFile || demo?._videoFiles?.[0] || null;
+    if (!file) return;
+    let cancelled = false;
+    setMediaLoading(true);
+    fileToObjectUrl(file).then(url => {
+      if (cancelled) { if (url) URL.revokeObjectURL(url); return; }
+      if (srcRef.current) URL.revokeObjectURL(srcRef.current);
+      srcRef.current = url;
+      setMediaSrc(url);
+      setMediaLoading(false);
+    }).catch(() => {
+      if (!cancelled) setMediaLoading(false);
+    });
+    return () => {
+      cancelled = true;
+      if (srcRef.current) { URL.revokeObjectURL(srcRef.current); srcRef.current = null; }
+    };
+  }, [card]);
 
   const { demo } = card;
   const { type } = demo;
@@ -146,16 +192,18 @@ export default function CardPreview({ card, onClose }) {
         <ModalBody>
           {!files.length
             ? <p style={{ color: '#6a6e73' }}>No video files attached yet.</p>
-            : !(files[0] instanceof Blob)
-              ? <p style={{ color: '#6a6e73' }}>{files.length} video file{files.length > 1 ? 's' : ''} from bundle — re-attach to preview.</p>
-              : <>
-                  <video controls style={{ width: '100%', maxHeight: 450, background: '#000', borderRadius: 6 }} src={blobUrl(files[0])} />
-                  {files.length > 1 && (
-                    <div style={{ fontSize: '0.8rem', color: '#6a6e73', marginTop: 6 }}>
-                      Showing 1 of {files.length} videos in the loop.
-                    </div>
-                  )}
-                </>
+            : mediaLoading
+              ? <p style={{ color: '#6a6e73' }}>Loading…</p>
+              : mediaSrc
+                ? <>
+                    <video controls style={{ width: '100%', maxHeight: 450, background: '#000', borderRadius: 6 }} src={mediaSrc} />
+                    {files.length > 1 && (
+                      <div style={{ fontSize: '0.8rem', color: '#6a6e73', marginTop: 6 }}>
+                        Showing 1 of {files.length} videos in the loop.
+                      </div>
+                    )}
+                  </>
+                : <p style={{ color: '#6a6e73' }}>Could not load video for preview.</p>
           }
         </ModalBody>
         <ModalFooter><Button variant="primary" onClick={onClose}>Close</Button></ModalFooter>
@@ -164,26 +212,24 @@ export default function CardPreview({ card, onClose }) {
   }
 
   function renderPopupBody() {
+    const filename = name =>
+      name ? name.split('/').pop() : null;
+    const noFile = msg => (
+      <p style={{ color: '#6a6e73', alignSelf: 'flex-start' }}>{msg}</p>
+    );
+
     if (type === 'video') {
-      if (!(demo._mediaFile instanceof Blob)) return (
-        <p style={{ color: '#6a6e73', alignSelf: 'flex-start' }}>
-          {demo._mediaFile?.name
-            ? `File from bundle: ${demo._mediaFile.name} — re-attach to preview.`
-            : demo.src ? `File referenced by path: ${demo.src.split('/').pop()} — re-attach to embed it.` : 'No video file attached yet.'}
-        </p>
-      );
-      return <video controls style={{ width: '100%', borderRadius: 6, background: '#000' }} src={blobUrl(demo._mediaFile)} />;
+      if (!demo._mediaFile) return noFile(demo.src ? `File: ${filename(demo.src)}` : 'No video file attached yet.');
+      if (mediaLoading) return noFile('Loading…');
+      if (!mediaSrc) return noFile(`File: ${demo._mediaFile.name}`);
+      return <video controls style={{ width: '100%', borderRadius: 6, background: '#000' }} src={mediaSrc} />;
     }
 
     if (type === 'slides') {
-      if (!(demo._mediaFile instanceof Blob)) return (
-        <p style={{ color: '#6a6e73', alignSelf: 'flex-start' }}>
-          {demo._mediaFile?.name
-            ? `File from bundle: ${demo._mediaFile.name} — re-attach to preview.`
-            : demo.src ? `File referenced by path: ${demo.src.split('/').pop()} — re-attach to embed it.` : 'No PDF attached yet.'}
-        </p>
-      );
-      return <iframe src={blobUrl(demo._mediaFile)} style={{ width: '100%', height: 480, border: 'none', borderRadius: 6 }} title="Slides preview" />;
+      if (!demo._mediaFile) return noFile(demo.src ? `File: ${filename(demo.src)}` : 'No PDF attached yet.');
+      if (mediaLoading) return noFile('Loading…');
+      if (!mediaSrc) return noFile(`File: ${demo._mediaFile.name}`);
+      return <iframe src={mediaSrc} style={{ width: '100%', height: 480, border: 'none', borderRadius: 6 }} title="Slides preview" />;
     }
 
     if (type === 'asciinema') {
@@ -195,7 +241,7 @@ export default function CardPreview({ card, onClose }) {
           <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>▶</div>
           <div style={{ fontFamily: 'monospace', fontSize: '1rem' }}>Terminal recording</div>
           <div style={{ fontSize: '0.85rem', marginTop: 8, color: '#888' }}>
-            {demo._mediaFile ? demo._mediaFile.name : demo.src ? demo.src.split('/').pop() : ''}
+            {demo._mediaFile ? demo._mediaFile.name : demo.src ? filename(demo.src) : ''}
           </div>
           <div style={{ fontSize: '0.75rem', marginTop: 12, color: '#666' }}>
             Preview not available in the authoring tool — renders in the kiosk.
@@ -205,22 +251,15 @@ export default function CardPreview({ card, onClose }) {
     }
 
     if (type === 'image-text') {
-      if (!(demo._mediaFile instanceof Blob)) return (
-        <p style={{ color: '#6a6e73', alignSelf: 'flex-start' }}>
-          {demo._mediaFile?.name
-            ? `File from bundle: ${demo._mediaFile.name} — re-attach to preview.`
-            : demo.src ? `File referenced by path: ${demo.src.split('/').pop()} — re-attach to embed it.` : 'No image attached yet.'}
-        </p>
-      );
+      if (!demo._mediaFile) return noFile(demo.src ? `File: ${filename(demo.src)}` : 'No image attached yet.');
+      if (mediaLoading) return noFile('Loading…');
+      if (!mediaSrc) return noFile(`File: ${demo._mediaFile.name}`);
       return (
         <>
-          <img src={blobUrl(demo._mediaFile)} alt={card.title}
+          <img src={mediaSrc} alt={card.title}
             style={{ width: '100%', borderRadius: 6, boxShadow: '0 2px 12px rgba(0,0,0,0.12)' }} />
           {demo.caption && (
-            <p style={{
-              margin: 0, fontSize: '1.05rem', color: '#6a6e73',
-              textAlign: 'center', lineHeight: 1.6, maxWidth: 680,
-            }}>
+            <p style={{ margin: 0, fontSize: '1.05rem', color: '#6a6e73', textAlign: 'center', lineHeight: 1.6, maxWidth: 680 }}>
               {demo.caption}
             </p>
           )}
@@ -259,12 +298,15 @@ export default function CardPreview({ card, onClose }) {
     }
 
     if (type === 'arcade') {
-      if (!demo.share_url) return <p style={{ color: '#6a6e73', alignSelf: 'flex-start' }}>No share URL set yet.</p>;
       return (
-        <div style={{ width: '100%', position: 'relative', paddingBottom: arcadePaddingBottom(demo.aspect_ratio), height: 0, overflow: 'hidden', borderRadius: 6 }}>
-          <iframe src={demo.share_url}
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-            title="Arcade demo preview" allowFullScreen />
+        <div style={{ alignSelf: 'flex-start', width: '100%' }}>
+          <p style={{ margin: '0 0 8px', color: '#6a6e73', fontSize: '0.9rem' }}>
+            Arcade demo — opens interactively in the kiosk popup
+          </p>
+          {demo.share_url
+            ? <p style={{ margin: 0, wordBreak: 'break-all', fontSize: '0.95rem' }}>{demo.share_url}</p>
+            : <p style={{ margin: 0, color: '#aaa', fontStyle: 'italic' }}>No share URL set yet.</p>
+          }
         </div>
       );
     }
