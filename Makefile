@@ -44,7 +44,7 @@ test-volume: build ## Build and run kiosk with local content volume
 	  $(KIOSK_IMAGE)
 
 test-upload: build ## End-to-end upload test: POST $(UPLOAD_ZIP) to a fresh container
-	IMAGE=$(KIOSK_IMAGE) PORT=$(PORT) UPLOAD_ZIP=$(UPLOAD_ZIP) bash test-upload.sh
+	IMAGE=$(KIOSK_IMAGE) PORT=$(PORT) UPLOAD_ZIP=$(UPLOAD_ZIP) bash tests/test-upload.sh
 
 # ── Author tool ──────────────────────────────────────────────────────
 

@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: pip install pyyaml yamllint
+      - run: python3 build/lint-content.py
+
+  build-kiosk:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build kiosk image
+        run: podman build -t demo-kiosk:ci .
+
+      - name: Create test bundle
+        run: |
+          mkdir -p tests/fixture/kiosk/faqs tests/fixture/kiosk/branding
+          cp content/faqs/*.yaml tests/fixture/kiosk/faqs/
+          cp content/branding/branding.yaml content/branding/*.svg tests/fixture/kiosk/branding/
+          cd tests/fixture && zip -r ../../test-bundle.zip kiosk/
+
+      - name: Upload test
+        run: IMAGE=demo-kiosk:ci PORT=8181 UPLOAD_ZIP=test-bundle.zip bash tests/test-upload.sh
+
+  build-author:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        working-directory: author
+        run: npm ci
+      - name: Build
+        working-directory: author
+        run: npm run build
