@@ -91,24 +91,7 @@ RUN if [ -f kiosk-bundle.zip ] && [ -s kiosk-bundle.zip ]; then \
 # frame; Chrome tolerates them but Firefox does not.  qtfaststart is a pure-
 # Python implementation of the same operation extracted from the FFmpeg project;
 # it re-muxes without re-encoding so there is no quality loss.
-RUN python3 - << 'EOF'
-import os, shutil, tempfile
-from qtfaststart import processor
-media = 'content/media'
-for f in sorted(os.listdir(media)):
-    if not f.endswith('.mp4'):
-        continue
-    src = os.path.join(media, f)
-    fd, tmp = tempfile.mkstemp(suffix='.mp4', dir=media)
-    os.close(fd)
-    try:
-        processor.process(src, tmp)
-        shutil.move(tmp, src)
-        print(f'  faststart: {f}')
-    except Exception as e:
-        os.unlink(tmp)
-        print(f'  skip {f}: {e}')
-EOF
+RUN python3 build/apply-faststart.py
 
 # Generate faqs.js and branding.js from the final content state, then lint.
 # Both steps see bundle-provided YAML and media if a bundle was present.
@@ -125,24 +108,7 @@ COPY --chown=65532:65532 start.sh             ./
 
 # Bundle all author tooling into a single tarball for `podman cp` extraction.
 # Uses python3 tarfile (stdlib) — tar is not available in this builder image.
-RUN python3 - << 'EOF'
-import tarfile, os
-
-WORKDIR = "/tmp"
-MEMBERS = [
-    "build",
-    "app/faqs",
-    "content/faqs",
-    "AUTHORING.md",
-    "demo-kiosk.container",
-    "package.json",
-    "start.sh",
-]
-
-with tarfile.open(os.path.join(WORKDIR, "extras.tar.gz"), "w:gz") as tf:
-    for member in MEMBERS:
-        tf.add(os.path.join(WORKDIR, member), arcname=member, filter=None)
-EOF
+RUN python3 build/make-extras.py
 
 
 # ── Stage 3: runtime ─────────────────────────────────────────────
