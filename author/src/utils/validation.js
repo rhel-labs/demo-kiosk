@@ -1,12 +1,27 @@
+// Validation rules derived from build/bundle-spec.yaml — update together.
+
 const ID_RE = /^[a-z0-9][a-z0-9-]*$/;
-const HEX_COLOR_RE = /^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$/;
 const ARCADE_SHARE_RE = /^https:\/\/(?:interact\.redhat\.com|app\.arcade\.software)\/share\/([A-Za-z0-9_-]+)/;
 const ARCADE_DEMO_RE = /^https:\/\/demo\.arcade\.software\/([A-Za-z0-9_-]+)/;
 
-const VALID_TYPES = new Set([
-  'video', 'slides', 'asciinema', 'image-text',
-  'external-url', 'lab', 'arcade', 'video-loop',
+const FAMILY_VALUES = new Set([
+  'RHEL', 'RHEL AI', 'OpenShift', 'OpenShift AI', 'OpenShift Virt',
+  'AAP', 'RHACS', 'Satellite', 'Lightspeed', 'Developer Hub',
+  'Quay', 'Red Hat AI', 'Edge',
 ]);
+
+const SUMMARY_OPTIONAL_FOR = new Set(['video-loop']);
+
+const DEMO_TYPE_SPEC = {
+  video:          { required: ['src'],                  mediaFields: ['src'] },
+  slides:         { required: ['src'],                  mediaFields: ['src'] },
+  asciinema:      { required: ['src'],                  mediaFields: ['src'] },
+  'image-text':   { required: ['image', 'caption'],     mediaFields: ['image'] },
+  'external-url': { required: ['url', 'long_description'], urlFields: ['url'] },
+  lab:            { required: ['url', 'long_description'], urlFields: ['url'] },
+  arcade:         { required: ['share_url'],            arcadeUrlFields: ['share_url'] },
+  'video-loop':   { required: ['videos'],               mediaListFields: ['videos'] },
+};
 
 function isValidUrl(value) {
   try {
@@ -17,6 +32,15 @@ function isValidUrl(value) {
   }
 }
 
+function isArcadeUrl(value) {
+  return ARCADE_SHARE_RE.test(value) || ARCADE_DEMO_RE.test(value);
+}
+
+function hasMediaFile(demo, field) {
+  if (field === 'src' || field === 'image') return !!(demo._mediaFile || demo[field]);
+  return !!demo[field];
+}
+
 function validateDemo(demo, cardLabel) {
   const errors = [];
   if (!demo || typeof demo !== 'object') {
@@ -24,37 +48,36 @@ function validateDemo(demo, cardLabel) {
   }
   const { type } = demo;
   if (!type) return [`${cardLabel}: demo.type is required`];
-  if (!VALID_TYPES.has(type)) {
-    return [`${cardLabel}: unknown demo type "${type}"`];
-  }
 
-  if (type === 'video' || type === 'slides' || type === 'asciinema') {
-    if (!demo._mediaFile && !demo.src) {
-      errors.push(`${cardLabel}: a media file is required for type "${type}"`);
-    }
-  } else if (type === 'image-text') {
-    if (!demo._mediaFile && !demo.src) errors.push(`${cardLabel}: an image file is required`);
-  } else if (type === 'external-url') {
-    if (!demo.url) errors.push(`${cardLabel}: url is required`);
-    else if (!isValidUrl(demo.url)) errors.push(`${cardLabel}: url must be a valid http/https URL`);
-    if (!demo.long_description || !demo.long_description.trim()) {
-      errors.push(`${cardLabel}: long_description is required`);
-    }
-  } else if (type === 'lab') {
-    if (!demo.url) errors.push(`${cardLabel}: url is required`);
-    else if (!isValidUrl(demo.url)) errors.push(`${cardLabel}: url must be a valid http/https URL`);
-    if (!demo.long_description || !demo.long_description.trim()) {
-      errors.push(`${cardLabel}: long_description is required`);
-    }
-  } else if (type === 'arcade') {
-    if (!demo.share_url) {
-      errors.push(`${cardLabel}: share_url is required`);
-    } else if (!ARCADE_SHARE_RE.test(demo.share_url) && !ARCADE_DEMO_RE.test(demo.share_url)) {
-      errors.push(`${cardLabel}: share_url must be an Arcade share link (interact.redhat.com/share/... or app.arcade.software/share/...)`);
-    }
-  } else if (type === 'video-loop') {
-    if (!demo._videoFiles || demo._videoFiles.length === 0) {
-      errors.push(`${cardLabel}: at least one video file is required for video-loop`);
+  const spec = DEMO_TYPE_SPEC[type];
+  if (!spec) return [`${cardLabel}: unknown demo type "${type}"`];
+
+  for (const field of spec.required) {
+    if (spec.mediaFields?.includes(field)) {
+      if (!hasMediaFile(demo, field)) {
+        errors.push(`${cardLabel}: ${field} is required for type "${type}"`);
+      }
+    } else if (spec.mediaListFields?.includes(field)) {
+      const list = demo._videoFiles || demo[field];
+      if (!list || !Array.isArray(list) || list.length === 0) {
+        errors.push(`${cardLabel}: at least one entry in ${field} is required for type "${type}"`);
+      }
+    } else if (spec.urlFields?.includes(field)) {
+      if (!demo[field]) {
+        errors.push(`${cardLabel}: ${field} is required`);
+      } else if (!isValidUrl(demo[field])) {
+        errors.push(`${cardLabel}: ${field} must be a valid http/https URL`);
+      }
+    } else if (spec.arcadeUrlFields?.includes(field)) {
+      if (!demo[field]) {
+        errors.push(`${cardLabel}: ${field} is required`);
+      } else if (!isArcadeUrl(demo[field])) {
+        errors.push(`${cardLabel}: ${field} must be an Arcade share link (interact.redhat.com/share/... or app.arcade.software/share/...)`);
+      }
+    } else {
+      if (!demo[field] || (typeof demo[field] === 'string' && !demo[field].trim())) {
+        errors.push(`${cardLabel}: ${field} is required for type "${type}"`);
+      }
     }
   }
   return errors;
@@ -78,8 +101,13 @@ export function validateCards(cards) {
     }
 
     if (!card.title || !card.title.trim()) errors.push(`${label}: title is required`);
-    if (card.demo?.type !== 'video-loop' && (!card.summary || !card.summary.trim())) {
+
+    if (!SUMMARY_OPTIONAL_FOR.has(card.demo?.type) && (!card.summary || !card.summary.trim())) {
       errors.push(`${label}: summary is required`);
+    }
+
+    if (card.family && !FAMILY_VALUES.has(card.family)) {
+      errors.push(`${label}: invalid product family "${card.family}"`);
     }
 
     errors.push(...validateDemo(card.demo, label));
@@ -96,4 +124,4 @@ export function validateBranding(branding) {
   return errors;
 }
 
-export { isValidUrl, HEX_COLOR_RE };
+export { isValidUrl, FAMILY_VALUES };

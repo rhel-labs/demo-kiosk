@@ -19,6 +19,7 @@ const TYPE_META = {
 
 const FILE_TYPES = new Set(['video', 'slides', 'asciinema', 'image-text']);
 
+// Sync with build/bundle-spec.yaml card.family_values and validation.js FAMILY_VALUES
 const FAMILY_VALUES = ['RHEL', 'RHEL AI', 'OpenShift', 'OpenShift AI', 'OpenShift Virt', 'AAP', 'RHACS', 'Satellite', 'Lightspeed', 'Developer Hub', 'Quay', 'Red Hat AI', 'Edge'];
 
 function slugify(v) {
