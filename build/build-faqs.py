@@ -27,6 +27,7 @@ import sys
 import os
 import re
 import json
+import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import urlopen, Request
@@ -240,12 +241,15 @@ def resolve_arcade(demo, filename):
     return errors
 
 # ── Load and validate YAML files ──────────────────────────────────
-def load_entries():
+def load_entries(lenient=False):
     yaml_files = sorted(FAQS_DIR.glob("*.yaml"))
     # Skip any file whose stem starts with _
     yaml_files = [f for f in yaml_files if not f.stem.startswith("_")]
 
     if not yaml_files:
+        if lenient:
+            warn("No .yaml files found — generating empty faqs.js")
+            return [], []
         err(f"No .yaml files found in {FAQS_DIR}/")
         err("Create at least one FAQ entry. See content/faqs/_template.yaml for the format.")
         sys.exit(1)
@@ -388,21 +392,34 @@ def load_branding():
 
 # ── Main ──────────────────────────────────────────────────────────
 def main():
+    parser = argparse.ArgumentParser(description="FAQ YAML → content/faqs.js")
+    parser.add_argument(
+        "--lenient", action="store_true",
+        help="Skip invalid cards instead of aborting (used at runtime by serve.py)",
+    )
+    args = parser.parse_args()
+    lenient = args.lenient
+
     print()
     print("================================================================")
     print(" build-faqs.py — FAQ YAML → content/faqs.js")
     print("================================================================")
     print()
 
-    entries, errors = load_entries()
+    entries, errors = load_entries(lenient=lenient)
 
-    if errors:
+    if errors and not lenient:
         print()
         err(f"{len(errors)} error(s) found — content/faqs.js was NOT written:")
         for e in errors:
             err(f"  {e}")
         print()
         sys.exit(1)
+
+    if errors and lenient:
+        for e in errors:
+            warn(e)
+        warn(f"{len(errors)} card error(s) — skipped invalid cards")
 
     # Sort by content/index.yaml card_order sequence
     card_order, categories = load_content_index()
@@ -432,13 +449,18 @@ def main():
 
     # Generate branding.js
     branding, branding_errors = load_branding()
-    if branding_errors:
+    if branding_errors and not lenient:
         print()
         err(f"{len(branding_errors)} branding error(s) found — content/branding.js was NOT written:")
         for e in branding_errors:
             err(f"  {e}")
         print()
         sys.exit(1)
+
+    if branding_errors and lenient:
+        for e in branding_errors:
+            warn(e)
+        warn("Branding errors — using previous branding.js if available")
 
     if branding:
         branding_template = env.get_template("branding.js.j2")

@@ -790,10 +790,10 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
             yaml.dump(card, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
     def _rebuild(self):
-        """Run build-faqs.py and return (success, combined_output)."""
+        """Run build-faqs.py in lenient mode and return (success, combined_output)."""
         script = Path(self.directory) / 'build' / 'build-faqs.py'
         result = subprocess.run(
-            [sys.executable, str(script)],
+            [sys.executable, str(script), '--lenient'],
             capture_output=True, text=True, cwd=self.directory,
         )
         return result.returncode == 0, result.stdout + result.stderr
