@@ -1,253 +1,186 @@
-# Spec: Kiosk Feature Bundle Phase 1 — Categories, Spotlight, Admin Restructure, Display Controls, Footer Fix
+# Spec: Demo Kiosk — Categories, Spotlight, Admin Restructure, Author Tool, Validation
 
-## What prompted this
+## Overview
 
-Four features requested after Summit 2026 prep. They share the card metadata schema.
-Network log push (a fifth feature) is excluded — needs more spec work.
-
-**This spec covers Phase 1: kiosk-side changes only.** Phase 2 (authoring tool:
-card editor UX, bundle type export, `content/index.yaml` generation with categories
-and spotlight) follows once Phase 1 is stable and merged.
+Event demo kiosk with containerized display, admin pages, and a browser-based
+authoring tool. Content travels as ZIP bundles between the author tool and the kiosk.
 
 ---
 
-## Schema changes
+## Schema
 
-### Card order refactor
+### Card YAML (`content/faqs/*.yaml`)
 
-The `order` integer field is removed from individual card YAML files. Card sequence is
-defined in `content/index.yaml` alongside the card YAMLs:
+| Field | Required | Notes |
+|-------|----------|-------|
+| `id` | yes | lowercase alphanumeric with hyphens, starts with letter or digit |
+| `title` | yes | non-empty string |
+| `summary` | yes | non-empty string (optional for video-loop type) |
+| `enabled` | yes | boolean; defaults to true if omitted |
+| `demo` | yes | demo block — see demo types below |
+| `spotlight` | no | `true` when featured; omit when false |
+| `family` | no | one of the allowed values; omit when not set |
+
+Family allowed values: RHEL, RHEL AI, OpenShift, OpenShift AI, OpenShift Virt,
+AAP, RHACS, Satellite, Lightspeed, Developer Hub, Quay, Red Hat AI, Edge.
+
+### Demo types
+
+Defined in `build/bundle-spec.yaml`. Each type has required and optional fields,
+with field categories (media, URL, arcade URL, media list) that determine
+validation behavior.
+
+| Type | Required fields | Category |
+|------|----------------|----------|
+| video | src | media |
+| slides | src | media |
+| asciinema | src | media |
+| image-text | image, caption | media (image), text (caption) |
+| external-url | url, long_description | URL |
+| lab | url, long_description | URL; optional: duration |
+| arcade | share_url | arcade URL; optional: title, aspect_ratio |
+| video-loop | videos | media list |
+| upload | (none) | kiosk-reserved; not available in author tool |
+
+### Content index (`content/index.yaml`)
 
 ```yaml
 schema_version: 2
-card_order: [intro, security-demo, admin-tour, networking-101]
+card_order: [card-a, card-b, card-c]
 categories:
-  - name: Admin
-    cards: [admin-tour, networking-101]
-  - name: Security
-    cards: [security-demo]
+  - name: Innovate
+    cards: [card-a]
+  - name: Protect
+    cards: [card-b, card-c]
 ```
 
-- `card_order` — ordered list of card IDs defining the global grid sequence
-- `categories` — ordered list of category definitions; each category names its member cards;
-  list order defines default section order on the kiosk
-- Cards not in `card_order` are excluded from the grid (treated as disabled)
-- Cards in `card_order` but not in any category appear in an "Other" section at the end
+Card sequence is defined here, not on individual cards. Categories group cards
+into sections on the kiosk display.
 
-**Bootstrap:** if `content/index.yaml` does not exist, `serve.py` generates it on startup
-from existing card YAMLs sorted by their `order` field. The `order` field in card YAMLs
-is ignored once `content/index.yaml` exists.
-
-### New card fields
-
-Two optional fields added to card YAML (backwards-compatible):
+### Bundle manifest (`kiosk/bundle.yaml`)
 
 ```yaml
-spotlight: true       # boolean; defaults to false
-family: OpenShift     # string; constrained to allowed list; omit if not applicable
-```
-
-`family` allowed values: `RHEL`, `RHEL AI`, `OpenShift`, `OpenShift AI`, `OpenShift Virt`,
-`AAP`, `RHACS`, `Satellite`, `Lightspeed`, `Developer Hub`, `Quay`, `Red Hat AI`, `Edge`.
-
-The `family` value is displayed as a label badge at the bottom of the card tile. Cards
-without `family` show no badge and no empty space. The label container is designed to
-accommodate additional label types in future without UI restructuring.
-
-Category membership is defined entirely in `content/index.yaml`, not on individual cards.
-
-### Bundle manifest
-
-A `kiosk/bundle.yaml` manifest is added inside uploaded zip files:
-
-```yaml
-bundle_type: content   # branding | content | full
+bundle_type: full
 schema_version: 2
 ```
 
-Zips without a manifest are treated as full bundles (backwards compatibility).
+`bundle_type` values: branding, content, full. Controls which content areas the
+kiosk touches on upload. Author tool always emits `full`. Missing manifest
+defaults to `full` for backwards compatibility.
 
-### branding.yaml
+### Branding (`content/branding/branding.yaml`)
 
-No changes to branding.yaml. Branding is logos, colors, event name, tagline only.
-
----
-
-## Features
-
-### 1. Split bundle imports
-
-**Bundle types and what they touch:**
-- **Branding bundle** — replaces `content/branding/` only; `faqs/`, `media/`, and
-  `content/index.yaml` untouched
-- **Content bundle** — touches `content/faqs/`, `content/media/`, and
-  `content/index.yaml` only; `content/branding/` untouched
-- **Full bundle** — touches all of the above
-
-**Import behavior:**
-- **Add mode (default in setup.html):** cards merged additively; conflicting IDs
-  auto-renamed with a numeric suffix (`my-demo` → `my-demo-2`); renamed cards appended
-  to end of `card_order`; media merged additively; branding replaced when present in bundle;
-  `content/index.yaml` merged — incoming `card_order` entries appended after existing cards
-- **Overwrite mode (checkbox in setup.html):** replaces all existing cards with only those
-  in the bundle; branding replaced when present; media merged additively (overwrite does
-  not delete existing media)
-- **Main kiosk upload card:** always overwrite mode — intended for initial event setup
-  to replace placeholder instruction cards with real content. To add without replacing,
-  use `/setup`.
-
-**Upload summary** shown after import: cards added, cards renamed (old→new ID mapping),
-media files added.
-
-**Files affected:** `app/serve.py`, `app/setup.html`, `app/index.html`
+Required sections: event, logos, colors, layout, footer. Author tool hardcodes
+valid defaults for colors, layout, and footer. Only event header/tagline/title
+and secondary logo are author-editable.
 
 ---
 
-### 2. Content categories and spotlight row
+## Validation model
 
-**Kiosk front-end:**
-- Cards are physically grouped into named sections on the main grid, each with a
-  red-underlined section header (category name in uppercase)
-- Section order matches `content/index.yaml` categories list order, overridable via
-  display.html
-- Cards not in any category appear in an "Other" section at the end of the grid
-- If no categories are defined, cards render as a flat grid (no headers)
-- Categories with no visible cards are not rendered (header suppressed)
-- Spotlight row appears above the category sections when at least one card has
-  `spotlight` = true (YAML default) or is featured via display.html override;
-  spotlighted cards appear in BOTH the spotlight row and their normal category section
-- Spotlight row is labelled "Featured"
+Source of truth: `build/bundle-spec.yaml`. All validation code is synced
+manually — when the spec changes, validation code updates in the same commit.
 
-**Display page overrides (see feature 3):**
-- Featured status: per-card checkbox in display.html overrides YAML `spotlight` value
-- Category visibility: per-category toggle hides an entire section from the kiosk;
-  hidden category cards are suppressed entirely (do not fall through to "Other")
-- Category order: drag-to-reorder in display.html overrides `content/index.yaml` order
-- Per-card category assignment: checkbox table in display.html can move cards between
-  categories; unchecking all categories for a card moves it to "Other"
+| Consumer | When | Mode | Purpose |
+|----------|------|------|---------|
+| `build/lint-content.py` | Container build | Strict | Full spec + yamllint; catches everything before image is finalized |
+| `build/build-faqs.py` | Container build | Strict | Validates and renders YAML → JS |
+| `build/build-faqs.py --lenient` | Runtime (serve.py) | Lenient | Skips invalid cards, emits valid ones, warnings on stderr |
+| `author/src/utils/validation.js` | Author export | Strict | Spec-complete pre-export check; blocks export on errors |
+| `app/serve.py` | Runtime CRUD | Minimal | ID format + required fields for single-card edits |
 
-**Files affected:** `app/faqs/faqs.js.j2`, `app/index.html`, `build/build-faqs.py`,
-`content/index.yaml`
+### Runtime behavior (lenient mode)
 
----
+At runtime, event staff cannot fix bundles. The kiosk must:
+- Accept everything uploaded
+- Display cards that validate successfully
+- Skip cards that don't, with warnings in the upload response
+- Never abort entirely due to one bad card
 
-### 3. Admin page restructure — three pages by function
+`build-faqs.py --lenient` implements this: errors are warned, not fatal. Valid
+cards are emitted to `faqs.js`; invalid cards are skipped. Branding errors fall
+back to the previous `branding.js` if available.
 
-`/manage` removed (returns 404). Three purpose-named pages replace the old two-page
-structure. Nav on all admin pages: **Kiosk · Display · Stats · Setup**
-(Kiosk always first; Setup last as it is a one-time pre-event task).
+### Author tool validation
 
-**Setup (`/setup`, `setup.html`, renamed from `manage.html`):**
-- Bundle upload with overwrite checkbox and upload summary
-- Card CRUD (add, edit, delete individual cards)
-- Branding editor (logo, event name, tagline, colors)
-- Category assignment is NOT part of card CRUD — managed in display.html
-
-**Display (`/display`, `display.html`, new):**
-- Drag-to-reorder global card sequence
-- Card visibility toggle (show/hide per card)
-- Featured toggle (per card — overrides YAML `spotlight` field)
-- Category assignment — checkbox table; cards × categories; empty = "Other"
-- Category sections — drag-to-reorder section order; show/hide per category
-- Reset controls for each of the above; resets restore server-side defaults
-
-**Stats (`/stats`, `stats.html`, new — extracted from `index.html #admin`):**
-- Views dashboard: total views, avg time open, most viewed, breakdown by type
-- View log table: timestamp, card title, demo type, time open
-- Download CSV, clear logs
-- No visibility or order controls (those live in display.html)
-
-**Files affected:** `app/manage.html` → `app/setup.html`, `app/index.html`,
-`app/display.html` (new), `app/stats.html` (new), `app/serve.py`
+The author tool performs full spec validation on export. Since the author is the
+only person who can fix content errors, validation blocks export until all cards
+pass. Validation rules in `author/src/utils/validation.js` are derived from
+`bundle-spec.yaml` — update together.
 
 ---
 
-### 4. Remove containerfile page
+## Kiosk features
 
-`containerfile.html` and `generate-containerfile-page.py` removed.
-Nav link in `index.html` removed. This page is a container creator artifact,
-not relevant at events.
+### Categories and spotlight
 
-**Files affected:** `app/containerfile.html` (deleted),
-`build/generate-containerfile-page.py` (deleted), `app/index.html`
+- Cards grouped into named sections with red-underlined headers
+- Spotlight row ("Featured") above sections when any card has spotlight
+- Spotlighted cards appear in both Featured row and their category section
+- Cards not in any category appear in "Other" section
+- Empty categories suppressed (no header rendered)
+- No categories defined → flat grid
+
+### Admin pages
+
+Three pages: Setup, Display, Stats. Nav order: Kiosk · Display · Stats · Setup.
+
+- **Setup** — bundle upload (add/overwrite modes), card CRUD, branding editor
+- **Display** — card order, visibility, featured toggles, category assignment
+  and ordering, per-category show/hide
+- **Stats** — view counts, log table, CSV download
+
+All display overrides are browser-local (localStorage). Resets restore
+server-side defaults.
+
+### Bundle import
+
+- **Add mode** — cards merged additively; conflicting IDs auto-renamed;
+  index.yaml merged (incoming cards appended)
+- **Overwrite mode** — replaces all cards; branding replaced; media additive
+- Missing `bundle.yaml` → treated as full bundle
 
 ---
 
-### 5. Footer links tap target fix
+## Author tool
 
-Increased font size and tap target area for footer links on all kiosk pages.
-Links readable at kiosk viewing distance and reliably tappable on touchscreen.
+React/Vite browser app. Three tabs: Cards, Branding, Categories.
 
-**Files affected:** `app/index.html`, `app/setup.html`, `app/stats.html`,
-`app/display.html`
-
----
-
-## localStorage key map
-
-| Key | Written by | Read by | Purpose |
-|-----|------------|---------|---------|
-| `faq_view_log` | index.html | stats.html | Per-card view events |
-| `faq_visibility` | display.html | index.html | Per-card show/hide override |
-| `faq_order` | display.html | index.html | Card sequence override |
-| `faq_spotlight` | display.html | index.html | Per-card featured override |
-| `faq_categories` | display.html | index.html | Per-card category assignment override |
-| `faq_category_order` | display.html | index.html | Category section order override |
-| `faq_category_visible` | display.html | index.html | Per-category show/hide override |
-
-All overrides are browser-local. Resetting in display.html removes the key and
-restores server-side defaults from `content/faqs.js` / `content/index.yaml`.
+- Card editor: title, summary, ID, demo type and fields, spotlight checkbox,
+  family dropdown
+- Branding editor: event header/tagline/title, secondary logo
+- Categories editor: add/delete/reorder categories, per-category card checklist
+- Default categories: Innovate, Protect, Simplify, Trust
+- Export: validates all cards, generates ZIP with kiosk/ structure including
+  bundle.yaml, index.yaml, card YAMLs, branding, media
+- Import: reads ZIP bundles (from author tool or kiosk), reconstructs editor
+  state. Old bundles (pre-categories) get default categories.
 
 ---
 
 ## What this explicitly does NOT do
 
-- No authoring tool changes (Phase 2)
-- No central infrastructure — categories and card order are bundle-local
-- No server-side filtering — all category and visibility logic is client-side
-- No per-kiosk changes written back to the server (localStorage is sufficient
-  for ephemeral kiosk lifecycle)
-- No migration tooling for existing card YAMLs — `order` field is ignored once
-  `content/index.yaml` exists; bootstrap handles the transition
-- No required minimum categories per card
+- No server-side filtering — category/visibility logic is client-side
+- No per-kiosk state written back to server (localStorage is sufficient)
 - No media deletion in overwrite mode
+- No partial bundle type selection in author tool (always exports full)
+- No branding overwrite protection (future enhancement)
+- No dynamic loading of bundle-spec.yaml — it's a code artifact
 
 ---
 
-## How success is verified (as built)
+## How success is verified
 
-1. **Bootstrap** — deploy with existing cards (no `content/index.yaml`); kiosk starts,
-   generates `content/index.yaml` from existing card `order` fields, grid renders
-2. **Branding bundle upload** — upload branding-only zip; only branding changes
-3. **Content bundle add mode (setup.html)** — upload with one new card and one
-   conflicting ID; new card appears, conflicting card renamed, upload summary lists rename
-4. **Content bundle overwrite mode (setup.html)** — check overwrite, upload; only bundle
-   cards remain; existing media files still present
-5. **Main kiosk upload** — upload via the upload card on the main page; existing cards
-   replaced; upload card notes "Replaces all existing content"; modal shows link to /setup
-   for additive uploads
-6. **Category sections** — category section headers appear, cards grouped under them;
-   uncategorized cards appear in "Other"; if no categories defined, flat grid renders
-7. **Spotlight row** — card with `spotlight: true` in YAML appears in "Featured" row
-   above sections AND in its normal category section
-8. **Display page — featured** — checking Featured in display.html causes card to appear
-   in spotlight row; unchecking removes it; "Reset featured" restores YAML defaults
-9. **Display page — category assignment** — moving a card between categories via checkbox
-   is reflected on main kiosk on next load; unchecking all moves card to "Other";
-   changes persist across display.html page reloads
-10. **Display page — category section visibility** — hiding a category removes its section
-    from the kiosk; hidden category cards do not appear in "Other"
-11. **Display page — category order** — dragging category reorders sections on main kiosk
-12. **Three-page structure** — Setup, Display, Stats reachable via nav from any admin page;
-    `Kiosk` link always first in nav; `/manage` returns 404
-13. **Stats** — no visibility/order controls present; only stats cards, log, CSV download
-14. **Idle timer** — upload in progress suppresses idle countdown overlay
-15. **Footer** — links readable and tappable on touchscreen at kiosk viewing distance
-16. **Product family label** — card with `family: OpenShift` shows a badge at the bottom
-    of the tile; card without `family` shows no badge and no empty space at bottom
-17. **Invalid family value** — bundle with a card YAML containing an unknown `family` value
-    fails to build (lint catches it before image is finalised)
-18. **Empty category suppression** — categories defined in `content/index.yaml` with no
-    assigned cards do not render a section header on the kiosk
-19. **Kiosk category** — placeholder instruction cards appear under a "Kiosk" section;
-    Innovate/Protect/Simplify/Trust sections appear only when event content populates them
+1. **Container build** — `make build` with valid content succeeds; with invalid
+   content, lint-content.py catches errors and build fails
+2. **Runtime upload (valid)** — upload bundle via setup.html; cards appear on
+   kiosk in correct order with categories and spotlight
+3. **Runtime upload (partial invalid)** — upload bundle with one bad card and
+   one good card; good card renders, bad card skipped, response includes warnings
+4. **Author export** — export with valid cards succeeds; with invalid card
+   (e.g. missing caption on image-text), export blocked with error message
+5. **Author round-trip** — export bundle, re-import; spotlight, family,
+   categories, card order all preserved
+6. **Old bundle import** — pre-category bundle imports with default categories
+7. **Family validation** — invalid family value blocked at author export;
+   at build time caught by lint-content.py

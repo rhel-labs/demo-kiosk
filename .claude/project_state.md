@@ -1,45 +1,59 @@
 # Project State
 
 ## Current Branch
-`feature/phase1-categories-admin` — pushed, image pushed to quay.io
+`feature/kiosk-phase1-phase2` — consolidated from phase1 + phase2; 6 existing
+commits from those branches plus new improvement commits. Not yet committed or pushed.
 
-## What Was Done (this branch, all committed)
+## What Was Done
 
-Phase 1 kiosk-side features:
-- **Categories and spotlight row** — Innovate/Protect/Simplify/Trust/Kiosk sections; Featured row; empty category suppression
-- **Product family label** — constrained badge at card bottom (13 values); lint validation; Add/Edit card form dropdowns
-- **Admin restructure** — Setup / Display / Stats three-page structure; `/manage` → 404; nav order Kiosk · Display · Stats · Setup
-- **Split bundle imports** — branding/content/full types; add and overwrite modes; upload summary
-- **Containerfile page removed** — `manage.html` and `generate-containerfile-page.py` deleted
-- **Footer tap target fix** — larger font and tap area on all admin pages
-- **display.html** — Reset all display overrides button (clears all 6 localStorage keys at once)
-- **setup.html** — stale `order` field removed from Edit Card form; family dropdown in both Add and Edit forms
-- **Tech debt cleared** — 3 blocking bugs + 12 debt items fixed
+### Branch consolidation
+Created `feature/kiosk-phase1-phase2` from `feature/phase2-author-tool` tip
+(commit `4184b1d`). This carries all 6 existing commits from both phases.
 
-### localStorage key map
+### PR #17 merged — GitHub Actions CI workflow
+- `.github/workflows/ci.yml`: lint, build-kiosk (podman + upload test), build-author (Node 24)
+- `test-upload.sh` moved to `tests/test-upload.sh`
+- Containerfile heredoc scripts extracted to `build/apply-faststart.py` and `build/make-extras.py`
 
-| Key | Written by | Read by |
-|-----|------------|---------|
-| `faq_view_log` | index.html | stats.html |
-| `faq_visibility` | display.html | index.html |
-| `faq_order` | display.html | index.html |
-| `faq_spotlight` | display.html | index.html |
-| `faq_categories` | display.html | index.html |
-| `faq_category_order` | display.html | index.html |
-| `faq_category_visible` | display.html | index.html |
+### PR #16 merged — Makefile build convention
+- `devel` tag default for all build targets; `latest` reserved for stable releases
+- Author tool targets: `build-author`, `push-author`, `clean-author`, `run-author`
+
+### Improvements on consolidated branch (pending commit)
+
+1. **yamlGen.js** — removed vestigial `order` field from `cardToYaml()`;
+   function no longer takes `index` parameter
+
+2. **zipHandler.js** — updated `cardToYaml(card, index)` → `cardToYaml(card)`;
+   removed unused `index` parameter from forEach; added `kiosk/bundle.yaml`
+   emission (`bundle_type: full`, `schema_version: 2`)
+
+3. **validation.js** — rewritten with spec-driven validation: `DEMO_TYPE_SPEC`
+   map replaces per-type if/else chain; `FAMILY_VALUES` set added; image-text
+   caption validation added; all rules derived from `bundle-spec.yaml`
+
+4. **CardEditModal.jsx** — added sync comment on `FAMILY_VALUES` noting
+   `bundle-spec.yaml` as source of truth
+
+5. **build-faqs.py** — added `--lenient` flag: skips invalid cards instead of
+   aborting, warns on stderr, exits 0 so runtime uploads succeed with partial
+   content
+
+6. **serve.py** — `_rebuild()` now passes `--lenient` to `build-faqs.py`
+
+7. **spec.md** — consolidated from spec.md + spec-phase2-author.md into single
+   spec reflecting combined feature; spec-phase2-author.md removed
 
 ## What's Next
 
-1. **Waiting on Phase 1 review** — PR open, 1 of N stakeholders has reviewed; blocked on remaining approvals before merge
-2. **Phase 2 complete** — needs commit, then PR
-   - Spec: `.claude/spec-phase2-author.md`
-   - `app/serve.py` — fixed `kiosk/index.yaml` path (was `kiosk/content/index.yaml`); added `index.yaml` to generic-loop exclusion list
-   - `author/src/utils/yamlGen.js` — dropped `order`, added `spotlight`/`family` emit, added `indexToYaml()`
-   - `author/src/utils/zipHandler.js` — export emits `kiosk/bundle.yaml` + `kiosk/index.yaml`; import reads `index.yaml` for card order, reads `spotlight`/`family`
-   - `author/src/components/CardEditModal.jsx` — Featured checkbox + Product family dropdown
-3. **Still needed**: Makefile targets `build-author`, `push-author`
-
-## Image State
-- `quay.io/mmicene/demo-kiosk:latest` — current Phase 1 build (2026-05-27)
-- `quay.io/mmicene/demo-kiosk:summit` — Summit 2026 event image (digest dae55d4f377f, preserved)
-- `quay.io/mmicene/demo-kiosk-author:latest` — current author tool build
+1. **Commit changes** — 4 commits per plan:
+   - Drop vestigial order field and emit bundle manifest (yamlGen + zipHandler)
+   - Add spec-complete validation to author tool (validation.js + CardEditModal)
+   - Accept partial content in runtime rebuild (build-faqs.py + serve.py)
+   - Consolidate specs for combined feature (spec files + project_state)
+2. **Test** — build author tool, verify export/import round-trip; build container,
+   verify lenient upload behavior
+3. **PR** — open PR from `feature/kiosk-phase1-phase2` to `main`
+4. **After merge** — delete `feature/phase1-categories-admin` and
+   `feature/phase2-author-tool` (local + remote)
+5. **After merge** — push `devel` images to quay.io
