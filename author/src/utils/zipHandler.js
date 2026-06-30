@@ -248,8 +248,8 @@ export async function exportZip(cards, branding, categories, onProgress) {
   const textEntries = [];
   const fileEntries = [];
 
-  cards.forEach((card, index) => {
-    textEntries.push({ path: `kiosk/faqs/${card.id}.yaml`, content: cardToYaml(card, index) });
+  cards.forEach((card) => {
+    textEntries.push({ path: `kiosk/faqs/${card.id}.yaml`, content: cardToYaml(card) });
     const { demo } = card;
     if (!demo) return;
     const { type } = demo;
@@ -266,6 +266,7 @@ export async function exportZip(cards, branding, categories, onProgress) {
   });
 
   textEntries.push({ path: 'kiosk/index.yaml', content: indexToYaml(cards, categories) });
+  textEntries.push({ path: 'kiosk/bundle.yaml', content: 'bundle_type: full\nschema_version: 2\n' });
   textEntries.push({ path: 'kiosk/branding/branding.yaml', content: brandingToYaml(branding) });
   const primaryFile = branding.logos.primary?._file;
   if (primaryFile) {

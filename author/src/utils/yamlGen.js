@@ -13,16 +13,16 @@ function logoPath(file, role) {
   return `content/branding/logo-${role}.${ext}`;
 }
 
-export function cardToYaml(card, index) {
-  const order = (index + 1) * 10;
+export function cardToYaml(card) {
   const obj = {
     id: card.id,
-    order,
     title: card.title,
     summary: card.summary,
     enabled: card.enabled !== false,
     demo: buildDemo(card.demo),
   };
+  if (card.spotlight) obj.spotlight = true;
+  if (card.family) obj.family = card.family;
   return yaml.dump(obj, { lineWidth: 120, quotingType: '"', forceQuotes: false });
 }
 
