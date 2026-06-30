@@ -874,7 +874,13 @@ async function uploadZip() {
     if (!r.ok) {
       showAlert(alert, 'danger', d.error || 'Upload failed.', d.output);
     } else {
-      showAlert(alert, 'success', d.message);
+      const hasWarnings = d.output && /skipped invalid cards/i.test(d.output);
+      if (hasWarnings) {
+        const warnings = d.output.replace(/\x1b\[[0-9;]*m/g, '').trim().split('\n').filter(l => /^\s*!/.test(l)).map(l => l.replace(/^\s*!\s*/, '')).join('\n');
+        showAlert(alert, 'warning', d.message + ' — some cards had errors:', warnings);
+      } else {
+        showAlert(alert, 'success', d.message);
+      }
       if (d.summary) {
         const s = d.summary;
         const parts = [];
