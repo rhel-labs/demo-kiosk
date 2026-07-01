@@ -23,8 +23,8 @@
 #
 #   5. Open in a browser:
 #        http://localhost:8181
-#        http://localhost:8181/#admin    ← usage statistics
-#        http://localhost:8181/manage    ← upload content / edit cards
+#        http://localhost:8181/manage    ← upload content / edit cards (classic mode)
+#        http://localhost:8181/setup     ← upload content / edit cards (modern mode)
 #
 # AUTO-START ON BOOT (optional — requires lingering session):
 #   The [Install] section below targets default.target, so the
@@ -48,9 +48,9 @@
 #
 # ── RUNTIME UPLOADS ──────────────────────────────────────────────
 #
-# The /manage page lets you upload content and edit cards while the
-# container is running.  The named volume below (Volume=) makes this
-# work out of the box:
+# The /manage page (classic mode) or /setup page (modern mode) lets you
+# upload content and edit cards while the container is running.  The
+# named volume below (Volume=) makes this work out of the box:
 #
 #   • On first start Podman creates the volume and copies the baked
 #     content from the image into it (:copy option).
@@ -86,6 +86,11 @@ PublishPort=8181:8181
 
 # Predictable container name for `podman exec` and `podman logs`
 ContainerName=demo-kiosk
+
+# UI mode: "classic" (original manage page) or "modern" (setup/display/stats).
+# Toggle at runtime from /manage without restarting.
+# CUTOVER: change to "modern" when the new UI is approved for production.
+Environment=KIOSK_UI=classic
 
 # Run as read-only — the container root filesystem is immutable.
 # The named volume below is writable regardless of this flag, so

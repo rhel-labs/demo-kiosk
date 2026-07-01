@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Kiosk Setup</title>
-  <link rel="stylesheet" href="patternfly.min.css">
+  <title>Kiosk Manager</title>
+  <link rel="stylesheet" href="/patternfly.min.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; }
 
@@ -26,12 +26,10 @@
       gap: 2rem;
     }
     .km-header h1 { margin: 0; font-size: 1.25rem; font-weight: 600; }
-    .km-header nav { display: flex; gap: 1.5rem; align-items: center; }
-    .km-header a  { color: #73bcf7; font-size: 1rem; font-weight: 600; text-decoration: none; display: inline-block; padding: 0.3rem 0; }
+    .km-header a  { color: #73bcf7; font-size: 1rem; font-weight: 600; text-decoration: none; }
     .km-header a:hover { text-decoration: underline; }
-    .km-header a[aria-current="page"] { color: #fff; border-bottom: 2px solid #73bcf7; }
-    .km-ui-switch { margin-left: auto; font-size: 0.875rem; color: #73bcf7; cursor: pointer; background: none; border: none; font-weight: 600; padding: 0.3rem 0; }
-    .km-ui-switch:hover { text-decoration: underline; }
+    .km-ui-toggle { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: #c9c9c9; }
+    .km-ui-toggle input { accent-color: #73bcf7; }
 
     .km-main {
       max-width: 900px;
@@ -220,14 +218,11 @@
 <body>
 
 <header class="km-header">
-  <h1>Setup</h1>
-  <nav>
-    <a href="/">Kiosk</a>
-    <a href="/display">Display</a>
-    <a href="/stats">Stats</a>
-    <a href="/setup" aria-current="page">Setup</a>
-  </nav>
-  <button class="km-ui-switch" id="ui-mode-switch">← Return to classic UI</button>
+  <h1>Kiosk Manager</h1>
+  <label class="km-ui-toggle">
+    <input type="checkbox" id="ui-mode-toggle"> Try new UI
+  </label>
+  <a href="/">← Back to kiosk</a>
 </header>
 
 <main class="km-main">
@@ -239,40 +234,15 @@
   <section class="km-section">
     <div class="km-section-header">
       <h2>Upload Kiosk Bundle</h2>
-      <p>Upload a <code>kiosk-*.zip</code> bundle. By default, cards are merged additively
-         and conflicting IDs are renamed. Check <strong>Overwrite</strong> to replace all
-         existing cards with only those in the bundle.</p>
+      <p>Replace all content (cards, branding, media) from a <code>kiosk-*.zip</code> file.
+         The zip must contain a <code>kiosk/</code> directory with <code>faqs/</code>,
+         <code>branding/</code>, and <code>media/</code> subdirectories.</p>
     </div>
     <div class="km-section-body">
       <div id="zip-alert" class="km-alert"></div>
-      <div class="km-form-row km-inline" style="margin-bottom:0.5rem">
-        <input type="checkbox" id="zip-overwrite">
-        <label for="zip-overwrite">Overwrite existing content — replaces all cards with bundle contents</label>
-      </div>
       <div class="km-file-row">
         <input type="file" id="zip-file" accept=".zip">
         <button class="km-btn km-btn-primary" id="zip-upload-btn" onclick="uploadZip()">Upload &amp; Rebuild</button>
-      </div>
-      <div id="zip-summary" style="display:none;margin-top:0.75rem;font-size:0.875rem"></div>
-    </div>
-  </section>
-
-  <!-- ── Manage Cards ── -->
-  <section class="km-section">
-    <div class="km-section-header" style="display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <h2 style="margin:0">Manage Cards</h2>
-        <p style="margin:0.25rem 0 0;font-size:0.875rem;color:#6a6e73">
-          Click <strong>Edit</strong> to expand an inline editor below the row.
-          Click <strong>Delete</strong> to remove a card permanently.
-        </p>
-      </div>
-      <button class="km-btn km-btn-secondary km-btn-sm" onclick="loadCards()">↻ Refresh</button>
-    </div>
-    <div class="km-section-body" style="padding:0">
-      <div id="card-list-alert" class="km-alert" style="margin:1rem 1.25rem 0"></div>
-      <div id="card-list-container">
-        <div class="km-empty">Loading cards…</div>
       </div>
     </div>
   </section>
@@ -281,15 +251,22 @@
   <section class="km-section">
     <div class="km-section-header">
       <h2>Add Card</h2>
-      <p>Create a new card for the kiosk grid. To edit existing cards, use the table above.</p>
+      <p>Create a new card for the kiosk grid. To edit existing cards, use the table below.</p>
     </div>
     <div class="km-section-body">
       <div id="card-alert" class="km-alert"></div>
 
-      <div class="km-form-row">
-        <label for="f-id">ID <span style="color:#c9190b">*</span></label>
-        <input type="text" id="f-id" placeholder="my-card" pattern="[a-z0-9][a-z0-9\-]*">
-        <p class="km-hint">Lowercase letters, digits, hyphens. Must be unique.</p>
+      <div class="km-form-grid">
+        <div class="km-form-row">
+          <label for="f-id">ID <span style="color:#c9190b">*</span></label>
+          <input type="text" id="f-id" placeholder="my-card" pattern="[a-z0-9][a-z0-9\-]*">
+          <p class="km-hint">Lowercase letters, digits, hyphens. Must be unique.</p>
+        </div>
+        <div class="km-form-row">
+          <label for="f-order">Order <span style="color:#c9190b">*</span></label>
+          <input type="number" id="f-order" placeholder="10" min="0" step="1">
+          <p class="km-hint">Lower numbers appear first.</p>
+        </div>
       </div>
 
       <div class="km-form-row">
@@ -305,26 +282,6 @@
       <div class="km-form-row km-inline">
         <input type="checkbox" id="f-enabled" checked>
         <label for="f-enabled">Visible on kiosk grid</label>
-      </div>
-
-      <div class="km-form-row">
-        <label for="f-family">Product family</label>
-        <select id="f-family">
-          <option value="">— none —</option>
-          <option>AAP</option>
-          <option>Developer Hub</option>
-          <option>Edge</option>
-          <option>Lightspeed</option>
-          <option>OpenShift</option>
-          <option>OpenShift AI</option>
-          <option>OpenShift Virt</option>
-          <option>Quay</option>
-          <option>Red Hat AI</option>
-          <option>RHACS</option>
-          <option>RHEL</option>
-          <option>RHEL AI</option>
-          <option>Satellite</option>
-        </select>
       </div>
 
       <hr class="km-separator">
@@ -434,6 +391,26 @@
       <div class="km-btn-row">
         <button class="km-btn km-btn-primary" id="card-save-btn" onclick="saveCard()">Add Card</button>
         <button class="km-btn km-btn-secondary" onclick="resetCardForm()">Clear</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Manage Cards ── -->
+  <section class="km-section">
+    <div class="km-section-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <h2 style="margin:0">Manage Cards</h2>
+        <p style="margin:0.25rem 0 0;font-size:0.875rem;color:#6a6e73">
+          Click <strong>Edit</strong> to expand an inline editor below the row.
+          Click <strong>Delete</strong> to remove a card permanently.
+        </p>
+      </div>
+      <button class="km-btn km-btn-secondary km-btn-sm" onclick="loadCards()">↻ Refresh</button>
+    </div>
+    <div class="km-section-body" style="padding:0">
+      <div id="card-list-alert" class="km-alert" style="margin:1rem 1.25rem 0"></div>
+      <div id="card-list-container">
+        <div class="km-empty">Loading cards…</div>
       </div>
     </div>
   </section>
@@ -640,9 +617,16 @@ function startEdit(cardId) {
   editRow.innerHTML = `<td colspan="6" style="padding:0">
     <div class="km-edit-panel">
       <div id="edit-alert" class="km-alert" style="margin-bottom:1rem"></div>
-      <div class="km-form-row">
-        <label>ID</label>
-        <input type="text" value="${esc(card.id)}" readonly>
+      <div class="km-form-grid">
+        <div class="km-form-row">
+          <label>ID</label>
+          <input type="text" value="${esc(card.id)}" readonly>
+        </div>
+        <div class="km-form-row">
+          <label for="edit-f-order">Order</label>
+          <input type="number" id="edit-f-order" value="${esc(String(card.order ?? ''))}" min="0" step="1">
+          <p class="km-hint">Lower numbers appear first.</p>
+        </div>
       </div>
       <div class="km-form-row">
         <label for="edit-f-title">Title</label>
@@ -655,25 +639,6 @@ function startEdit(cardId) {
       <div class="km-form-row km-inline">
         <input type="checkbox" id="edit-f-enabled" ${card.enabled !== false ? 'checked' : ''}>
         <label for="edit-f-enabled">Visible on kiosk grid</label>
-      </div>
-      <div class="km-form-row">
-        <label for="edit-f-family">Product family</label>
-        <select id="edit-f-family">
-          <option value="">— none —</option>
-          <option ${card.family === 'AAP'           ? 'selected' : ''}>AAP</option>
-          <option ${card.family === 'Developer Hub' ? 'selected' : ''}>Developer Hub</option>
-          <option ${card.family === 'Edge'          ? 'selected' : ''}>Edge</option>
-          <option ${card.family === 'Lightspeed'    ? 'selected' : ''}>Lightspeed</option>
-          <option ${card.family === 'OpenShift'     ? 'selected' : ''}>OpenShift</option>
-          <option ${card.family === 'OpenShift AI'  ? 'selected' : ''}>OpenShift AI</option>
-          <option ${card.family === 'OpenShift Virt'? 'selected' : ''}>OpenShift Virt</option>
-          <option ${card.family === 'Quay'          ? 'selected' : ''}>Quay</option>
-          <option ${card.family === 'Red Hat AI'    ? 'selected' : ''}>Red Hat AI</option>
-          <option ${card.family === 'RHACS'         ? 'selected' : ''}>RHACS</option>
-          <option ${card.family === 'RHEL'          ? 'selected' : ''}>RHEL</option>
-          <option ${card.family === 'RHEL AI'       ? 'selected' : ''}>RHEL AI</option>
-          <option ${card.family === 'Satellite'     ? 'selected' : ''}>Satellite</option>
-        </select>
       </div>
       ${buildEditDemoFields(card)}
       <div class="km-btn-row">
@@ -790,13 +755,13 @@ async function saveEditCard() {
   if (!card) return;
   const alert = document.getElementById('edit-alert');
 
+  const order   = parseInt(document.getElementById('edit-f-order').value, 10);
   const title   = document.getElementById('edit-f-title').value.trim();
   const summary = document.getElementById('edit-f-summary').value.trim();
   const enabled = document.getElementById('edit-f-enabled').checked;
-  const family  = document.getElementById('edit-f-family').value || null;
 
-  if (!title || !summary) {
-    return showAlert(alert, 'danger', 'Title and summary are required.');
+  if (!title || !summary || isNaN(order)) {
+    return showAlert(alert, 'danger', 'Title, summary, and order are required.');
   }
 
   const demo = { type: card.demo?.type ?? '' };
@@ -832,7 +797,7 @@ async function saveEditCard() {
     if (!demo.videos.length) return showAlert(alert, 'danger', 'Select at least one video.');
   }
 
-  const payload = { id: editingCardId, title, summary, enabled, ...(family ? { family } : {}), demo };
+  const payload = { id: editingCardId, order, title, summary, enabled, demo };
   const btn = document.querySelector('#edit-panel-row .km-btn-primary');
   setLoading(btn, true, 'Saving…');
 
@@ -859,45 +824,23 @@ async function saveEditCard() {
 // ── Zip upload ─────────────────────────────────────────────────────────
 
 async function uploadZip() {
-  const input     = document.getElementById('zip-file');
-  const btn       = document.getElementById('zip-upload-btn');
-  const alert     = document.getElementById('zip-alert');
-  const summaryEl = document.getElementById('zip-summary');
-  const overwrite = document.getElementById('zip-overwrite').checked;
+  const input = document.getElementById('zip-file');
+  const btn   = document.getElementById('zip-upload-btn');
+  const alert = document.getElementById('zip-alert');
   if (!input.files.length) return showAlert(alert, 'danger', 'Select a .zip file first.');
   setLoading(btn, true, 'Uploading…');
   hideAlert(alert);
-  summaryEl.style.display = 'none';
   try {
     const fd = new FormData();
     fd.append('file', input.files[0]);
-    const headers = overwrite ? { 'X-Overwrite': 'true' } : {};
-    const r = await fetch('/api/upload/zip', { method: 'POST', body: fd, headers });
+    const r = await fetch('/api/upload/zip', { method: 'POST', body: fd });
     const d = await r.json();
     if (!r.ok) {
       showAlert(alert, 'danger', d.error || 'Upload failed.', d.output);
     } else {
-      const hasWarnings = d.output && /skipped invalid cards/i.test(d.output);
-      if (hasWarnings) {
-        const warnings = d.output.replace(/\x1b\[[0-9;]*m/g, '').trim().split('\n').filter(l => /^\s*!/.test(l)).map(l => l.replace(/^\s*!\s*/, '')).join('\n');
-        showAlert(alert, 'warning', d.message + ' — some cards had errors:', warnings);
-      } else {
-        showAlert(alert, 'success', d.message);
-      }
-      if (d.summary) {
-        const s = d.summary;
-        const parts = [];
-        if (s.added?.length)   parts.push(`${s.added.length} card(s) added`);
-        if (s.renamed && Object.keys(s.renamed).length) {
-          const rn = Object.entries(s.renamed).map(([o, n]) => `${o} → ${n}`).join(', ');
-          parts.push(`${Object.keys(s.renamed).length} renamed (${rn})`);
-        }
-        if (s.media_added?.length) parts.push(`${s.media_added.length} media file(s)`);
-        if (parts.length) {
-          summaryEl.textContent = parts.join(' · ');
-          summaryEl.style.display = '';
-        }
-      }
+      const fixes = d.order_fixes && d.order_fixes.length
+        ? 'Order adjustments:\n' + d.order_fixes.join('\n') : null;
+      showAlert(alert, fixes ? 'warning' : 'success', d.message, fixes);
       input.value = '';
       await loadMedia();
       loadCards();
@@ -1027,14 +970,13 @@ function updateDemoFields() {
 function resetCardForm() {
   pendingMediaPath  = null;
   pendingVideoPaths = [];
-  ['f-id','f-title','f-summary','f-caption',
+  ['f-id','f-order','f-title','f-summary','f-caption',
    'f-url','f-long-desc','f-duration','f-share-url','f-arcade-title',
    'f-arcade-ratio'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
   document.getElementById('f-enabled').checked = true;
-  document.getElementById('f-family').value = '';
   document.getElementById('f-type').value = '';
   updateDemoFields();
   ['media-src-alert','media-image-alert','media-loop-alert'].forEach(id => {
@@ -1046,13 +988,13 @@ function resetCardForm() {
 
 function buildCardPayload() {
   const id      = document.getElementById('f-id').value.trim();
+  const order   = parseInt(document.getElementById('f-order').value, 10);
   const title   = document.getElementById('f-title').value.trim();
   const summary = document.getElementById('f-summary').value.trim();
   const enabled = document.getElementById('f-enabled').checked;
-  const family  = document.getElementById('f-family').value || null;
   const type    = document.getElementById('f-type').value;
 
-  if (!id || !title || !summary || !type) return null;
+  if (!id || !title || !summary || !type || isNaN(order)) return null;
 
   const demo = { type };
   if (type === 'video' || type === 'slides' || type === 'asciinema') {
@@ -1085,7 +1027,7 @@ function buildCardPayload() {
     demo.videos = pendingVideoPaths;
   }
 
-  return { id, title, summary, enabled, ...(family ? { family } : {}), demo };
+  return { id, order, title, summary, enabled, demo };
 }
 
 async function saveCard() {
@@ -1214,7 +1156,7 @@ async function saveBranding() {
     if (!r.ok) {
       showAlert(alert, 'danger', d.error || 'Save failed.', d.output);
     } else {
-      showAlert(alert, 'success', d.message + ' Use the Kiosk link to see the updated header.');
+      showAlert(alert, 'success', d.message + ' Use ← Back to kiosk to see the updated header.');
     }
   } catch (e) {
     showAlert(alert, 'danger', `Save error: ${e.message}`);
@@ -1248,26 +1190,19 @@ function esc(s) {
     .replace(/"/g,'&quot;');
 }
 
-document.getElementById('ui-mode-switch').addEventListener('click', async function() {
+document.getElementById('ui-mode-toggle').addEventListener('change', async function() {
+  if (!this.checked) return;
   try {
     await fetch('/api/ui-mode', {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({mode: 'classic'})
+      body: JSON.stringify({mode: 'modern'})
     });
-    window.location = '/#admin';
-  } catch (e) { /* stay on page */ }
+    window.location = '/setup';
+  } catch (e) {
+    this.checked = false;
+  }
 });
 </script>
-
-<footer style="text-align:center;padding:1.2rem;font-size:0.95rem;color:#6a6e73;border-top:1px solid #d2d2d2;margin-top:2rem">
-  <a href="/" style="display:inline-block;padding:0.4rem 0.6rem;color:#151515;text-decoration:none">Kiosk</a>
-  &nbsp;&middot;&nbsp;
-  <a href="/display" style="display:inline-block;padding:0.4rem 0.6rem;color:#151515;text-decoration:none">Display</a>
-  &nbsp;&middot;&nbsp;
-  <a href="/stats" style="display:inline-block;padding:0.4rem 0.6rem;color:#151515;text-decoration:none">Stats</a>
-  &nbsp;&middot;&nbsp;
-  <a href="/setup" style="display:inline-block;padding:0.4rem 0.6rem;color:#151515;text-decoration:none;font-weight:600" aria-current="page">Setup</a>
-</footer>
 </body>
 </html>

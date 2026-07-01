@@ -228,6 +228,11 @@ COPY --from=builder --chown=65532:65532 /tmp/extras.tar.gz /extras/extras.tar.gz
 
 EXPOSE 8181
 
+# UI mode: "classic" (single-page manage) or "modern" (setup/display/stats).
+# Override at runtime: podman run -e KIOSK_UI=modern ...
+# CUTOVER: change to "modern" when the new UI is approved for production.
+ENV KIOSK_UI=classic
+
 # serve.py (like python3 -m http.server) does not handle SIGTERM; SIGKILL stops it immediately.
 STOPSIGNAL SIGKILL
 

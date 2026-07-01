@@ -37,6 +37,8 @@
     .ks-header a { color: #73bcf7; font-size: 1rem; font-weight: 600; text-decoration: none; display: inline-block; padding: 0.3rem 0; }
     .ks-header a:hover { text-decoration: underline; }
     .ks-header a[aria-current="page"] { color: #fff; border-bottom: 2px solid #73bcf7; }
+    .ks-ui-switch { margin-left: auto; font-size: 0.875rem; color: #73bcf7; cursor: pointer; background: none; border: none; font-weight: 600; padding: 0.3rem 0; }
+    .ks-ui-switch:hover { text-decoration: underline; }
 
     /* ── Page ── */
     .ks-main {
@@ -180,6 +182,7 @@
     <a href="/stats">Stats</a>
     <a href="/setup">Setup</a>
   </nav>
+  <button class="ks-ui-switch" id="ui-mode-switch">← Return to classic UI</button>
 </header>
 
 <main class="ks-main">
@@ -625,6 +628,17 @@ document.getElementById('btn-reset-all').addEventListener('click', () => {
   bs.onerror = () => loadFaqsAndRender();
   document.head.appendChild(bs);
 })();
+
+document.getElementById('ui-mode-switch').addEventListener('click', async function() {
+  try {
+    await fetch('/api/ui-mode', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({mode: 'classic'})
+    });
+    window.location = '/#admin';
+  } catch (e) { /* stay on page */ }
+});
 </script>
 </body>
 </html>

@@ -18,10 +18,15 @@
 #    patch browsers cannot seek or start playback before a full
 #    download of a large video file.
 #
-# 4. Content management API at /setup, /display, /stats (HTML pages)
-#    and /api/* endpoints for uploading content and editing cards at
-#    runtime. Writes require a writable content directory — see README.md
-#    for volume mount options.
+# 4. Content management API at /api/* endpoints for uploading content
+#    and editing cards at runtime. Writes require a writable content
+#    directory — see README.md for volume mount options.
+#
+# 5. UI mode switch via KIOSK_UI env var ("classic" or "modern",
+#    default "classic"). Classic serves the original manage page;
+#    modern serves setup/display/stats. Toggle at runtime via
+#    PUT /api/ui-mode without restarting.
+#    CUTOVER: change default to "modern" when the new UI is approved.
 #
 # Accepts the same CLI arguments as `python3 -m http.server`:
 #   python3 serve.py 8181 --bind :: --directory /srv/faq
@@ -51,6 +56,9 @@ try:
     from qtfaststart import processor as _qs_processor
 except ImportError:
     _qs_processor = None
+
+# CUTOVER: change default to 'modern' when the new UI is approved.
+_kiosk_ui_mode = os.environ.get('KIOSK_UI', 'classic').lower()
 
 
 def _apply_faststart(path):
@@ -168,13 +176,29 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
     # ── Routing ───────────────────────────────────────────────────
 
     def do_GET(self):
+        global _kiosk_ui_mode
         p = self.path.split('?')[0]
-        if p == '/setup':
-            self.path = '/setup.html'
-        elif p == '/stats':
-            self.path = '/stats.html'
-        elif p == '/display':
-            self.path = '/display.html'
+        if _kiosk_ui_mode == 'modern':
+            if p == '/setup':
+                self.path = '/setup.html'
+            elif p == '/stats':
+                self.path = '/stats.html'
+            elif p == '/display':
+                self.path = '/display.html'
+            elif p == '/manage':
+                self._redirect('/setup')
+                return
+        else:
+            if p == '/manage':
+                self.path = '/manage.html'
+            elif p == '/setup':
+                self._redirect('/manage')
+                return
+            elif p == '/':
+                self.path = '/index-classic.html'
+        if p == '/api/ui-mode':
+            self._send_json({'mode': _kiosk_ui_mode})
+            return
         elif p == '/api/status':
             self._handle_status()
             return
@@ -213,7 +237,9 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_PUT(self):
         p = self.path.split('?')[0]
-        if p.startswith('/api/cards/'):
+        if p == '/api/ui-mode':
+            self._handle_set_ui_mode()
+        elif p.startswith('/api/cards/'):
             card_id = p[len('/api/cards/'):]
             self._handle_update_card(card_id)
         else:
@@ -226,6 +252,27 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_delete_card(card_id)
         else:
             self.send_error(404)
+
+    # ── UI mode toggle ─────────────────────────────────────────────
+
+    def _redirect(self, location):
+        self.send_response(302)
+        self.send_header('Location', location)
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+
+    def _handle_set_ui_mode(self):
+        global _kiosk_ui_mode
+        try:
+            data = self._read_json_body()
+        except Exception as exc:
+            return self._send_json({'error': f'Invalid JSON: {exc}'}, 400)
+        mode = data.get('mode', '').lower() if isinstance(data, dict) else ''
+        if mode not in ('classic', 'modern'):
+            return self._send_json(
+                {'error': "mode must be 'classic' or 'modern'"}, 400)
+        _kiosk_ui_mode = mode
+        self._send_json({'mode': _kiosk_ui_mode})
 
     # ── Management API handlers ───────────────────────────────────
 

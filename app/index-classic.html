@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Demo Kiosk</title>
+
+  <!--
+  ============================================================
+  SETUP AND LAUNCH
+  ============================================================
+  1. Download required libraries (run once):
+       ./download-libs.sh
+
+  2. Start the FAQ (every time):
+       ./start.sh
+
+     Optional flags:
+       ./start.sh --port 9090          # use a different port
+       ./start.sh --browser firefox    # force a specific browser
+       ./start.sh --browser chrome
+       ./start.sh --kiosk              # fullscreen kiosk mode
+
+  The FAQ is served over a local HTTP server (Python 3) at
+  http://localhost:8181 — this is required for PDF slides and
+  terminal recordings to load correctly. Do not open index.html
+  directly as a file:// URL or those content types will not work.
+
+  Admin statistics: http://localhost:8181/#admin
+  ============================================================
+  -->
+
+  <!-- PatternFly 6 (download once via download-libs.sh) -->
+  <!-- NOTE: patternfly.min.css lives at the project root so that its
+       @font-face url() paths (assets/fonts/...) resolve correctly. -->
+  <link rel="stylesheet" href="patternfly.min.css" />
+
+  <!-- Local asciinema player (download once via download-libs.sh) -->
+  <link rel="stylesheet" href="assets/asciinema-player.css" />
+
+  <style>
+    /* ============================================================
+       RESIDUAL / OVERRIDE STYLES
+       Everything not covered by PatternFly, plus TV-readability
+       size overrides (PF defaults target desktop at ~14px; we need
+       larger text for booth-distance TV viewing).
+       ============================================================ */
+
+    /* --- Red Hat brand color override (replaces PF default blue) --- */
+    :root {
+      --pf-t--global--color--brand--default: #ee0000;
+      --pf-t--global--color--brand--hover:   #c00000;
+    }
+
+    /* --- Page chrome ------------------------------------------- */
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background-color: #f2f2f2; /* Red Hat gray-10 — Interface light */
+    }
+
+    /* --- Masthead: three-zone layout — left logo / centre title / right logo --- */
+    #site-header {
+      --pf-v6-c-masthead--BackgroundColor: #151515; /* Red Hat gray-95 / UX black */
+      padding-block: 1.2rem;
+      padding-inline: 2rem;
+      /* ensure masthead stretches full width */
+      display: flex;
+      align-items: stretch;
+      cursor: pointer;
+    }
+
+    #site-header .pf-v6-c-masthead__main {
+      /* override PF default; take full available width */
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+    }
+
+    #header-logo-rh {
+      height: 3rem;
+      width: auto;
+      justify-self: start;
+    }
+
+    #header-centre {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    #header-title {
+      font-size: 3rem;
+      font-weight: 300;
+      color: var(--pf-t--global--text--color--on-brand--default);
+      opacity: 0.85;
+    }
+
+    #header-tagline {
+      font-size: 1.375rem;
+      font-weight: 300;
+      color: var(--pf-t--global--text--color--on-brand--default);
+      opacity: 0.7;
+    }
+
+    #header-logo-hummingbird {
+      height: 3rem;
+      width: auto;
+      justify-self: end;
+    }
+
+    /* --- Card grid --------------------------------------------- */
+    #faq-grid {
+      --pf-v6-l-gallery--GridTemplateColumns--min: 280px;
+      --pf-v6-l-gallery--GridTemplateRows: 280px; /* fixed row height = index-card shape */
+      padding: 1rem 1.5rem;
+      width: 100%;
+      align-content: start; /* rows pack at top; don't stretch to fill page height */
+    }
+
+    /* TV-scale card text */
+    .faq-card {
+      cursor: pointer;
+      height: 280px;          /* fixed height — index-card shape regardless of content */
+      overflow: hidden;       /* clip any content that overflows */
+    }
+
+    .faq-card .pf-v6-c-card__title-text {
+      font-size: 1.25rem;
+      line-height: 1.35;
+    }
+
+    .faq-card .pf-v6-c-card__body {
+      font-size: 1rem;
+    }
+
+    /* Error card variant */
+    .faq-card-error {
+      --pf-v6-c-card--BorderColor: var(--pf-t--global--border--color--status--danger--default);
+      cursor: default !important;
+      background-color: var(--pf-t--global--background--color--status--danger--default, #fff5f5);
+    }
+    .faq-card-error:hover {
+      transform: none !important;
+      box-shadow: none !important;
+    }
+    .faq-card-error .pf-v6-c-card__title-text {
+      color: var(--pf-t--global--icon--color--status--danger--default);
+      font-size: 1rem;
+    }
+
+    /* Empty state message in grid */
+    .faq-grid-empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 3rem;
+      color: var(--pf-t--global--text--color--subtle);
+    }
+
+    /* --- Modal -------------------------------------------------- */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: var(--pf-t--global--z-index--lg, 400);
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    #modal-overlay.active {
+      display: flex;
+    }
+
+    /* Size the modal box — 25% larger than base 960px */
+    #modal-box {
+      width: 100%;
+      max-width: 1200px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Modal body scrolls */
+    #modal-content {
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    /* --- Content renderers ------------------------------------- */
+    #modal-content video {
+      width: 100%;
+      border-radius: var(--pf-t--global--border--radius--medium, 6px);
+      background: #000;
+      max-height: 75vh; /* 25% larger than original 60vh */
+    }
+
+    #asciinema-container {
+      width: 100%;
+      height: calc(90vh - 60px); /* fill modal body; 60px reserved for modal header */
+      border-radius: var(--pf-t--global--border--radius--medium, 6px);
+      overflow: hidden;
+    }
+
+    #pdf-container {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    #pdf-canvas {
+      width: 100%;
+      border-radius: var(--pf-t--global--border--radius--medium, 6px);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+      display: block;
+    }
+
+    #pdf-controls {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+    }
+
+    #pdf-page-info {
+      font-size: 1rem;
+      color: var(--pf-t--global--text--color--subtle);
+      min-width: 80px;
+      text-align: center;
+    }
+
+    /* --- PDF fullscreen presentation mode ----------------------- */
+    #pdf-container:fullscreen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      padding: 1rem;
+      gap: 1rem;
+    }
+
+    #pdf-container:fullscreen #pdf-canvas {
+      width: auto;
+      max-width: 100%;
+      max-height: calc(100vh - 5rem); /* leave room for controls */
+    }
+
+    #pdf-container:fullscreen #pdf-controls {
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: var(--pf-t--global--border--radius--medium, 6px);
+      padding: 0.5rem 1.2rem;
+    }
+
+    #pdf-container:fullscreen #pdf-page-info {
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    #arcade-container {
+      position: relative;
+      width: 100%;
+      /* Default: 16:9 (56.25%) + 41px Arcade player chrome.
+         The exact ratio is set per-card via inline style on the wrapper,
+         derived from the flow's aspectRatio metadata at build time. */
+      padding-bottom: calc(56.25% + 41px);
+      height: 0;
+      border-radius: var(--pf-t--global--border--radius--medium, 6px);
+      overflow: hidden;
+    }
+
+    #arcade-container iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      color-scheme: light; /* prevent dark OS theme bleeding into the Arcade UI */
+    }
+
+    #imagetext-container {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.2rem;
+    }
+
+    #imagetext-container img {
+      width: 100%;
+      border-radius: var(--pf-t--global--border--radius--medium, 6px);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+    }
+
+    #imagetext-caption {
+      font-size: 1.05rem;
+      color: var(--pf-t--global--text--color--subtle);
+      text-align: center;
+      line-height: 1.6;
+      max-width: 680px;
+    }
+
+    /* --- External URL renderer ---------------------------------- */
+    #externalurl-container,
+    #lab-container {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 0.5rem 0 1rem;
+    }
+
+    .lab-duration {
+      font-size: 0.95rem;
+      color: var(--pf-t--global--text--color--subtle);
+      text-align: center;
+    }
+
+    .faq-long-description {
+      width: 100%;
+      max-width: 720px;
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: var(--pf-t--global--text--color--regular);
+    }
+
+    .faq-long-description p { margin: 0 0 0.8em; }
+    .faq-long-description p:last-child { margin-bottom: 0; }
+    .faq-long-description ul { margin: 0 0 0.8em 1.5em; padding: 0; }
+    .faq-long-description li { margin-bottom: 0.3em; }
+    .faq-long-description strong { font-weight: 700; }
+    .faq-long-description a {
+      color: var(--pf-t--global--color--brand--default);
+      text-decoration: underline;
+    }
+    .faq-long-description a:hover {
+      color: var(--pf-t--global--color--brand--hover);
+    }
+
+    .faq-url-display {
+      font-size: 0.95rem;
+      color: var(--pf-t--global--text--color--subtle);
+      word-break: break-all;
+      text-align: center;
+    }
+
+    /* --- Admin visibility panel --------------------------------- */
+    #admin-visibility {
+      margin-bottom: 2rem;
+    }
+
+    #admin-visibility h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .admin-visibility-subtitle {
+      color: var(--pf-t--global--text--color--subtle);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+
+    .visibility-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1rem;
+    }
+
+    .visibility-table th,
+    .visibility-table td {
+      padding: 0.6rem 0.8rem;
+      text-align: left;
+      border-bottom: 1px solid var(--pf-t--global--border--color--default);
+      font-size: 0.95rem;
+    }
+
+    .visibility-table th {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--pf-t--global--text--color--subtle);
+      font-weight: 600;
+    }
+
+    .visibility-table th:last-child,
+    .visibility-table td:last-child {
+      text-align: right;
+    }
+
+    .visibility-drag-handle {
+      cursor: grab;
+      color: var(--pf-t--global--text--color--subtle);
+      width: 2rem;
+      text-align: center;
+      user-select: none;
+    }
+
+    .visibility-table tr.dragging {
+      opacity: 0.4;
+    }
+
+    .visibility-table tr.drag-over td {
+      border-top: 2px solid var(--pf-t--global--color--brand--default, #ee0000);
+    }
+
+    /* --- Idle overlay ------------------------------------------ */
+    #idle-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: calc(var(--pf-t--global--z-index--lg, 400) + 100);
+      align-items: center;
+      justify-content: center;
+    }
+
+    #idle-overlay.active {
+      display: flex;
+    }
+
+    #idle-box {
+      text-align: center;
+      padding: 3rem 3.5rem;
+      max-width: 420px;
+      width: 100%;
+    }
+
+    #idle-box h2 {
+      margin-bottom: 0.6rem;
+    }
+
+    #idle-countdown {
+      font-size: 3.5rem;
+      font-weight: 800;
+      color: var(--pf-t--global--color--brand--default);
+      margin: 1rem 0;
+    }
+
+    #idle-box p {
+      color: var(--pf-t--global--text--color--subtle);
+      margin-bottom: 1.5rem;
+    }
+
+    /* --- Admin view -------------------------------------------- */
+    #admin-view {
+      display: none;
+      padding: 2.5rem 3rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+    }
+
+    #admin-view > h2 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .admin-subtitle {
+      color: var(--pf-t--global--text--color--subtle);
+      margin-bottom: 2rem;
+    }
+
+    #admin-stats {
+      --pf-v6-l-gallery--GridTemplateColumns--min: 200px;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card .pf-v6-c-card__title-text {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--pf-t--global--text--color--subtle);
+    }
+
+    .stat-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--pf-t--global--color--brand--default);
+    }
+
+    .stat-detail {
+      font-size: 0.9rem;
+      color: var(--pf-t--global--text--color--subtle);
+      margin-top: 0.2rem;
+    }
+
+    .admin-actions {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .admin-ui-toggle {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.875rem;
+      color: var(--pf-t--global--text--color--subtle);
+      cursor: pointer;
+    }
+    .admin-ui-toggle input { accent-color: var(--pf-t--global--color--brand--default); }
+
+    .admin-table-wrap {
+      overflow-x: auto;
+    }
+
+    .admin-empty {
+      text-align: center;
+      color: var(--pf-t--global--text--color--subtle);
+      padding: 3rem;
+    }
+
+
+    /* --- Upload zone ------------------------------------------- */
+    #upload-container {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.25rem;
+      padding: 0.5rem 0 1rem;
+    }
+
+    .upload-dropzone {
+      width: 100%;
+      max-width: 520px;
+      border: 2px dashed var(--pf-t--global--border--color--default, #d2d2d2);
+      border-radius: var(--pf-t--global--border--radius--medium, 6px);
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      background: #fafafa;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .upload-dropzone.drag-over {
+      border-color: var(--pf-t--global--color--brand--default, #ee0000);
+      background: rgba(238, 0, 0, 0.04);
+    }
+
+    .upload-dropzone-icon { font-size: 2.5rem; line-height: 1; }
+    .upload-dropzone-title { margin: 0; font-size: 1.1rem; font-weight: 600; color: #151515; }
+    .upload-dropzone-sub { margin: 0; font-size: 0.9rem; color: var(--pf-t--global--text--color--subtle); }
+
+    .upload-status-msg { font-size: 1rem; text-align: center; margin: 0; }
+    .upload-status-msg.progress { color: var(--pf-t--global--text--color--subtle); }
+    .upload-status-msg.success  { color: var(--pf-t--global--icon--color--status--success--default, #1e4620); font-weight: 600; }
+    .upload-status-msg.error    { color: var(--pf-t--global--icon--color--status--danger--default, #c9190b); }
+
+    @keyframes upload-spin { to { transform: rotate(360deg); } }
+    .upload-status-msg.progress::before {
+      content: '';
+      display: inline-block;
+      width: 0.9em; height: 0.9em;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: upload-spin 0.75s linear infinite;
+      margin-right: 0.5em;
+      vertical-align: middle;
+    }
+
+    /* --- Footer ------------------------------------------------- */
+    #site-footer {
+      text-align: center;
+      padding: 1rem;
+      font-size: 0.8rem;
+      color: var(--pf-t--global--text--color--subtle);
+      border-top: 1px solid var(--pf-t--global--border--color--default);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       HEADER — edit CONFIG.subtitle below
+       Logos: assets/logo-redhat.svg (run download-libs.sh once)
+               assets/logo-summit.svg (Red Hat Summit 2026 logo)
+       ============================================================ -->
+  <header class="pf-v6-c-masthead pf-m-display-stack" id="site-header">
+    <div class="pf-v6-c-masthead__main">
+      <img id="header-logo-rh" src="assets/logo-redhat.svg" alt="Red Hat" />
+      <div id="header-centre">
+        <span id="header-title"></span>
+        <span id="header-tagline"></span>
+      </div>
+      <img id="header-logo-hummingbird" src="content/branding/logo-redhat.svg" alt="Event Logo" />
+    </div>
+  </header>
+
+  <!-- ============================================================
+       FAQ CARD GRID (populated by FAQ.register calls)
+       ============================================================ -->
+  <main class="pf-v6-l-gallery pf-m-gutter" id="faq-grid" role="main"></main>
+
+  <!-- ============================================================
+       ADMIN VIEW — navigate to index.html#admin to access
+       ============================================================ -->
+  <section id="admin-view" aria-label="Admin statistics">
+    <h2>View Statistics</h2>
+    <p class="admin-subtitle">All interactions logged locally in this browser. Navigate to <code>index.html</code> to return to the kiosk.</p>
+
+    <div class="pf-v6-l-gallery pf-m-gutter" id="admin-stats"></div>
+
+    <!-- Card visibility panel -->
+    <div id="admin-visibility">
+      <h3>Card Visibility</h3>
+      <p class="admin-visibility-subtitle">Changes apply immediately to the kiosk view. Overrides are stored in this browser.</p>
+      <table class="visibility-table" aria-label="Card visibility controls">
+        <thead>
+          <tr>
+            <th scope="col"></th>
+            <th scope="col">Card</th>
+            <th scope="col">Default</th>
+            <th scope="col">Visibility</th>
+          </tr>
+        </thead>
+        <tbody id="visibility-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="admin-actions">
+      <button class="pf-v6-c-button pf-m-primary" id="btn-back-to-faq">&#8592; Back to Kiosk</button>
+      <button class="pf-v6-c-button pf-m-secondary" id="btn-download-csv">&#8681; Download CSV</button>
+      <button class="pf-v6-c-button pf-m-danger pf-m-secondary" id="btn-clear-log">Clear Log</button>
+      <button class="pf-v6-c-button pf-m-secondary" id="btn-reset-visibility">Reset visibility</button>
+      <button class="pf-v6-c-button pf-m-secondary" id="btn-reset-order">Reset card order</button>
+      <label class="admin-ui-toggle">
+        <input type="checkbox" id="ui-mode-toggle"> Try new UI
+      </label>
+    </div>
+
+    <div class="admin-table-wrap">
+      <table class="pf-v6-c-table pf-m-compact pf-m-grid-md" id="admin-table" role="grid" aria-label="View log">
+        <thead class="pf-v6-c-table__thead">
+          <tr class="pf-v6-c-table__tr" role="row">
+            <th class="pf-v6-c-table__th" scope="col">Timestamp</th>
+            <th class="pf-v6-c-table__th" scope="col">Question</th>
+            <th class="pf-v6-c-table__th" scope="col">Type</th>
+            <th class="pf-v6-c-table__th" scope="col">Time Open</th>
+          </tr>
+        </thead>
+        <tbody class="pf-v6-c-table__tbody" id="admin-tbody" role="rowgroup"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       MODAL OVERLAY
+       ============================================================ -->
+  <div class="pf-v6-c-backdrop" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="pf-v6-c-modal-box pf-m-lg" id="modal-box" tabindex="-1">
+      <div class="pf-v6-c-modal-box__header" id="modal-header">
+        <div class="pf-v6-c-modal-box__header-main">
+          <h2 class="pf-v6-c-modal-box__title" id="modal-title"></h2>
+        </div>
+      </div>
+      <div class="pf-v6-c-modal-box__body" id="modal-content">
+        <!-- injected by renderer -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       IDLE COUNTDOWN OVERLAY
+       ============================================================ -->
+  <div class="pf-v6-c-backdrop" id="idle-overlay" role="alertdialog" aria-labelledby="idle-heading">
+    <div class="pf-v6-c-modal-box" id="idle-box">
+      <h2 class="pf-v6-c-modal-box__title" id="idle-heading">Still there?</h2>
+      <div id="idle-countdown">10</div>
+      <p>Returning to questions in&hellip;</p>
+      <button class="pf-v6-c-button pf-m-primary" id="idle-cancel">Keep Watching</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       LOCAL LIBRARY: asciinema player (download once — see top)
+       ============================================================ -->
+  <script src="assets/asciinema-player.min.js"></script>
+
+  <!-- ============================================================
+       LOCAL LIBRARY: PDF.js (download once via download-libs.sh)
+       Loaded via a module shim (assets/pdf-init.mjs) that imports
+       pdf.min.mjs and assigns window.pdfjsLib for classic-script use.
+       Module scripts run in document order, so this executes before
+       the core application module below.
+       ============================================================ -->
+  <script type="module" src="assets/pdf-init.mjs"></script>
+
+  <!-- ============================================================
+       CORE APPLICATION
+       Runs as a module so it executes after pdf-init.mjs above.
+       ============================================================ -->
+  <script type="module">
+    // ==========================================================
+    // CONFIG — edit these values to customise the FAQ
+    // ==========================================================
+    const CONFIG = {
+      title:                "Red Hat Summit 2026",   // used as <img> alt text
+      subtitle:             "Red Hat Summit: Frequently Asked Questions", // large text shown in the masthead centre
+      idleTimeoutSeconds:   30,   // seconds of inactivity before countdown starts
+                                  // (does NOT count while video/asciinema is playing)
+      countdownSeconds:     10,   // length of "Returning in..." countdown
+      columns:              3,    // preferred card columns (grid auto-adjusts)
+    };
+
+    // ==========================================================
+    // FAQ REGISTRY
+    // Each faqs/*.js file calls FAQ.register({ ... }) once.
+    // Errors in individual files are caught here so one bad file
+    // cannot break the entire page.
+    // ==========================================================
+    const FAQ = (() => {
+      const entries = [];
+
+      function register(entry) {
+        if (!entry || !entry.id || !entry.title) {
+          console.warn('[FAQ] Skipping entry — missing required id or title:', entry);
+          return;
+        }
+        entries.push(entry);
+      }
+
+      function all() { return [...entries]; }
+
+      return { register, all };
+    })();
+    // Expose FAQ globally so classic-script FAQ entry files can call FAQ.register()
+    window.FAQ = FAQ;
+
+    // ==========================================================
+    // LOG (localStorage)
+    // ==========================================================
+    const LOG_KEY        = 'faq_view_log';
+    const VISIBILITY_KEY = 'faq_visibility';
+    const ORDER_KEY      = 'faq_order';
+
+    const Log = {
+      read() {
+        try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); }
+        catch { return []; }
+      },
+      append(entry) {
+        try {
+          const log = this.read();
+          log.push(entry);
+          localStorage.setItem(LOG_KEY, JSON.stringify(log));
+        } catch(e) {
+          console.warn('[FAQ] Could not write to localStorage:', e);
+        }
+      },
+      clear() {
+        localStorage.removeItem(LOG_KEY);
+      }
+    };
+
+    // ==========================================================
+    // VISIBILITY (localStorage overrides per card id)
+    // ==========================================================
+    const Visibility = {
+      // Read the full overrides map from localStorage
+      _read() {
+        try { return JSON.parse(localStorage.getItem(VISIBILITY_KEY) || '{}'); }
+        catch { return {}; }
+      },
+
+      // Effective visibility for a card: localStorage override → YAML default → true
+      get(entry) {
+        const overrides = this._read();
+        if (Object.prototype.hasOwnProperty.call(overrides, entry.id)) {
+          return overrides[entry.id];
+        }
+        return entry.enabled !== false;
+      },
+
+      // Set override for a card and immediately re-render the grid
+      set(id, visible) {
+        try {
+          const overrides = this._read();
+          overrides[id] = visible;
+          localStorage.setItem(VISIBILITY_KEY, JSON.stringify(overrides));
+        } catch(e) {
+          console.warn('[FAQ] Could not write visibility to localStorage:', e);
+        }
+        buildGrid();
+      },
+
+      // Clear all overrides — restores YAML defaults
+      reset() {
+        localStorage.removeItem(VISIBILITY_KEY);
+        buildGrid();
+      }
+    };
+
+    // ==========================================================
+    // ORDER (localStorage — card display order by id array)
+    // ==========================================================
+    const Order = {
+      _read() {
+        try { return JSON.parse(localStorage.getItem(ORDER_KEY) || 'null'); }
+        catch { return null; }
+      },
+
+      // Returns entries sorted by stored id array.
+      // Cards not in the stored order are appended at the end.
+      apply(entries) {
+        const ids = this._read();
+        if (!ids) return entries;
+        const idxMap = new Map(ids.map((id, i) => [id, i]));
+        return [...entries].sort((a, b) => {
+          const ai = idxMap.has(a.id) ? idxMap.get(a.id) : Infinity;
+          const bi = idxMap.has(b.id) ? idxMap.get(b.id) : Infinity;
+          return ai - bi;
+        });
+      },
+
+      save(orderedEntries) {
+        try {
+          localStorage.setItem(ORDER_KEY, JSON.stringify(orderedEntries.map(e => e.id)));
+        } catch(e) {
+          console.warn('[FAQ] Could not write order to localStorage:', e);
+        }
+      },
+
+      reset() {
+        localStorage.removeItem(ORDER_KEY);
+        buildGrid();
+      }
+    };
+
+    // ==========================================================
+    // STATE
+    // ==========================================================
+    let state = {
+      modalOpen:          false,
+      currentEntry:       null,
+      modalOpenedAt:      null,
+      isPlaying:          false,   // true while video/asciinema is actively playing
+      uploadInProgress:   false,
+      idleTimer:          null,
+      countdownTimer:     null,
+      countdownValue:     0,
+    };
+
+    // ==========================================================
+    // IDLE TIMER
+    // ==========================================================
+    const IdleTimer = {
+      reset() {
+        clearTimeout(state.idleTimer);
+        if (!state.isPlaying) {
+          state.idleTimer = setTimeout(() => this.startCountdown(), CONFIG.idleTimeoutSeconds * 1000);
+        }
+      },
+
+      pause() {
+        clearTimeout(state.idleTimer);
+      },
+
+      resume() {
+        this.reset();
+      },
+
+      startCountdown() {
+        // Only show the countdown overlay when the user is inside an open card
+        // and not in a fullscreen PDF presentation.
+        // On the grid or during fullscreen, let the timer silently reset without any UI interruption.
+        if (!state.modalOpen || document.fullscreenElement) {
+          this.reset();
+          return;
+        }
+
+        state.countdownValue = CONFIG.countdownSeconds;
+        document.getElementById('idle-countdown').textContent = state.countdownValue;
+        document.getElementById('idle-overlay').classList.add('active');
+
+        state.countdownTimer = setInterval(() => {
+          state.countdownValue--;
+          document.getElementById('idle-countdown').textContent = state.countdownValue;
+          if (state.countdownValue <= 0) {
+            IdleTimer.triggerReset();
+          }
+        }, 1000);
+      },
+
+      stop() {
+        clearTimeout(state.idleTimer);
+        clearInterval(state.countdownTimer);
+        document.getElementById('idle-overlay').classList.remove('active');
+      },
+
+      cancelCountdown() {
+        clearInterval(state.countdownTimer);
+        document.getElementById('idle-overlay').classList.remove('active');
+        this.reset();
+      },
+
+      triggerReset() {
+        clearInterval(state.countdownTimer);
+        document.getElementById('idle-overlay').classList.remove('active');
+        closeModal();        // no-op if no modal open; otherwise logs + cleans up
+        IdleTimer.reset();   // always restart — modal open or not
+      }
+    };
+
+    // Reset idle timer on any user interaction
+    ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
+      document.addEventListener(evt, () => {
+        if (!state.isPlaying) IdleTimer.reset();
+      }, { passive: true });
+    });
+
+    // ==========================================================
+    // MODAL
+    // ==========================================================
+    function openModal(entry) {
+      state.modalOpen    = true;
+      state.currentEntry = entry;
+      state.modalOpenedAt = Date.now();
+      state.isPlaying    = false;
+
+      document.getElementById('modal-title').textContent = entry.title;
+      renderDemo(entry.demo);
+
+      document.getElementById('modal-overlay').classList.add('active');
+      document.getElementById('modal-box').focus();
+      IdleTimer.reset();
+    }
+
+    function closeModal() {
+      if (state.uploadInProgress) {
+        const statusEl = document.querySelector('.upload-status-msg');
+        if (statusEl) {
+          const prev = statusEl.textContent;
+          statusEl.textContent = 'Upload in progress — please wait';
+          setTimeout(() => { if (statusEl.textContent === 'Upload in progress — please wait') statusEl.textContent = prev; }, 2000);
+        }
+        return;
+      }
+      if (!state.modalOpen) return;
+
+      // Log the view
+      const timeOpen = Math.round((Date.now() - state.modalOpenedAt) / 1000);
+      Log.append({
+        timestamp:        new Date().toISOString().replace('T', ' ').slice(0, 19),
+        question_id:      state.currentEntry.id,
+        question_title:   state.currentEntry.title,
+        demo_type:        state.currentEntry.demo?.type || 'unknown',
+        time_open_seconds: timeOpen
+      });
+
+      // Clean up renderers
+      cleanupRenderers();
+
+      document.getElementById('modal-overlay').classList.remove('active');
+      document.getElementById('modal-content').innerHTML = '';
+      state.modalOpen    = false;
+      state.currentEntry = null;
+      state.isPlaying    = false;
+      IdleTimer.stop();
+      IdleTimer.reset();  // restart timer so kiosk resets even from the grid
+    }
+
+    // Modal closed via backdrop click or Escape key (see below)
+    document.getElementById('modal-overlay').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('modal-overlay')) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && state.modalOpen) closeModal();
+    });
+
+    // Cancel idle countdown
+    document.getElementById('idle-cancel').addEventListener('click', () => IdleTimer.cancelCountdown());
+
+    // ==========================================================
+    // RENDERERS
+    // ==========================================================
+    let pdfState = { doc: null, page: 1, numPages: 0 };
+    let asciinemaPlayer = null;
+    let arcadeIframe = null;
+
+    function cleanupRenderers() {
+      // Stop video
+      const video = document.querySelector('#modal-content video');
+      if (video) { video.pause(); video.src = ''; }
+
+      // Destroy asciinema player instance if present
+      if (asciinemaPlayer) { try { asciinemaPlayer.dispose(); } catch {} asciinemaPlayer = null; }
+
+      // Release PDF resources
+      if (pdfState.doc) { pdfState.doc.destroy(); pdfState.doc = null; }
+
+      // Stop arcade iframe network activity
+      if (arcadeIframe) { arcadeIframe.src = ''; arcadeIframe = null; }
+    }
+
+    function renderDemo(demo) {
+      const container = document.getElementById('modal-content');
+      container.innerHTML = '';
+
+      if (!demo || !demo.type) {
+        container.appendChild(missingAsset(null, 'No demo configured for this entry.'));
+        return;
+      }
+
+      switch (demo.type) {
+        case 'video':        renderVideo(demo, container);       break;
+        case 'asciinema':    renderAsciinema(demo, container);   break;
+        case 'slides':       renderSlides(demo, container);      break;
+        case 'image-text':   renderImageText(demo, container);   break;
+        case 'external-url': renderExternalUrl(demo, container); break;
+        case 'lab':          renderLab(demo, container);         break;
+        case 'arcade':       renderArcade(demo, container);      break;
+        case 'video-loop':   renderVideoLoop(demo, container);   break;
+        case 'upload':       renderUpload(demo, container);       break;
+        default:
+          container.appendChild(missingAsset(null, `Unknown demo type: "${demo.type}"`));
+      }
+    }
+
+    // ---- Video ----
+    function renderVideo(demo, container) {
+      const video = document.createElement('video');
+      video.controls = true;
+      video.muted    = true;
+      video.autoplay = true;
+      video.preload  = 'auto';
+      video.src      = demo.src || '';
+
+      video.addEventListener('play',  () => { state.isPlaying = true;  IdleTimer.pause(); });
+      video.addEventListener('pause', () => { state.isPlaying = false; IdleTimer.resume(); });
+      video.addEventListener('ended', () => { state.isPlaying = false; IdleTimer.resume(); });
+
+      video.addEventListener('error', () => {
+        video.replaceWith(missingAsset(demo.src));
+      });
+
+      container.appendChild(video);
+    }
+
+    // ---- Asciinema ----
+    function renderAsciinema(demo, container) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'asciinema-container';
+      container.appendChild(wrapper);
+
+      if (typeof AsciinemaPlayer === 'undefined') {
+        wrapper.appendChild(missingAsset(null, 'asciinema-player.min.js not found in assets/ — run download-libs.sh to install it'));
+        return;
+      }
+
+      try {
+        asciinemaPlayer = AsciinemaPlayer.create(demo.src, wrapper, {
+          autoPlay: true,
+          loop: false,
+          fit: 'both',
+          cols: 80,
+          rows: 24,
+        });
+
+        asciinemaPlayer.addEventListener('play',  () => { state.isPlaying = true;  IdleTimer.pause(); });
+        asciinemaPlayer.addEventListener('pause', () => { state.isPlaying = false; IdleTimer.resume(); });
+        asciinemaPlayer.addEventListener('ended', () => { state.isPlaying = false; IdleTimer.resume(); });
+      } catch(e) {
+        wrapper.appendChild(missingAsset(demo.src, e.message));
+      }
+    }
+
+    // ---- Slides (PDF) ----
+    function renderSlides(demo, container) {
+      const pdfContainer = document.createElement('div');
+      pdfContainer.id = 'pdf-container';
+
+      const canvas = document.createElement('canvas');
+      canvas.id = 'pdf-canvas';
+
+      const controls = document.createElement('div');
+      controls.id = 'pdf-controls';
+
+      const btnPrev = document.createElement('button');
+      btnPrev.className = 'pf-v6-c-button pf-m-secondary';
+      btnPrev.textContent = '← Previous';
+      btnPrev.disabled = true;
+
+      const pageInfo = document.createElement('span');
+      pageInfo.id = 'pdf-page-info';
+
+      const btnNext = document.createElement('button');
+      btnNext.className = 'pf-v6-c-button pf-m-secondary';
+      btnNext.textContent = 'Next →';
+
+      const btnFullscreen = document.createElement('button');
+      btnFullscreen.className = 'pf-v6-c-button pf-m-secondary';
+      btnFullscreen.textContent = '⛶ Fullscreen';
+      btnFullscreen.setAttribute('aria-label', 'View fullscreen');
+
+      controls.append(btnPrev, pageInfo, btnNext, btnFullscreen);
+      pdfContainer.append(canvas, controls);
+      container.appendChild(pdfContainer);
+
+      if (typeof globalThis.pdfjsLib === 'undefined') {
+        pdfContainer.innerHTML = '';
+        pdfContainer.appendChild(missingAsset(null, 'pdf.min.mjs not found in assets/ — run download-libs.sh to install it'));
+        return;
+      }
+
+      // Resolve to an absolute URL so PDF.js _isSameOrigin check passes and
+      // skips the CDN blob-wrapper path, which breaks module worker loading.
+      globalThis.pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('assets/pdf.worker.min.mjs', window.location.href).href;
+
+      globalThis.pdfjsLib.getDocument(demo.src).promise.then(doc => {
+        pdfState.doc      = doc;
+        pdfState.page     = 1;
+        pdfState.numPages = doc.numPages;
+        renderPdfPage(canvas, pageInfo, btnPrev, btnNext);
+      }).catch(() => {
+        pdfContainer.innerHTML = '';
+        pdfContainer.appendChild(missingAsset(demo.src));
+      });
+
+      btnPrev.addEventListener('click', () => {
+        if (pdfState.page > 1) { pdfState.page--; renderPdfPage(canvas, pageInfo, btnPrev, btnNext); IdleTimer.reset(); }
+      });
+      btnNext.addEventListener('click', () => {
+        if (pdfState.page < pdfState.numPages) { pdfState.page++; renderPdfPage(canvas, pageInfo, btnPrev, btnNext); IdleTimer.reset(); }
+      });
+
+      // Fullscreen toggle
+      btnFullscreen.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          pdfContainer.requestFullscreen();
+        } else {
+          document.exitFullscreen();
+        }
+      });
+
+      // Re-render at the correct scale on fullscreen enter/exit
+      document.addEventListener('fullscreenchange', () => {
+        btnFullscreen.textContent = document.fullscreenElement === pdfContainer
+          ? '✕ Exit Fullscreen'
+          : '⛶ Fullscreen';
+        renderPdfPage(canvas, pageInfo, btnPrev, btnNext);
+      });
+
+      // Arrow key navigation while fullscreen
+      document.addEventListener('keydown', (e) => {
+        if (document.fullscreenElement !== pdfContainer) return;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          if (pdfState.page < pdfState.numPages) {
+            pdfState.page++;
+            renderPdfPage(canvas, pageInfo, btnPrev, btnNext);
+            IdleTimer.reset();
+          }
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          if (pdfState.page > 1) {
+            pdfState.page--;
+            renderPdfPage(canvas, pageInfo, btnPrev, btnNext);
+            IdleTimer.reset();
+          }
+        }
+        // Escape is handled natively by the browser to exit fullscreen
+      });
+    }
+
+    function renderPdfPage(canvas, pageInfo, btnPrev, btnNext) {
+      pdfState.doc.getPage(pdfState.page).then(page => {
+        const isFs = document.fullscreenElement != null;
+        const baseViewport = page.getViewport({ scale: 1 });
+        const containerWidth = isFs
+          ? screen.width                              // fill screen in fullscreen
+          : canvas.parentElement.clientWidth * 1.25; // 25% larger in modal
+        const scale = containerWidth / baseViewport.width;
+        const viewport = page.getViewport({ scale });
+        const ctx = canvas.getContext('2d');
+        canvas.width  = viewport.width;
+        canvas.height = viewport.height;
+        page.render({ canvasContext: ctx, viewport });
+        pageInfo.textContent = `Slide ${pdfState.page} of ${pdfState.numPages}`;
+        btnPrev.disabled = pdfState.page <= 1;
+        btnNext.disabled = pdfState.page >= pdfState.numPages;
+      });
+    }
+
+    // ---- Image + text ----
+    function renderImageText(demo, container) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'imagetext-container';
+
+      const img = document.createElement('img');
+      img.src = demo.image || '';
+      img.alt = demo.caption || '';
+      img.addEventListener('error', () => img.replaceWith(missingAsset(demo.image)));
+
+      wrapper.appendChild(img);
+
+      if (demo.caption) {
+        const caption = document.createElement('p');
+        caption.id = 'imagetext-caption';
+        caption.textContent = demo.caption;
+        wrapper.appendChild(caption);
+      }
+
+      container.appendChild(wrapper);
+    }
+
+    // ---- External URL ----
+    function renderExternalUrl(demo, container) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'externalurl-container';
+
+      // Long description with basic markdown rendering
+      if (demo.long_description) {
+        const descDiv = document.createElement('div');
+        descDiv.className = 'faq-long-description';
+        descDiv.innerHTML = renderMarkdown(demo.long_description);
+        wrapper.appendChild(descDiv);
+      }
+
+      // URL display
+      if (demo.url) {
+        const urlDisplay = document.createElement('p');
+        urlDisplay.className = 'faq-url-display';
+        urlDisplay.textContent = demo.url;
+        wrapper.appendChild(urlDisplay);
+      }
+
+      // Open link button
+      const btn = document.createElement('a');
+      btn.className = 'pf-v6-c-button pf-m-primary';
+      const isHash = demo.url && demo.url.startsWith('#');
+      btn.textContent = isHash ? 'Open \u2192' : 'Open Link \u2197';
+      btn.href = demo.url || '#';
+      if (isHash) {
+        // Same-page hash navigation \u2014 close modal so the view switch is visible
+        btn.addEventListener('click', (e) => { e.preventDefault(); closeModal(); window.location.hash = demo.url; });
+      } else {
+        btn.target = '_blank';
+        btn.rel    = 'noopener noreferrer';
+        btn.addEventListener('click', () => IdleTimer.reset());
+      }
+      wrapper.appendChild(btn);
+
+      container.appendChild(wrapper);
+    }
+
+    // ---- Hands-on lab (RHDP) ----
+    function renderLab(demo, container) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'lab-container';
+
+      // Long description with basic markdown rendering
+      if (demo.long_description) {
+        const descDiv = document.createElement('div');
+        descDiv.className = 'faq-long-description';
+        descDiv.innerHTML = renderMarkdown(demo.long_description);
+        wrapper.appendChild(descDiv);
+      }
+
+      // Optional duration hint
+      if (demo.duration) {
+        const dur = document.createElement('p');
+        dur.className = 'lab-duration';
+        dur.textContent = '\u23f1 Estimated time: ' + demo.duration;
+        wrapper.appendChild(dur);
+      }
+
+      // Launch button
+      const btn = document.createElement('a');
+      btn.className = 'pf-v6-c-button pf-m-primary';
+      btn.textContent = 'Launch Lab \u2197';
+      btn.href   = demo.url || '#';
+      btn.target = '_blank';
+      btn.rel    = 'noopener noreferrer';
+      btn.addEventListener('click', () => IdleTimer.reset());
+      wrapper.appendChild(btn);
+
+      container.appendChild(wrapper);
+    }
+
+    // ---- Arcade interactive demo ----
+    function renderArcade(demo, container) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'arcade-container';
+
+      // Apply the per-card aspect ratio derived from Arcade's flow metadata.
+      // Falls back to the CSS default (56.25%) if the field is absent.
+      if (demo.aspect_ratio) {
+        wrapper.style.paddingBottom = 'calc(' + demo.aspect_ratio + ' + 41px)';
+      }
+
+      const iframe = document.createElement('iframe');
+      iframe.src   = demo.url || '';
+      iframe.title = demo.title || 'Arcade Demo';
+      iframe.allowFullscreen = true;
+      iframe.allow = 'clipboard-write';
+      iframe.loading = 'lazy';
+
+      arcadeIframe = iframe;
+      wrapper.appendChild(iframe);
+      container.appendChild(wrapper);
+
+      // No cross-origin play/pause events are available from a sandboxed iframe.
+      // Treat the demo as "always playing" for the duration the modal is open so
+      // the idle countdown never fires on top of an active Arcade session —
+      // matching the intent of the video/asciinema IdleTimer.pause() pattern.
+      state.isPlaying = true;
+      IdleTimer.pause();
+    }
+
+    // ---- Video loop ----
+    // Plays a shuffled playlist of videos, looping forever.
+    // Always muted — designed for ambient/attract use at a conference booth.
+    // Idle timer is suppressed for the full session; the loop is the kiosk resting state.
+    // No play state is retained between opens — playlist reshuffles on each open.
+    function renderVideoLoop(demo, container) {
+      if (!demo.videos || demo.videos.length === 0) {
+        container.appendChild(missingAsset(null, 'video-loop requires at least one entry in the videos list'));
+        return;
+      }
+
+      const video = document.createElement('video');
+      video.muted    = true;
+      video.autoplay = true;
+      video.controls = true;
+      video.preload  = 'auto';
+
+      function shuffle(arr) {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+
+      let playlist = shuffle(demo.videos);
+      let index = 0;
+      let preloader = null;
+
+      // Preload only the next clip. Preloading all clips simultaneously saturates
+      // the connection for remote clients (Firefox fetches all preload=auto elements
+      // aggressively in parallel; Chrome throttles them). One-ahead keeps inter-clip
+      // gaps minimal without starving the playing video.
+      function preloadNext() {
+        if (preloader) { preloader.src = ''; preloader.remove(); }
+        const next = (index + 1) % playlist.length;
+        preloader = document.createElement('video');
+        preloader.muted        = true;
+        preloader.preload      = 'auto';
+        preloader.src          = playlist[next];
+        preloader.style.display = 'none';
+        preloader.load();
+        container.appendChild(preloader);
+      }
+
+      function loadNext() {
+        video.src = playlist[index];
+        video.play().catch(() => {});
+        preloadNext();
+      }
+
+      video.addEventListener('ended', () => {
+        index = (index + 1) % playlist.length;
+        if (index === 0) {
+          // Reshuffle for the next pass, ensuring the first clip of the new pass
+          // isn't the same as the last clip of the previous pass.
+          const last = playlist[playlist.length - 1];
+          playlist = shuffle(demo.videos);
+          if (playlist.length > 1 && playlist[0] === last) {
+            const j = 1 + Math.floor(Math.random() * (playlist.length - 1));
+            [playlist[0], playlist[j]] = [playlist[j], playlist[0]];
+          }
+        }
+        loadNext();
+      });
+
+      video.addEventListener('error', () => {
+        // skip unloadable files silently rather than stopping the loop
+        index = (index + 1) % playlist.length;
+        loadNext();
+      });
+
+      // Suppress idle timer for the full loop session.
+      // cleanupRenderers() handles teardown via the video selector on modal close.
+      state.isPlaying = true;
+      IdleTimer.pause();
+
+      loadNext();
+      container.appendChild(video);
+    }
+
+    // ---- Bundle upload ----
+    // Lets staff drop a kiosk-*.zip directly from this card without visiting /manage.
+    // POSTs to /api/upload/zip; reloads on success so onboarding cards are replaced.
+    function renderUpload(demo, container) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'upload-container';
+
+      const zone = document.createElement('div');
+      zone.className = 'upload-dropzone';
+
+      const icon = document.createElement('div');
+      icon.className = 'upload-dropzone-icon';
+      icon.textContent = '📦';
+
+      const title = document.createElement('p');
+      title.className = 'upload-dropzone-title';
+      title.textContent = 'Drop a kiosk-*.zip bundle here';
+
+      const sub = document.createElement('p');
+      sub.className = 'upload-dropzone-sub';
+      sub.textContent = 'or';
+
+      const chooseBtn = document.createElement('button');
+      chooseBtn.className = 'pf-v6-c-button pf-m-secondary';
+      chooseBtn.textContent = 'Choose file…';
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.zip';
+      fileInput.style.display = 'none';
+
+      zone.append(icon, title, sub, chooseBtn, fileInput);
+      wrapper.appendChild(zone);
+
+      const statusEl = document.createElement('p');
+      statusEl.className = 'upload-status-msg';
+      wrapper.appendChild(statusEl);
+
+      container.appendChild(wrapper);
+
+      chooseBtn.addEventListener('click', () => fileInput.click());
+
+      zone.addEventListener('dragover', e => {
+        e.preventDefault();
+        zone.classList.add('drag-over');
+      });
+      zone.addEventListener('dragleave', e => {
+        if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-over');
+      });
+      zone.addEventListener('drop', e => {
+        e.preventDefault();
+        zone.classList.remove('drag-over');
+        const file = [...e.dataTransfer.files].find(f => f.name.toLowerCase().endsWith('.zip'));
+        if (file) uploadFile(file);
+        else showUploadError('Please drop a .zip bundle file.');
+      });
+
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files[0]) uploadFile(fileInput.files[0]);
+        fileInput.value = '';
+      });
+
+      function setZoneLocked(locked) {
+        zone.style.opacity        = locked ? '0.5' : '';
+        zone.style.pointerEvents  = locked ? 'none' : '';
+      }
+
+      function showUploadError(msg) {
+        statusEl.className   = 'upload-status-msg error';
+        statusEl.textContent = msg;
+        setZoneLocked(false);
+      }
+
+      function uploadFile(file) {
+        statusEl.className   = 'upload-status-msg progress';
+        statusEl.textContent = `Uploading ${file.name}…`;
+        setZoneLocked(true);
+        state.uploadInProgress = true;
+        IdleTimer.pause();
+
+        const form = new FormData();
+        form.append('file', file, file.name);
+
+        fetch('/api/upload/zip', { method: 'POST', body: form })
+          .then(r => r.json().then(data => ({ ok: r.ok, data })))
+          .then(({ ok: success, data }) => {
+            state.uploadInProgress = false;
+            if (success) {
+              statusEl.className   = 'upload-status-msg success';
+              statusEl.textContent = 'Content loaded — reloading…';
+              setTimeout(() => window.location.reload(), 1500);
+            } else {
+              showUploadError(data.error || 'Upload failed.');
+            }
+          })
+          .catch(() => {
+            state.uploadInProgress = false;
+            IdleTimer.reset();
+            showUploadError('Network error — could not reach the server.');
+          });
+      }
+    }
+
+    // ---- Markdown renderer (bold, links, lists, paragraphs) ----
+    // XSS-safe: HTML is escaped BEFORE markdown patterns are applied,
+    // so injected HTML in source text cannot survive.
+    function renderMarkdown(text) {
+      // 1. Escape HTML
+      let s = String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      // 2. Bold: **text**
+      s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+      // 3. Links: [text](url)  — url already HTML-escaped, re-escape quotes only
+      s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
+        const safeUrl = url.replace(/"/g, '&quot;');
+        return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+      });
+
+      // 4. List items: lines starting with - or * (unordered) or 1. 2. (ordered)
+      const lines    = s.split('\n');
+      const out      = [];
+      let listType   = null; // null | 'ul' | 'ol'
+      for (const line of lines) {
+        const ulMatch = line.match(/^[-*]\s+(.+)/);
+        const olMatch = line.match(/^\d+\.\s+(.+)/);
+        if (ulMatch || olMatch) {
+          const newType = ulMatch ? 'ul' : 'ol';
+          if (listType !== newType) {
+            if (listType) out.push(`</${listType}>`);
+            out.push(`<${newType}>`);
+            listType = newType;
+          }
+          out.push(`<li>${(ulMatch || olMatch)[1]}</li>`);
+        } else {
+          if (listType) { out.push(`</${listType}>`); listType = null; }
+          out.push(line);
+        }
+      }
+      if (listType) out.push(`</${listType}>`);
+
+      // 5. Paragraphs: blank lines between non-list blocks
+      s = out.join('\n')
+        .split(/\n{2,}/)
+        .map(block => {
+          block = block.trim();
+          if (!block) return '';
+          // Don't wrap list blocks or existing HTML tags in <p>
+          if (block.startsWith('<ul>') || block.startsWith('<ol>') || block.startsWith('<li>')) return block;
+          return `<p>${block.replace(/\n/g, ' ')}</p>`;
+        })
+        .filter(Boolean)
+        .join('\n');
+
+      return s;
+    }
+
+    // ---- Missing asset notice ----
+    function missingAsset(src, detail) {
+      const div = document.createElement('div');
+      div.className = 'pf-v6-c-alert pf-m-warning pf-m-inline';
+      div.setAttribute('aria-label', 'Warning alert');
+      div.innerHTML =
+        `<div class="pf-v6-c-alert__icon"><span>&#9888;</span></div>` +
+        `<div class="pf-v6-c-alert__title">` +
+          `<strong>Asset not found</strong>${src ? `: <code>${src}</code>` : ''}` +
+          (detail ? `<br><small>${detail}</small>` : '') +
+        `</div>`;
+      return div;
+    }
+
+    // ==========================================================
+    // CARD GRID
+    // ==========================================================
+    function buildGrid() {
+      const grid = document.getElementById('faq-grid');
+      grid.innerHTML = '';
+
+      // video-loop cards are never shown in the grid — they are launched from the
+      // header button. Filter them out regardless of their enabled/visibility state.
+      const entries = Order.apply(FAQ.all()).filter(e => Visibility.get(e) && e.demo?.type !== 'video-loop');
+
+      if (entries.length === 0) {
+        const msg = document.createElement('p');
+        msg.className = 'faq-grid-empty';
+        msg.textContent = 'No FAQ entries to display. Enable cards from the admin view.';
+        grid.appendChild(msg);
+      } else {
+        entries.forEach(entry => {
+          const card = document.createElement('article');
+          card.className = 'pf-v6-c-card pf-m-clickable faq-card';
+          card.setAttribute('tabindex', '0');
+          card.setAttribute('aria-label', entry.title);
+          card.innerHTML =
+            `<div class="pf-v6-c-card__title">` +
+              `<h2 class="pf-v6-c-card__title-text">${escHtml(entry.title)}</h2>` +
+            `</div>` +
+            (entry.summary
+              ? `<div class="pf-v6-c-card__body">${escHtml(entry.summary)}</div>`
+              : '');
+          card.addEventListener('click', () => openModal(entry));
+          card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') openModal(entry); });
+          grid.appendChild(card);
+        });
+      }
+
+    }
+
+    function escHtml(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ==========================================================
+    // ADMIN VIEW
+    // ==========================================================
+    function showAdminView() {
+      document.getElementById('faq-grid').style.display  = 'none';
+      document.getElementById('admin-view').style.display = 'block';
+      renderAdminStats();
+      renderVisibilityPanel();
+      renderAdminTable();
+    }
+
+    function showFaqView() {
+      document.getElementById('admin-view').style.display = 'none';
+      document.getElementById('faq-grid').style.display  = '';
+      window.location.hash = '';
+    }
+
+    function renderAdminStats() {
+      const log = Log.read();
+      const statsEl = document.getElementById('admin-stats');
+
+      const totalViews = log.length;
+      const avgTime    = totalViews
+        ? Math.round(log.reduce((s, e) => s + (e.time_open_seconds || 0), 0) / totalViews)
+        : 0;
+
+      // Most viewed
+      const counts = {};
+      log.forEach(e => { counts[e.question_title] = (counts[e.question_title] || 0) + 1; });
+      const topTitle = Object.keys(counts).sort((a,b) => counts[b]-counts[a])[0] || '—';
+      const topCount = counts[topTitle] || 0;
+
+      // Type breakdown
+      const types = {};
+      log.forEach(e => { types[e.demo_type] = (types[e.demo_type] || 0) + 1; });
+      const typeBreakdown = Object.entries(types).map(([t,c]) => `${t}: ${c}`).join(', ') || '—';
+
+      statsEl.innerHTML =
+        statCard('Total Views', `${totalViews}`) +
+        statCard('Avg. Time Open', `${avgTime}s`) +
+        statCard('Most Viewed', escHtml(topTitle), `${topCount} view${topCount !== 1 ? 's' : ''}`) +
+        statCard('By Type', escHtml(typeBreakdown));
+    }
+
+    function statCard(label, value, detail) {
+      return `<div class="pf-v6-c-card stat-card">` +
+        `<div class="pf-v6-c-card__title"><h3 class="pf-v6-c-card__title-text">${label}</h3></div>` +
+        `<div class="pf-v6-c-card__body">` +
+          `<div class="stat-value">${value}</div>` +
+          (detail ? `<div class="stat-detail">${detail}</div>` : '') +
+        `</div>` +
+      `</div>`;
+    }
+
+    function renderAdminTable() {
+      const log  = Log.read();
+      const tbody = document.getElementById('admin-tbody');
+
+      if (log.length === 0) {
+        tbody.innerHTML =
+          `<tr class="pf-v6-c-table__tr" role="row">` +
+          `<td class="pf-v6-c-table__td admin-empty" colspan="4">No views recorded yet.</td>` +
+          `</tr>`;
+        return;
+      }
+
+      // Show newest first
+      tbody.innerHTML = [...log].reverse().map(e =>
+        `<tr class="pf-v6-c-table__tr" role="row">` +
+          `<td class="pf-v6-c-table__td" data-label="Timestamp">${escHtml(e.timestamp)}</td>` +
+          `<td class="pf-v6-c-table__td" data-label="Question">${escHtml(e.question_title)}</td>` +
+          `<td class="pf-v6-c-table__td" data-label="Type">${escHtml(e.demo_type)}</td>` +
+          `<td class="pf-v6-c-table__td" data-label="Time Open">${e.time_open_seconds}s</td>` +
+        `</tr>`
+      ).join('');
+    }
+
+    function renderVisibilityPanel() {
+      const tbody   = document.getElementById('visibility-tbody');
+      const entries = Order.apply(FAQ.all());
+
+      if (entries.length === 0) {
+        tbody.innerHTML =
+          `<tr><td colspan="4" style="padding:1rem;color:var(--pf-t--global--text--color--subtle)">No cards loaded.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = '';
+
+      entries.forEach(entry => {
+        const defaultOn   = entry.enabled !== false;
+        const effectiveOn = Visibility.get(entry);
+        const btnLabel    = effectiveOn ? 'Hide' : 'Show';
+        const btnClass    = effectiveOn ? 'pf-m-secondary' : 'pf-m-primary';
+
+        const tr = document.createElement('tr');
+        tr.draggable = true;
+        tr.dataset.entryId = entry.id;
+        tr.innerHTML =
+          `<td class="visibility-drag-handle" aria-hidden="true">&#8597;</td>` +
+          `<td>${escHtml(entry.title)}</td>` +
+          `<td>${defaultOn ? 'enabled' : 'disabled'}</td>` +
+          `<td>` +
+            `<button class="pf-v6-c-button pf-m-small ${btnClass}" ` +
+              `data-vis-id="${escHtml(entry.id)}" ` +
+              `data-vis-val="${effectiveOn ? 'false' : 'true'}">${btnLabel}</button>` +
+          `</td>`;
+
+        tbody.appendChild(tr);
+      });
+
+      // Drag-to-reorder
+      let dragSrc = null;
+      tbody.querySelectorAll('tr').forEach(row => {
+        row.addEventListener('dragstart', e => {
+          dragSrc = row;
+          row.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+
+        row.addEventListener('dragend', () => {
+          row.classList.remove('dragging');
+          tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+        });
+
+        row.addEventListener('dragover', e => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (row !== dragSrc) {
+            tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+            row.classList.add('drag-over');
+          }
+        });
+
+        row.addEventListener('drop', e => {
+          e.preventDefault();
+          if (!dragSrc || dragSrc === row) return;
+          const rect = row.getBoundingClientRect();
+          if (e.clientY < rect.top + rect.height / 2) {
+            tbody.insertBefore(dragSrc, row);
+          } else {
+            tbody.insertBefore(dragSrc, row.nextSibling);
+          }
+          row.classList.remove('drag-over');
+
+          // Persist new order
+          const allEntries = FAQ.all();
+          const idMap = new Map(allEntries.map(e => [e.id, e]));
+          const ordered = [...tbody.querySelectorAll('tr')]
+            .map(r => idMap.get(r.dataset.entryId))
+            .filter(Boolean);
+          Order.save(ordered);
+          buildGrid();
+        });
+      });
+
+      // Attach visibility toggle listeners
+      tbody.querySelectorAll('button[data-vis-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          Visibility.set(btn.dataset.visId, btn.dataset.visVal === 'true');
+          renderVisibilityPanel();
+        });
+      });
+    }
+
+    function downloadCsv() {
+      const log = Log.read();
+      const header = ['Timestamp','Question ID','Question Title','Demo Type','Time Open (s)'];
+      const rows   = log.map(e => [
+        e.timestamp, e.question_id, e.question_title, e.demo_type, e.time_open_seconds
+      ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+      const csv = [header.join(','), ...rows].join('\r\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `faq-views-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('btn-reset-visibility').addEventListener('click', () => {
+      Visibility.reset();
+      renderVisibilityPanel();
+    });
+    document.getElementById('btn-reset-order').addEventListener('click', () => {
+      Order.reset();
+      renderVisibilityPanel();
+    });
+    document.getElementById('btn-download-csv').addEventListener('click', downloadCsv);
+    document.getElementById('btn-clear-log').addEventListener('click', () => {
+      if (confirm('Clear all view history? This cannot be undone.')) {
+        Log.clear();
+        renderAdminStats();
+        renderAdminTable();
+      }
+    });
+    document.getElementById('btn-back-to-faq').addEventListener('click', showFaqView);
+
+    document.getElementById('ui-mode-toggle').addEventListener('change', async function() {
+      if (!this.checked) return;
+      try {
+        await fetch('/api/ui-mode', {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({mode: 'modern'})
+        });
+        window.location = '/setup';
+      } catch (e) {
+        this.checked = false;
+      }
+    });
+
+    // ==========================================================
+    // ROUTING (hash-based)
+    // ==========================================================
+    function route() {
+      if (window.location.hash === '#admin') {
+        showAdminView();
+      } else {
+        showFaqView();
+      }
+    }
+
+    window.addEventListener('hashchange', route);
+
+    // ==========================================================
+    // BOOT
+    // ==========================================================
+    document.getElementById('header-logo-rh').alt         = CONFIG.title;
+    document.getElementById('header-title').textContent = CONFIG.subtitle;
+
+    // Make header clickable to return to main page
+    document.getElementById('site-header').addEventListener('click', (e) => {
+      // Don't intercept clicks on links inside the header (e.g. event logo link)
+      if (e.target.closest('a')) return;
+      // If a video-loop card is configured and visible, the header launches it.
+      // Multiple loops can be defined; the first visible one is active.
+      // Use the admin panel to toggle which loop plays.
+      // Otherwise fall back to closing any open modal and returning to the grid.
+      const loopEntry = FAQ.all().find(en => en.demo?.type === 'video-loop' && Visibility.get(en));
+      if (loopEntry) {
+        closeModal();
+        openModal(loopEntry);
+      } else {
+        closeModal();
+        showFaqView();
+      }
+    });
+
+    // Start idle timer immediately on page load (kiosk: return to home if abandoned)
+    IdleTimer.reset();
+
+    // ==========================================================
+    // BRANDING
+    // ==========================================================
+    // Load branding configuration first, then apply it.
+    // content/branding.js is auto-generated from content/branding/branding.yaml
+    (function loadBranding() {
+      const script = document.createElement('script');
+      script.src = 'content/branding.js';
+      script.onload = () => {
+        if (window.BRANDING) {
+          applyBranding(window.BRANDING);
+        }
+        loadFaqsJs();
+      };
+      script.onerror = () => {
+        console.warn('[FAQ] Failed to load content/branding.js — using defaults');
+        loadFaqsJs();
+      };
+      document.head.appendChild(script);
+    })();
+
+    function applyBranding(branding) {
+      // Update logos
+      const logoPrimary = document.getElementById('header-logo-rh');
+      logoPrimary.src = branding.logos.primary.file;
+      logoPrimary.alt = branding.logos.primary.alt_text;
+
+      const logoSecondary = document.getElementById('header-logo-hummingbird');
+      logoSecondary.src = branding.logos.secondary.file;
+      logoSecondary.alt = branding.logos.secondary.alt_text;
+      if (branding.logos.secondary.url) {
+        const link = document.createElement('a');
+        link.href   = branding.logos.secondary.url;
+        link.target = '_blank';
+        link.rel    = 'noopener noreferrer';
+        // Move the grid-positioning ID to the <a> so CSS layout is unchanged.
+        link.id = logoSecondary.id;
+        logoSecondary.removeAttribute('id');
+        logoSecondary.style.height = '100%';
+        logoSecondary.style.width  = 'auto';
+        logoSecondary.style.display = 'block';
+        logoSecondary.parentNode.replaceChild(link, logoSecondary);
+        link.appendChild(logoSecondary);
+      }
+
+      // Update header and tagline
+      document.getElementById('header-title').textContent = branding.event.header;
+
+      // Update tagline if present
+      const taglineEl = document.getElementById('header-tagline');
+      if (branding.event.tagline) {
+        taglineEl.textContent = branding.event.tagline;
+        taglineEl.style.display = '';
+      } else {
+        taglineEl.style.display = 'none';
+      }
+
+      // Update browser tab title (use title if present, otherwise fall back to header)
+      document.title = branding.event.title || branding.event.header;
+
+      // Update colors
+      const root = document.documentElement;
+      root.style.setProperty('--pf-t--global--color--brand--default', branding.colors.brand_primary);
+      root.style.setProperty('--pf-t--global--color--brand--hover', branding.colors.brand_hover);
+      document.body.style.backgroundColor = branding.colors.page_background;
+      document.getElementById('site-header').style.setProperty('--pf-v6-c-masthead--BackgroundColor', branding.colors.header_background);
+
+      // Update CONFIG with layout settings
+      CONFIG.title = branding.event.title || branding.event.header;
+      CONFIG.subtitle = branding.event.header;
+      CONFIG.idleTimeoutSeconds = branding.layout.idle_timeout_seconds;
+      CONFIG.countdownSeconds = branding.layout.countdown_seconds;
+      CONFIG.columns = branding.layout.card_columns;
+
+      // Update footer
+      const footerCopyright = document.querySelector('#site-footer');
+      if (footerCopyright) {
+        const copyrightText = footerCopyright.lastChild;
+        if (copyrightText && copyrightText.nodeType === Node.TEXT_NODE) {
+          copyrightText.textContent = `\u00a9 ${branding.footer.copyright}`;
+        }
+      }
+    }
+
+    // ==========================================================
+    // FAQ ENTRIES
+    // ==========================================================
+    // content/faqs.js is auto-generated from content/faqs/*.yaml by build-faqs.py.
+    // It is loaded here, after the module has fully initialised, so
+    // that FAQ.register() and buildGrid() are both available.
+    //
+    // To add or reorder cards:
+    //   1. Copy content/faqs/_template.yaml to a new file in content/faqs/
+    //   2. Fill in the fields (set `order` to control position)
+    //   3. Run:  python3 build-faqs.py
+    //      This regenerates content/faqs.js — no edits here needed.
+    function loadFaqsJs() {
+      const script = document.createElement('script');
+      script.src = 'content/faqs.js';
+      script.onload = () => { buildGrid(); route(); };
+      script.onerror = () => {
+        console.error('[FAQ] Failed to load content/faqs.js — run: python3 build-faqs.py');
+      };
+      document.head.appendChild(script);
+    }
+
+  </script>
+
+  <footer id="site-footer">
+    <a href="#admin">Statistics</a> &nbsp;&middot;&nbsp;
+    &copy; Red Hat, Inc.
+  </footer>
+
+</body>
+</html>

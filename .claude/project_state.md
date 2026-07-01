@@ -1,59 +1,51 @@
 # Project State
 
 ## Current Branch
-`feature/kiosk-phase1-phase2` — consolidated from phase1 + phase2; 6 existing
-commits from those branches plus new improvement commits. Not yet committed or pushed.
+`feature/event-content-pipeline` — 11 commits ahead of main. Contains both
+backend improvements and new multi-page UI (setup/display/stats).
 
 ## What Was Done
 
-### Branch consolidation
-Created `feature/kiosk-phase1-phase2` from `feature/phase2-author-tool` tip
-(commit `4184b1d`). This carries all 6 existing commits from both phases.
+### Feature flag for UI mode (uncommitted)
+Added `KIOSK_UI` environment variable (`classic` or `modern`, default `classic`)
+to gate the new multi-page UI while keeping all backend improvements active.
 
-### PR #17 merged — GitHub Actions CI workflow
-- `.github/workflows/ci.yml`: lint, build-kiosk (podman + upload test), build-author (Node 24)
-- `test-upload.sh` moved to `tests/test-upload.sh`
-- Containerfile heredoc scripts extracted to `build/apply-faststart.py` and `build/make-extras.py`
+**Files changed:**
+- `app/serve.py` — module-level `_kiosk_ui_mode` from env var, conditional routing
+  in `do_GET`, `PUT /api/ui-mode` handler for runtime toggle, `_redirect` helper
+- `app/index-classic.html` — restored from `main:app/index.html` (old index with
+  inline #admin section)
+- `app/manage.html` — restored from `main:app/manage.html` + "Try new UI" toggle
+  checkbox in header
+- `Containerfile` — `ENV KIOSK_UI=classic` with CUTOVER comment
+- `demo-kiosk.container` — `Environment=KIOSK_UI=classic` with CUTOVER comment,
+  updated URL references for both modes
+- `.containerignore` — removed `app/manage.html` so it ships in container
 
-### PR #16 merged — Makefile build convention
-- `devel` tag default for all build targets; `latest` reserved for stable releases
-- Author tool targets: `build-author`, `push-author`, `clean-author`, `run-author`
+**Routing behavior:**
+- Classic (default): `/` → `index-classic.html`, `/manage` → `manage.html`,
+  `/setup` → 302 to `/manage`
+- Modern: `/setup` → `setup.html`, `/display` → `display.html`,
+  `/stats` → `stats.html`, `/manage` → 302 to `/setup`
+- All `/api/*` endpoints identical in both modes
+- `GET/PUT /api/ui-mode` toggles at runtime without restart
 
-### Improvements on consolidated branch (pending commit)
+**Verified:** all routes tested in both modes, env var override works, invalid
+mode rejected with 400.
 
-1. **yamlGen.js** — removed vestigial `order` field from `cardToYaml()`;
-   function no longer takes `index` parameter
-
-2. **zipHandler.js** — updated `cardToYaml(card, index)` → `cardToYaml(card)`;
-   removed unused `index` parameter from forEach; added `kiosk/bundle.yaml`
-   emission (`bundle_type: full`, `schema_version: 2`)
-
-3. **validation.js** — rewritten with spec-driven validation: `DEMO_TYPE_SPEC`
-   map replaces per-type if/else chain; `FAMILY_VALUES` set added; image-text
-   caption validation added; all rules derived from `bundle-spec.yaml`
-
-4. **CardEditModal.jsx** — added sync comment on `FAMILY_VALUES` noting
-   `bundle-spec.yaml` as source of truth
-
-5. **build-faqs.py** — added `--lenient` flag: skips invalid cards instead of
-   aborting, warns on stderr, exits 0 so runtime uploads succeed with partial
-   content
-
-6. **serve.py** — `_rebuild()` now passes `--lenient` to `build-faqs.py`
-
-7. **spec.md** — consolidated from spec.md + spec-phase2-author.md into single
-   spec reflecting combined feature; spec-phase2-author.md removed
+### Cutover checklist (for when new UI is approved)
+1. `Containerfile` — change `ENV KIOSK_UI=classic` → `ENV KIOSK_UI=modern`
+2. `demo-kiosk.container` — change `Environment=KIOSK_UI=classic` → `Environment=KIOSK_UI=modern`
+3. `app/serve.py` — change fallback default `'classic'` → `'modern'`
+4. Remove `app/index-classic.html` and `app/manage.html`
+5. Remove toggle checkbox and `/api/ui-mode` endpoint
+6. Update quadlet comments
 
 ## What's Next
 
-1. **Commit changes** — 4 commits per plan:
-   - Drop vestigial order field and emit bundle manifest (yamlGen + zipHandler)
-   - Add spec-complete validation to author tool (validation.js + CardEditModal)
-   - Accept partial content in runtime rebuild (build-faqs.py + serve.py)
-   - Consolidate specs for combined feature (spec files + project_state)
-2. **Test** — build author tool, verify export/import round-trip; build container,
-   verify lenient upload behavior
-3. **PR** — open PR from `feature/kiosk-phase1-phase2` to `main`
-4. **After merge** — delete `feature/phase1-categories-admin` and
-   `feature/phase2-author-tool` (local + remote)
-5. **After merge** — push `devel` images to quay.io
+1. **User review** — visual check of manage.html toggle, confirm classic UI matches
+   production expectations
+2. **Commit** — commit the feature flag changes
+3. **Merge to main** — PR from feature branch
+4. **User testing** — event staff test modern UI via toggle or `KIOSK_UI=modern`
+5. **Cutover** — when approved, flip defaults per checklist above
