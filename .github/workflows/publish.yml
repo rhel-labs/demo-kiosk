@@ -1,0 +1,124 @@
+name: Publish
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  KIOSK_IMAGE: ghcr.io/${{ github.repository }}
+  AUTHOR_IMAGE: ghcr.io/${{ github.repository }}-author
+
+jobs:
+  build-kiosk:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            suffix: amd64
+          - runner: ubuntu-24.04-arm
+            suffix: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Log in to ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Set tags
+        id: tags
+        run: |
+          echo "sha_short=$(echo '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Build kiosk image
+        run: |
+          podman build \
+            --tag ${{ env.KIOSK_IMAGE }}:${{ steps.tags.outputs.sha_short }}-${{ matrix.suffix }} \
+            --label org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }} \
+            --label org.opencontainers.image.revision=${{ github.sha }} \
+            --label org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+            --label org.opencontainers.image.description="Demo kiosk for Red Hat events" \
+            .
+
+      - name: Push per-arch image
+        run: podman push ${{ env.KIOSK_IMAGE }}:${{ steps.tags.outputs.sha_short }}-${{ matrix.suffix }}
+    outputs:
+      sha_short: ${{ steps.tags.outputs.sha_short }}
+      date: ${{ steps.tags.outputs.date }}
+
+  build-author:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            suffix: amd64
+          - runner: ubuntu-24.04-arm
+            suffix: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Log in to ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Set tags
+        id: tags
+        run: echo "sha_short=$(echo '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - name: Build author image
+        run: |
+          podman build \
+            --tag ${{ env.AUTHOR_IMAGE }}:${{ steps.tags.outputs.sha_short }}-${{ matrix.suffix }} \
+            --label org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }} \
+            --label org.opencontainers.image.revision=${{ github.sha }} \
+            --label org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+            --label org.opencontainers.image.description="Demo kiosk authoring tool" \
+            author/
+
+      - name: Push per-arch image
+        run: podman push ${{ env.AUTHOR_IMAGE }}:${{ steps.tags.outputs.sha_short }}-${{ matrix.suffix }}
+
+  manifest:
+    needs: [build-kiosk, build-author]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Publish kiosk manifest
+        env:
+          IMG: ${{ env.KIOSK_IMAGE }}
+          SHA: ${{ needs.build-kiosk.outputs.sha_short }}
+          DATE: ${{ needs.build-kiosk.outputs.date }}
+        run: |
+          podman manifest create ${IMG}:manifest \
+            ${IMG}:${SHA}-amd64 \
+            ${IMG}:${SHA}-arm64
+          for TAG in "sha-${SHA}" "${DATE}" "latest"; do
+            podman manifest push ${IMG}:manifest docker://${IMG}:${TAG}
+          done
+
+      - name: Publish author manifest
+        env:
+          IMG: ${{ env.AUTHOR_IMAGE }}
+          SHA: ${{ needs.build-kiosk.outputs.sha_short }}
+          DATE: ${{ needs.build-kiosk.outputs.date }}
+        run: |
+          podman manifest create ${IMG}:manifest \
+            ${IMG}:${SHA}-amd64 \
+            ${IMG}:${SHA}-arm64
+          for TAG in "sha-${SHA}" "${DATE}" "latest"; do
+            podman manifest push ${IMG}:manifest docker://${IMG}:${TAG}
+          done
