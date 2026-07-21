@@ -5,7 +5,7 @@
 #   devel  — active development / unreleased work (default for all targets here)
 #   latest — stable release; set manually after a PR merges and is verified
 
-IMAGE_REGISTRY ?= quay.io/mmicene
+IMAGE_REGISTRY ?= ghcr.io/rhel-labs
 IMAGE_TAG      ?= devel
 
 KIOSK_IMAGE  := $(IMAGE_REGISTRY)/demo-kiosk:$(IMAGE_TAG)
@@ -14,7 +14,9 @@ AUTHOR_IMAGE := $(IMAGE_REGISTRY)/demo-kiosk-author:$(IMAGE_TAG)
 PORT        := 8181
 AUTHOR_PORT := 8082
 CONTENT_DIR ?= $(PWD)/content
-UPLOAD_ZIP  ?= $(PWD)/kiosk.zip
+UPLOAD_ZIP  ?= $(PWD)/tests/fixtures/bundles/valid-full-bundle.zip
+HOST        ?= 127.0.0.1
+BIND_ADDR   ?= 127.0.0.1
 
 # ── Kiosk ────────────────────────────────────────────────────────────
 
@@ -30,21 +32,22 @@ clean: ## Remove kiosk image
 test: build ## Build and run kiosk locally
 	podman run --rm -p 127.0.0.1:$(PORT):8181 $(KIOSK_IMAGE)
 
-lint: ## Lint YAML content files (requires: pip3 install -r build/requirements.txt)
-	python3 build/lint-content.py
+lint: ## Lint YAML content files (requires: pip3 install -r dev/requirements.txt)
+	python3 scripts/lint-content.py
 
 test-volume: build ## Build and run kiosk with local content volume
 	@echo "Linting content..."
-	@python3 build/lint-content.py
+	@python3 scripts/lint-content.py
 	@echo "Building content locally..."
-	@python3 build/build-faqs.py
+	@python3 scripts/build-faqs.py
 	@echo "Starting kiosk with volume mount: $(CONTENT_DIR)"
 	podman run --rm -p 127.0.0.1:$(PORT):8181 \
 	  -v $(CONTENT_DIR):/srv/faq/content:ro \
 	  $(KIOSK_IMAGE)
 
-test-upload: build ## End-to-end upload test: POST $(UPLOAD_ZIP) to a fresh container
-	IMAGE=$(KIOSK_IMAGE) PORT=$(PORT) UPLOAD_ZIP=$(UPLOAD_ZIP) bash tests/test-upload.sh
+test-upload: ## End-to-end upload test: POST $(UPLOAD_ZIP) to a fresh container
+	IMAGE=$(KIOSK_IMAGE) PORT=$(PORT) UPLOAD_ZIP=$(UPLOAD_ZIP) \
+	  HOST=$(HOST) BIND_ADDR=$(BIND_ADDR) bash tests/test-upload.sh
 
 # ── Author tool ──────────────────────────────────────────────────────
 

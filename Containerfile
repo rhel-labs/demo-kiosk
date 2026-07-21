@@ -47,15 +47,15 @@ RUN dnf install -y unzip && dnf clean all
 
 USER 65532
 # Copy requirements first so pip install is a separate cached layer
-COPY --chown=65532:65532 build/requirements.txt ./build/
-RUN pip3 install --quiet -r build/requirements.txt
+COPY --chown=65532:65532 scripts/requirements.txt ./scripts/
+RUN pip3 install --quiet -r scripts/requirements.txt
 
 # App source — templates read by generators.
 # (.containerignore excludes library files; only app source enters from build context)
 COPY --chown=65532:65532 app/ ./app/
 
 # Build tools
-COPY --chown=65532:65532 build/ ./build/
+COPY --chown=65532:65532 scripts/ ./scripts/
 
 # Content acquisition — local YAML, branding, and media.
 # The kiosk zip (Google Drive bundle) overlays the full content/ tree, so
@@ -92,24 +92,24 @@ RUN if [ -f kiosk-bundle.zip ] && [ -s kiosk-bundle.zip ]; then \
 # frame; Chrome tolerates them but Firefox does not.  qtfaststart is a pure-
 # Python implementation of the same operation extracted from the FFmpeg project;
 # it re-muxes without re-encoding so there is no quality loss.
-RUN python3 build/apply-faststart.py
+RUN python3 scripts/apply-faststart.py
 
 # Generate faqs.js and branding.js from the final content state, then lint.
 # Both steps see bundle-provided YAML and media if a bundle was present.
-RUN python3 build/build-faqs.py
-RUN python3 build/lint-content.py
+RUN python3 scripts/build-faqs.py
+RUN python3 scripts/lint-content.py
 
 # Author-facing files for the extras bundle.
 # Copied here (builder only) so they are not present in the runtime stage
 # except as part of the tarball — /srv/faq stays clean.
-COPY --chown=65532:65532 AUTHORING.md        ./
-COPY --chown=65532:65532 demo-kiosk.container ./
-COPY --chown=65532:65532 package.json         ./
-COPY --chown=65532:65532 start.sh             ./
+COPY --chown=65532:65532 AUTHORING.md              ./
+COPY --chown=65532:65532 demo-kiosk.container      ./
+COPY --chown=65532:65532 package.json              ./
+COPY --chown=65532:65532 scripts/start.sh          ./
 
 # Bundle all author tooling into a single tarball for `podman cp` extraction.
 # Uses python3 tarfile (stdlib) — tar is not available in this builder image.
-RUN python3 build/make-extras.py
+RUN python3 scripts/make-extras.py
 
 
 # ── Stage 3: runtime ─────────────────────────────────────────────
@@ -155,14 +155,14 @@ COPY --from=builder --chown=65532:65532 \
 # Linter script — available for manual invocation against a mounted content directory.
 # Usage: podman run --rm -v ./content:/mnt/content:ro IMAGE \
 #          python3 /srv/faq/lint-content.py --content-dir /mnt/content
-COPY --from=builder --chown=65532:65532 /tmp/build/lint-content.py ./lint-content.py
+COPY --from=builder --chown=65532:65532 /tmp/scripts/lint-content.py ./lint-content.py
 
 # FAQ generator and its Jinja2 templates — used by serve.py to rebuild faqs.js
 # after runtime uploads via /setup. build-faqs.py resolves paths from its own
-# location, so it must live at ./build/build-faqs.py and templates at ./app/faqs/.
-COPY --from=builder --chown=65532:65532 /tmp/build/build-faqs.py    ./build/build-faqs.py
-COPY --from=builder --chown=65532:65532 /tmp/build/bundle-spec.yaml ./build/bundle-spec.yaml
-COPY --from=builder --chown=65532:65532 /tmp/app/faqs/              ./app/faqs/
+# location, so it must live at ./scripts/build-faqs.py and templates at ./app/faqs/.
+COPY --from=builder --chown=65532:65532 /tmp/scripts/build-faqs.py    ./scripts/build-faqs.py
+COPY --from=builder --chown=65532:65532 /tmp/scripts/bundle-spec.yaml ./scripts/bundle-spec.yaml
+COPY --from=builder --chown=65532:65532 /tmp/app/faqs/                ./app/faqs/
 
 # Third-party libraries from the asset-builder npm stage.
 # These change only when package.json version pins are bumped — stable across
@@ -177,7 +177,7 @@ COPY --from=builder --chown=65532:65532 /tmp/content/media/ ./content/media/
 # First-party app source — feature cadence.
 # (.containerignore excludes library files; logo-summit.svg and pdf-init.mjs come through here)
 COPY --chown=65532:65532 app/ ./
-COPY --chown=65532:65532 healthcheck.py ./
+COPY --chown=65532:65532 scripts/healthcheck.py ./
 
 # FAQ content — changes with demo updates.
 COPY --from=builder --chown=65532:65532 /tmp/content/faqs/      ./content/faqs/

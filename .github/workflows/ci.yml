@@ -4,6 +4,17 @@ on:
   pull_request:
   push:
     branches: [main]
+    paths:
+      - 'app/**'
+      - 'author/**'
+      - 'scripts/**'
+      - 'content/**'
+      - 'Containerfile'
+      - 'demo-kiosk.container'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tests/**'
+      - '.github/workflows/ci.yml'
 
 jobs:
   lint:
@@ -14,7 +25,7 @@ jobs:
         with:
           python-version: '3.x'
       - run: pip install pyyaml yamllint
-      - run: python3 build/lint-content.py
+      - run: python3 scripts/lint-content.py
 
   build-kiosk:
     runs-on: ubuntu-latest
@@ -25,15 +36,8 @@ jobs:
       - name: Build kiosk image
         run: podman build -t demo-kiosk:ci .
 
-      - name: Create test bundle
-        run: |
-          mkdir -p tests/fixture/kiosk/faqs tests/fixture/kiosk/branding
-          cp content/faqs/*.yaml tests/fixture/kiosk/faqs/
-          cp content/branding/branding.yaml content/branding/*.svg tests/fixture/kiosk/branding/
-          cd tests/fixture && zip -r ../../test-bundle.zip kiosk/
-
       - name: Upload test
-        run: IMAGE=demo-kiosk:ci PORT=8181 UPLOAD_ZIP=test-bundle.zip bash tests/test-upload.sh
+        run: IMAGE=demo-kiosk:ci PORT=8181 UPLOAD_ZIP=tests/fixtures/bundles/valid-full-bundle.zip bash tests/test-upload.sh
 
   build-author:
     runs-on: ubuntu-latest

@@ -14,7 +14,7 @@
 #   app/faqs/faqs.js.j2   — Jinja2 template           (app machinery)
 #
 # USAGE:
-#   python3 build/build-faqs.py
+#   python3 scripts/build-faqs.py
 #
 # Run this before starting the local dev server, or let the
 # Containerfile builder stage run it automatically.
@@ -47,7 +47,7 @@ except ImportError:
     sys.exit(1)
 
 # ── Paths ─────────────────────────────────────────────────────────
-SCRIPT_DIR        = Path(__file__).parent.resolve()   # build/
+SCRIPT_DIR        = Path(__file__).parent.resolve()   # scripts/
 PROJECT_ROOT      = SCRIPT_DIR.parent
 CONTENT_DIR       = PROJECT_ROOT / "content"
 FAQS_DIR          = CONTENT_DIR / "faqs"              # author YAML lives here
@@ -64,7 +64,7 @@ def encode_media_path(raw):
 # ── Spec loading ──────────────────────────────────────────────────
 
 def load_spec():
-    """Load build/bundle-spec.yaml relative to this script's location."""
+    """Load scripts/bundle-spec.yaml relative to this script's location."""
     spec_path = SCRIPT_DIR / "bundle-spec.yaml"
     try:
         return yaml.safe_load(spec_path.read_text(encoding="utf-8"))

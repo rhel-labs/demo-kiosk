@@ -3,6 +3,16 @@ name: Publish
 on:
   push:
     branches: [main]
+    paths:
+      - 'app/**'
+      - 'author/**'
+      - 'scripts/**'
+      - 'content/**'
+      - 'Containerfile'
+      - 'demo-kiosk.container'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/publish.yml'
   workflow_dispatch:
 
 concurrency:

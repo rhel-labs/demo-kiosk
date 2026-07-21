@@ -2,7 +2,7 @@ import tarfile, os
 
 WORKDIR = "/tmp"
 MEMBERS = [
-    "build",
+    "scripts",
     "app/faqs",
     "content/faqs",
     "AUTHORING.md",

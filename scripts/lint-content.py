@@ -11,8 +11,8 @@
 # before the image is finalised.
 #
 # USAGE:
-#   python3 build/lint-content.py
-#   python3 build/lint-content.py --content-dir /mnt/content
+#   python3 scripts/lint-content.py
+#   python3 scripts/lint-content.py --content-dir /mnt/content
 #
 # From a running container with a mounted content directory:
 #   podman run --rm \
@@ -21,7 +21,7 @@
 #     python3 /srv/faq/lint-content.py --content-dir /mnt/content
 #
 # REQUIREMENTS:
-#   pip3 install -r build/requirements.txt
+#   pip3 install -r dev/requirements.txt
 #   (pyyaml, yamllint)
 # ================================================================
 
@@ -59,7 +59,7 @@ def err(msg):  print(f"{RED}  ✗{RESET} {msg}")
 # ── Spec loading ──────────────────────────────────────────────────
 
 def load_spec():
-    """Load build/bundle-spec.yaml relative to this script's location."""
+    """Load scripts/bundle-spec.yaml relative to this script's location."""
     spec_path = Path(__file__).parent / "bundle-spec.yaml"
     try:
         return yaml.safe_load(spec_path.read_text(encoding="utf-8"))
@@ -489,7 +489,7 @@ def main():
     if args.content_dir:
         content_dir = Path(args.content_dir).resolve()
     else:
-        script_dir  = Path(__file__).parent.resolve()   # build/
+        script_dir  = Path(__file__).parent.resolve()   # scripts/
         content_dir = script_dir.parent / "content"     # project root / content
 
     faqs_dir      = content_dir / "faqs"

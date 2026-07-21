@@ -16,7 +16,8 @@
 set -euo pipefail
 
 PORT="${PORT:-8181}"
-IMAGE="${IMAGE:-quay.io/mmicene/demo-kiosk:latest}"
+HOST="${HOST:-127.0.0.1}"
+IMAGE="${IMAGE:-ghcr.io/rhel-labs/demo-kiosk:latest}"
 ZIP="${UPLOAD_ZIP:-${1:-kiosk.zip}}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; RESET='\033[0m'
@@ -40,13 +41,14 @@ trap cleanup EXIT
 
 # ── Start container ───────────────────────────────────────────────
 info "Starting container $CNAME from $IMAGE"
-podman run -d --name "$CNAME" -p "127.0.0.1:${PORT}:8181" "$IMAGE" >/dev/null
+BIND="${BIND_ADDR:-127.0.0.1}"
+podman run -d --name "$CNAME" -p "${BIND}:${PORT}:8181" "$IMAGE" >/dev/null
 
 # ── Wait for /api/status ──────────────────────────────────────────
 info "Waiting for server on port $PORT"
 READY=0
 for i in $(seq 1 30); do
-    if curl -sf "http://127.0.0.1:${PORT}/api/status" >/dev/null 2>&1; then
+    if curl -sf "http://${HOST}:${PORT}/api/status" >/dev/null 2>&1; then
         READY=1
         break
     fi
@@ -76,7 +78,7 @@ CURL_ERR="/tmp/upload-curl-err-$$.txt"
 HTTP_CODE=$(curl -s -o "$RESP_FILE" \
     -w "%{http_code}" \
     --max-time 600 \
-    -X POST "http://127.0.0.1:${PORT}/api/upload/zip" \
+    -X POST "http://${HOST}:${PORT}/api/upload/zip" \
     -F "file=@${ZIP}" 2>"$CURL_ERR") || {
     fail "curl exited non-zero — connection dropped before any HTTP response"
     echo "  curl error: $(cat "$CURL_ERR")"

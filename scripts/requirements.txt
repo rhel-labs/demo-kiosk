@@ -1,5 +1,5 @@
 # Build-time Python dependencies
-# Install with: pip3 install -r build/requirements.txt
+# Install with: pip3 install -r scripts/requirements.txt
 pyyaml
 jinja2
 yamllint
