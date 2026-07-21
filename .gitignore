@@ -62,3 +62,4 @@ app/__pycache__/
 
 # Agent working files — session-specific, not project artifacts.
 .claude/todo.md
+.claude/settings.local.json
