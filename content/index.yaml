@@ -1,8 +1,23 @@
+schema_version: 2
 card_order:
 - upload-bundle
 - creating-bundle
 - card-types
 - stats-visibility
 - manage
-categories: []
-schema_version: 2
+categories:
+  - name: Innovate
+    cards: []
+  - name: Protect
+    cards: []
+  - name: Simplify
+    cards: []
+  - name: Trust
+    cards: []
+  - name: Kiosk
+    cards:
+      - upload-bundle
+      - creating-bundle
+      - card-types
+      - manage
+      - stats-visibility

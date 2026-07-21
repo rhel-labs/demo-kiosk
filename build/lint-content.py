@@ -7,8 +7,8 @@
 #   2. FAQ schema correctness (required fields, types, formats)
 #   3. Branding schema correctness (nested fields, colors, layout)
 #
-# Runs BEFORE build-faqs.py in the Containerfile so image builds
-# fail fast on content errors, before any JS is generated.
+# Runs in the Containerfile build stage to catch content errors
+# before the image is finalised.
 #
 # USAGE:
 #   python3 build/lint-content.py
@@ -74,6 +74,7 @@ VALID_TYPES           = set(_SPEC["card"]["demo_types"].keys())
 REQUIRED_FAQ_FIELDS   = set(_SPEC["card"]["required_fields"])
 SUMMARY_OPTIONAL_FOR  = set(_SPEC["card"].get("summary_optional_for_types", []))
 ID_PATTERN            = _SPEC["card"]["id_pattern"]
+ALLOWED_FAMILY_VALUES = set(_SPEC["card"].get("family_values", []))
 REQUIRED_COLOR_FIELDS = set(_SPEC["branding"]["colors"]["required"])
 REQUIRED_LAYOUT_FIELDS = set(_SPEC["branding"]["layout"]["required"])
 
@@ -226,6 +227,17 @@ def validate_faq_entry(path, data, seen_ids, content_dir):
         if not isinstance(data["spotlight"], bool):
             errors.append(
                 f"'spotlight' must be true or false, got {type(data['spotlight']).__name__}"
+            )
+
+    # family: must be a string from the allowed list if present
+    if "family" in data:
+        fam = data["family"]
+        if not isinstance(fam, str):
+            errors.append(f"'family' must be a string, got {type(fam).__name__}")
+        elif fam not in ALLOWED_FAMILY_VALUES:
+            errors.append(
+                f"'family' value {fam!r} is not in the allowed list: "
+                f"{', '.join(sorted(ALLOWED_FAMILY_VALUES))}"
             )
 
     # title / summary: must be non-empty strings

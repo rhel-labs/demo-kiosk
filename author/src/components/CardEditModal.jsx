@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import {
   Modal, ModalHeader, ModalBody, ModalFooter,
   Form, FormGroup, TextInput, TextArea, Button, Label, Flex, FlexItem,
+  Checkbox, FormSelect, FormSelectOption,
 } from '@patternfly/react-core';
 import { TrashIcon } from '@patternfly/react-icons';
 
@@ -17,6 +18,9 @@ const TYPE_META = {
 };
 
 const FILE_TYPES = new Set(['video', 'slides', 'asciinema', 'image-text']);
+
+// Sync with build/bundle-spec.yaml card.family_values and validation.js FAMILY_VALUES
+const FAMILY_VALUES = ['RHEL', 'RHEL AI', 'OpenShift', 'OpenShift AI', 'OpenShift Virt', 'AAP', 'RHACS', 'Satellite', 'Lightspeed', 'Developer Hub', 'Quay', 'Red Hat AI', 'Edge'];
 
 function slugify(v) {
   return v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64);
@@ -238,6 +242,41 @@ export default function CardEditModal({ card: initialCard, onSave, onCancel }) {
                 validated={errs.summary ? 'error' : 'default'}
                 placeholder="Brief description." />
               {errs.summary && errText(errs.summary)}
+            </FormGroup>
+          )}
+
+          {type !== 'video-loop' && (
+            <FormGroup label="Featured" fieldId="ef-spotlight"
+              helperText="Card appears in the Featured row above the main grid">
+              <Checkbox
+                id="ef-spotlight"
+                label="Featured"
+                isChecked={card.spotlight === true}
+                onChange={(_e, checked) => {
+                  if (checked) {
+                    setCard(p => ({ ...p, spotlight: true }));
+                  } else {
+                    setCard(p => { const { spotlight, ...rest } = p; return rest; });
+                  }
+                }}
+              />
+            </FormGroup>
+          )}
+
+          {type !== 'video-loop' && (
+            <FormGroup label="Product family" fieldId="ef-family"
+              helperText="Shown as a label badge on the card tile">
+              <FormSelect
+                id="ef-family"
+                value={card.family || ''}
+                onChange={(_e, v) => setCard(p => ({ ...p, family: v }))}
+                style={{ maxWidth: 260 }}
+              >
+                <FormSelectOption value="" label="None" />
+                {FAMILY_VALUES.map(f => (
+                  <FormSelectOption key={f} value={f} label={f} />
+                ))}
+              </FormSelect>
             </FormGroup>
           )}
 

@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kiosk Display</title>
+  <link rel="stylesheet" href="patternfly.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    :root {
+      --pf-t--global--color--brand--default: #ee0000;
+    }
+
+    body {
+      font-family: var(--pf-t--global--font--family--body, RedHatText, Overpass, overpass, helvetica, arial, sans-serif);
+      font-size: 1rem;
+      background: #f0f0f0;
+      margin: 0;
+      color: #151515;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* ── Header / nav ── */
+    .ks-header {
+      background: #151515;
+      color: #fff;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+    .ks-header h1 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+    .ks-header nav { display: flex; gap: 1.5rem; align-items: center; }
+    .ks-header a { color: #73bcf7; font-size: 1rem; font-weight: 600; text-decoration: none; display: inline-block; padding: 0.3rem 0; }
+    .ks-header a:hover { text-decoration: underline; }
+    .ks-header a[aria-current="page"] { color: #fff; border-bottom: 2px solid #73bcf7; }
+    .ks-ui-switch { margin-left: auto; font-size: 0.875rem; color: #73bcf7; cursor: pointer; background: none; border: none; font-weight: 600; padding: 0.3rem 0; }
+    .ks-ui-switch:hover { text-decoration: underline; }
+
+    /* ── Page ── */
+    .ks-main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 3rem;
+      flex: 1;
+      width: 100%;
+    }
+
+    h2.ks-section-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 2rem 0 0.75rem;
+      border-bottom: 1px solid #d2d2d2;
+      padding-bottom: 0.4rem;
+    }
+
+    /* ── Action buttons ── */
+    .ks-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin: 1rem 0;
+      flex-wrap: wrap;
+    }
+    .ks-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 1rem;
+      border: 1px solid transparent;
+      border-radius: 3px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .ks-btn:disabled { opacity: 0.5; cursor: default; }
+    .ks-btn-primary   { background: #ee0000; color: #fff; border-color: #c9190b; }
+    .ks-btn-primary:hover:not(:disabled)   { background: #c9190b; }
+    .ks-btn-secondary { background: #fff; color: #151515; border-color: #8a8d90; }
+    .ks-btn-secondary:hover:not(:disabled) { background: #f5f5f5; }
+    .ks-btn-danger    { background: #fff; color: #c9190b; border-color: #c9190b; }
+    .ks-btn-danger:hover:not(:disabled)    { background: #fdf2f2; }
+    .ks-btn-sm { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
+
+    /* ── Tables ── */
+    .ks-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      background: #fff;
+      border: 1px solid #d2d2d2;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
+    .ks-table th, .ks-table td {
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #d2d2d2;
+    }
+    .ks-table th {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6a6e73;
+      font-weight: 600;
+      background: #f5f5f5;
+    }
+    .ks-table td:last-child { text-align: right; }
+    .ks-table th:last-child { text-align: right; }
+    .ks-empty { text-align: center; color: #6a6e73; padding: 1.5rem; }
+
+    .drag-handle {
+      cursor: grab;
+      color: #6a6e73;
+      width: 2rem;
+      text-align: center;
+      user-select: none;
+    }
+    .ks-table tr.dragging { opacity: 0.4; }
+    .ks-table tr.drag-over td { border-top: 2px solid #ee0000; }
+
+    /* ── Category checkboxes ── */
+    .cat-check-cell { text-align: center !important; }
+    .cat-check-cell input[type="checkbox"] { cursor: pointer; width: 1rem; height: 1rem; }
+
+    /* ── Category order list ── */
+    .cat-order-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      border: 1px solid #d2d2d2;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .cat-order-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.6rem 0.8rem;
+      border-bottom: 1px solid #d2d2d2;
+      font-size: 0.9rem;
+      cursor: grab;
+      user-select: none;
+    }
+    .cat-order-list li:last-child { border-bottom: none; }
+    .cat-order-list li.dragging { opacity: 0.4; }
+    .cat-order-list li.drag-over { border-top: 2px solid #ee0000; }
+    .cat-order-list .cat-handle { color: #6a6e73; }
+
+    /* ── Footer ── */
+    #ks-footer {
+      text-align: center;
+      padding: 1.2rem;
+      font-size: 0.95rem;
+      color: #6a6e73;
+      border-top: 1px solid #d2d2d2;
+    }
+    #ks-footer a {
+      display: inline-block;
+      padding: 0.4rem 0.6rem;
+      color: #151515;
+      text-decoration: none;
+    }
+    #ks-footer a[aria-current="page"] { font-weight: 600; }
+    #ks-footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header class="ks-header">
+  <h1>Display</h1>
+  <nav>
+    <a href="/">Kiosk</a>
+    <a href="/display" aria-current="page">Display</a>
+    <a href="/stats">Stats</a>
+    <a href="/setup">Setup</a>
+  </nav>
+  <button class="ks-ui-switch" id="ui-mode-switch">← Return to classic UI</button>
+</header>
+
+<main class="ks-main">
+
+  <!-- ── Card Visibility & Order ── -->
+  <h2 class="ks-section-title">Card Visibility &amp; Order</h2>
+  <p style="font-size:0.875rem;color:#6a6e73;margin:0 0 0.75rem">Changes apply immediately. Drag rows to reorder. Overrides are stored in this browser.</p>
+
+  <div class="ks-actions">
+    <button class="ks-btn ks-btn-secondary" id="btn-reset-visibility">Reset visibility</button>
+    <button class="ks-btn ks-btn-secondary" id="btn-reset-order">Reset card order</button>
+    <button class="ks-btn ks-btn-secondary" id="btn-reset-spotlight">Reset featured</button>
+  </div>
+
+  <table class="ks-table" aria-label="Card visibility controls">
+    <thead>
+      <tr>
+        <th scope="col"></th>
+        <th scope="col">Card</th>
+        <th scope="col">Default</th>
+        <th scope="col">Visibility</th>
+        <th scope="col" style="text-align:center">Featured</th>
+      </tr>
+    </thead>
+    <tbody id="visibility-tbody"></tbody>
+  </table>
+
+  <!-- ── Category Assignment ── -->
+  <h2 class="ks-section-title">Category Assignment</h2>
+  <p style="font-size:0.875rem;color:#6a6e73;margin:0 0 0.75rem">Check which categories each card appears in. Overrides the server-side category assignments in this browser.</p>
+
+  <div class="ks-actions">
+    <button class="ks-btn ks-btn-secondary" id="btn-reset-categories">Reset category assignments</button>
+  </div>
+
+  <div id="cat-assign-container">
+    <p class="ks-empty">Loading…</p>
+  </div>
+
+  <!-- ── Category Order & Visibility ── -->
+  <h2 class="ks-section-title">Category Sections</h2>
+  <p style="font-size:0.875rem;color:#6a6e73;margin:0 0 0.75rem">Drag to reorder. Toggle to show or hide a category section on the kiosk. Overrides stored in this browser.</p>
+
+  <div class="ks-actions">
+    <button class="ks-btn ks-btn-secondary" id="btn-reset-cat-order">Reset order</button>
+    <button class="ks-btn ks-btn-secondary" id="btn-reset-cat-vis">Reset visibility</button>
+  </div>
+
+  <ul class="cat-order-list" id="cat-order-list"></ul>
+
+  <!-- ── Reset All ── -->
+  <hr style="margin:2rem 0;border:none;border-top:1px solid #d2d2d2;">
+  <div class="ks-actions">
+    <button class="ks-btn ks-btn-danger" id="btn-reset-all">Reset all display overrides</button>
+  </div>
+
+</main>
+
+<footer id="ks-footer">
+  <a href="/">Kiosk</a>
+  &nbsp;&middot;&nbsp;
+  <a href="/display" aria-current="page">Display</a>
+  &nbsp;&middot;&nbsp;
+  <a href="/stats">Stats</a>
+  &nbsp;&middot;&nbsp;
+  <a href="/setup">Setup</a>
+</footer>
+
+<script>
+'use strict';
+
+// ── localStorage keys ───────────────────────────────────────────────────
+const VISIBILITY_KEY  = 'faq_visibility';
+const ORDER_KEY       = 'faq_order';
+const SPOTLIGHT_KEY   = 'faq_spotlight';
+const CATEGORIES_KEY  = 'faq_categories';
+const CAT_ORDER_KEY   = 'faq_category_order';
+const CAT_VIS_KEY     = 'faq_category_visible';
+
+// ── Visibility ───────────────────────────────────────────────────────────
+const Visibility = {
+  _read() {
+    try { return JSON.parse(localStorage.getItem(VISIBILITY_KEY) || '{}'); }
+    catch { return {}; }
+  },
+  get(entry) {
+    const ov = this._read();
+    return Object.prototype.hasOwnProperty.call(ov, entry.id) ? ov[entry.id] : entry.enabled !== false;
+  },
+  set(id, visible) {
+    try {
+      const ov = this._read();
+      ov[id] = visible;
+      localStorage.setItem(VISIBILITY_KEY, JSON.stringify(ov));
+    } catch(e) { console.warn('[Display] Cannot write visibility:', e); }
+  },
+  reset() { localStorage.removeItem(VISIBILITY_KEY); }
+};
+
+// ── Order ────────────────────────────────────────────────────────────────
+const Order = {
+  _read() {
+    try { return JSON.parse(localStorage.getItem(ORDER_KEY) || 'null'); }
+    catch { return null; }
+  },
+  apply(entries) {
+    const ids = this._read();
+    if (!ids) return entries;
+    const idxMap = new Map(ids.map((id, i) => [id, i]));
+    return [...entries].sort((a, b) => {
+      const ai = idxMap.has(a.id) ? idxMap.get(a.id) : Infinity;
+      const bi = idxMap.has(b.id) ? idxMap.get(b.id) : Infinity;
+      return ai - bi;
+    });
+  },
+  save(ids) {
+    try { localStorage.setItem(ORDER_KEY, JSON.stringify(ids)); }
+    catch(e) { console.warn('[Display] Cannot write order:', e); }
+  },
+  reset() { localStorage.removeItem(ORDER_KEY); }
+};
+
+// ── Spotlight overrides ──────────────────────────────────────────────────
+const Spotlight = {
+  _read() {
+    try { return JSON.parse(localStorage.getItem(SPOTLIGHT_KEY) || '{}'); }
+    catch { return {}; }
+  },
+  get(entry) {
+    const ov = this._read();
+    return Object.prototype.hasOwnProperty.call(ov, entry.id) ? ov[entry.id] : entry.spotlight === true;
+  },
+  set(id, val) {
+    try {
+      const ov = this._read();
+      ov[id] = val;
+      localStorage.setItem(SPOTLIGHT_KEY, JSON.stringify(ov));
+    } catch(e) { console.warn('[Display] Cannot write spotlight:', e); }
+  },
+  reset() { localStorage.removeItem(SPOTLIGHT_KEY); }
+};
+
+// ── Category overrides ───────────────────────────────────────────────────
+const Categories = {
+  _read() {
+    try { return JSON.parse(localStorage.getItem(CATEGORIES_KEY) || '{}'); }
+    catch { return {}; }
+  },
+  save(map) {
+    try { localStorage.setItem(CATEGORIES_KEY, JSON.stringify(map)); }
+    catch(e) { console.warn('[Display] Cannot write categories:', e); }
+  },
+  reset() { localStorage.removeItem(CATEGORIES_KEY); }
+};
+
+// ── Category order ───────────────────────────────────────────────────────
+const CatOrder = {
+  _read() {
+    try { return JSON.parse(localStorage.getItem(CAT_ORDER_KEY) || 'null'); }
+    catch { return null; }
+  },
+  save(names) {
+    try { localStorage.setItem(CAT_ORDER_KEY, JSON.stringify(names)); }
+    catch(e) { console.warn('[Display] Cannot write cat order:', e); }
+  },
+  reset() { localStorage.removeItem(CAT_ORDER_KEY); }
+};
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function attachDragToReorder(tbody, onReorder) {
+  let dragSrc = null;
+  tbody.querySelectorAll('tr[draggable]').forEach(row => {
+    row.addEventListener('dragstart', e => {
+      dragSrc = row;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', () => row.classList.remove('dragging'));
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+      row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+    row.addEventListener('drop', e => {
+      e.preventDefault();
+      tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+      if (dragSrc && dragSrc !== row) {
+        const rows = [...tbody.querySelectorAll('tr')];
+        const srcIdx = rows.indexOf(dragSrc);
+        const dstIdx = rows.indexOf(row);
+        if (srcIdx < dstIdx) row.after(dragSrc); else row.before(dragSrc);
+        onReorder([...tbody.querySelectorAll('tr[data-entry-id]')].map(r => r.dataset.entryId));
+      }
+    });
+  });
+}
+
+// ── Visibility / order panel ─────────────────────────────────────────────
+function renderVisibility() {
+  const tbody   = document.getElementById('visibility-tbody');
+  const entries = Order.apply(window.FAQ ? FAQ.all() : []);
+
+  if (entries.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="ks-empty">No cards loaded.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  entries.forEach(entry => {
+    const defaultOn   = entry.enabled !== false;
+    const effectiveOn = Visibility.get(entry);
+    const featured    = Spotlight.get(entry);
+    const tr = document.createElement('tr');
+    tr.draggable = true;
+    tr.dataset.entryId = entry.id;
+    tr.innerHTML =
+      `<td class="drag-handle" aria-hidden="true">&#8597;</td>` +
+      `<td>${escHtml(entry.title)}</td>` +
+      `<td>${defaultOn ? 'enabled' : 'disabled'}</td>` +
+      `<td>` +
+        `<button class="ks-btn ks-btn-sm ${effectiveOn ? 'ks-btn-secondary' : 'ks-btn-primary'}" ` +
+          `data-vis-id="${escHtml(entry.id)}" data-vis-val="${effectiveOn ? 'false' : 'true'}">` +
+          `${effectiveOn ? 'Hide' : 'Show'}</button>` +
+      `</td>` +
+      `<td style="text-align:center">` +
+        `<input type="checkbox" data-spotlight-id="${escHtml(entry.id)}" ${featured ? 'checked' : ''}>` +
+      `</td>`;
+    tbody.appendChild(tr);
+  });
+
+  attachDragToReorder(tbody, ids => { Order.save(ids); renderVisibility(); });
+
+  tbody.addEventListener('click', e => {
+    const btn = e.target.closest('[data-vis-id]');
+    if (!btn) return;
+    Visibility.set(btn.dataset.visId, btn.dataset.visVal === 'true');
+    renderVisibility();
+  });
+
+  tbody.addEventListener('change', e => {
+    const cb = e.target.closest('[data-spotlight-id]');
+    if (!cb) return;
+    Spotlight.set(cb.dataset.spotlightId, cb.checked);
+  });
+}
+
+// ── Category assignment panel ────────────────────────────────────────────
+function renderCategoryAssignment() {
+  const container = document.getElementById('cat-assign-container');
+  const entries   = window.FAQ ? FAQ.all().filter(e => e.demo?.type !== 'video-loop') : [];
+  const cats      = (window.KIOSK_INDEX?.categories || []).map(c => c.name);
+  const overrides = Categories._read();
+
+  if (cats.length === 0) {
+    container.innerHTML = '<p class="ks-empty">No categories defined in content/index.yaml.</p>';
+    return;
+  }
+  if (entries.length === 0) {
+    container.innerHTML = '<p class="ks-empty">No cards loaded.</p>';
+    return;
+  }
+
+  // Build effective server-side memberships: cat name → Set of card IDs
+  const serverMembership = {};
+  (window.KIOSK_INDEX?.categories || []).forEach(c => {
+    serverMembership[c.name] = new Set(c.cards || []);
+  });
+
+  const headerCells = cats.map(c => `<th class="cat-check-cell" scope="col">${escHtml(c)}</th>`).join('');
+  const rows = entries.map(entry => {
+    const effectiveCats = overrides[entry.id]
+      ? new Set(overrides[entry.id])
+      : new Set(cats.filter(c => serverMembership[c]?.has(entry.id)));
+
+    const checkboxes = cats.map(c =>
+      `<td class="cat-check-cell"><input type="checkbox" data-card="${escHtml(entry.id)}" data-cat="${escHtml(c)}" ${effectiveCats.has(c) ? 'checked' : ''}></td>`
+    ).join('');
+    return `<tr><td>${escHtml(entry.title)}</td>${checkboxes}</tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <table class="ks-table" aria-label="Category assignment">
+      <thead><tr><th scope="col">Card</th>${headerCells}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+  container.addEventListener('change', e => {
+    const input = e.target.closest('input[type="checkbox"][data-card]');
+    if (!input) return;
+
+    const map = Categories._read();
+    // Collect current effective state for this card
+    const cardId = input.dataset.card;
+    const allInputs = container.querySelectorAll(`input[data-card="${CSS.escape(cardId)}"]`);
+    const selectedCats = [...allInputs].filter(i => i.checked).map(i => i.dataset.cat);
+
+    map[cardId] = selectedCats; // empty array = explicitly uncategorized
+    Categories.save(map);
+  });
+}
+
+// ── Category visibility ──────────────────────────────────────────────────
+const CatVisible = {
+  _read() {
+    try { return JSON.parse(localStorage.getItem(CAT_VIS_KEY) || '{}'); }
+    catch { return {}; }
+  },
+  get(name) {
+    const ov = this._read();
+    return !Object.prototype.hasOwnProperty.call(ov, name) || ov[name] !== false;
+  },
+  set(name, val) {
+    try {
+      const ov = this._read();
+      ov[name] = val;
+      localStorage.setItem(CAT_VIS_KEY, JSON.stringify(ov));
+    } catch(e) { console.warn('[Display] Cannot write cat visibility:', e); }
+  },
+  reset() { localStorage.removeItem(CAT_VIS_KEY); }
+};
+
+// ── Category order panel ─────────────────────────────────────────────────
+function renderCategoryOrder() {
+  const list     = document.getElementById('cat-order-list');
+  const cats     = (window.KIOSK_INDEX?.categories || []).map(c => c.name);
+  const saved    = CatOrder._read();
+  const ordered  = saved
+    ? [...new Set([...saved, ...cats])]   // saved order first, then any new cats
+    : cats;
+
+  if (ordered.length === 0) {
+    list.innerHTML = '<li style="color:#6a6e73">No categories defined.</li>';
+    return;
+  }
+
+  list.innerHTML = ordered.map(name => {
+    const visible = CatVisible.get(name);
+    return `<li draggable="true" data-cat="${escHtml(name)}">` +
+      `<span class="cat-handle">&#8597;</span>` +
+      `<span style="flex:1">${escHtml(name)}</span>` +
+      `<button class="ks-btn ks-btn-sm ${visible ? 'ks-btn-secondary' : 'ks-btn-primary'}" ` +
+        `data-cat-vis="${escHtml(name)}" data-cat-vis-val="${visible ? 'false' : 'true'}" ` +
+        `style="cursor:pointer">` +
+        `${visible ? 'Hide' : 'Show'}</button>` +
+      `</li>`;
+  }).join('');
+
+  list.addEventListener('click', e => {
+    const btn = e.target.closest('[data-cat-vis]');
+    if (!btn) return;
+    CatVisible.set(btn.dataset.catVis, btn.dataset.catVisVal === 'true');
+    renderCategoryOrder();
+  });
+
+  let dragSrc = null;
+  list.querySelectorAll('li').forEach(li => {
+    li.addEventListener('dragstart', e => {
+      dragSrc = li;
+      li.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    li.addEventListener('dragend', () => li.classList.remove('dragging'));
+    li.addEventListener('dragover', e => {
+      e.preventDefault();
+      list.querySelectorAll('li').forEach(r => r.classList.remove('drag-over'));
+      li.classList.add('drag-over');
+    });
+    li.addEventListener('dragleave', () => li.classList.remove('drag-over'));
+    li.addEventListener('drop', e => {
+      e.preventDefault();
+      list.querySelectorAll('li').forEach(r => r.classList.remove('drag-over'));
+      if (dragSrc && dragSrc !== li) {
+        const items = [...list.querySelectorAll('li')];
+        if (items.indexOf(dragSrc) < items.indexOf(li)) li.after(dragSrc); else li.before(dragSrc);
+        CatOrder.save([...list.querySelectorAll('li')].map(i => i.dataset.cat));
+      }
+    });
+  });
+}
+
+// ── Reset buttons ────────────────────────────────────────────────────────
+document.getElementById('btn-reset-visibility').addEventListener('click', () => {
+  Visibility.reset(); renderVisibility();
+});
+document.getElementById('btn-reset-order').addEventListener('click', () => {
+  Order.reset(); renderVisibility();
+});
+document.getElementById('btn-reset-spotlight').addEventListener('click', () => {
+  Spotlight.reset(); renderVisibility();
+});
+document.getElementById('btn-reset-categories').addEventListener('click', () => {
+  Categories.reset(); renderCategoryAssignment();
+});
+document.getElementById('btn-reset-cat-order').addEventListener('click', () => {
+  CatOrder.reset(); renderCategoryOrder();
+});
+document.getElementById('btn-reset-cat-vis').addEventListener('click', () => {
+  CatVisible.reset(); renderCategoryOrder();
+});
+document.getElementById('btn-reset-all').addEventListener('click', () => {
+  Visibility.reset();
+  Order.reset();
+  Spotlight.reset();
+  Categories.reset();
+  CatOrder.reset();
+  CatVisible.reset();
+  renderVisibility();
+  renderCategoryAssignment();
+  renderCategoryOrder();
+});
+
+// ── Boot ─────────────────────────────────────────────────────────────────
+(function boot() {
+  const _entries = [];
+  window.FAQ = {
+    register(entry) { _entries.push(entry); },
+    all() { return _entries; },
+  };
+
+  function renderAll() {
+    renderVisibility();
+    renderCategoryAssignment();
+    renderCategoryOrder();
+  }
+
+  function loadFaqsAndRender() {
+    const s = document.createElement('script');
+    s.src = 'content/faqs.js';
+    s.onload  = renderAll;
+    s.onerror = renderAll;
+    document.head.appendChild(s);
+  }
+
+  const bs = document.createElement('script');
+  bs.src = 'content/branding.js';
+  bs.onload  = () => loadFaqsAndRender();
+  bs.onerror = () => loadFaqsAndRender();
+  document.head.appendChild(bs);
+})();
+
+document.getElementById('ui-mode-switch').addEventListener('click', async function() {
+  try {
+    await fetch('/api/ui-mode', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({mode: 'classic'})
+    });
+    window.location = '/#admin';
+  } catch (e) { /* stay on page */ }
+});
+</script>
+</body>
+</html>

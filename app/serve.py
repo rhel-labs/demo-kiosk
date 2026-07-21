@@ -18,10 +18,15 @@
 #    patch browsers cannot seek or start playback before a full
 #    download of a large video file.
 #
-# 4. Content management API at /manage (HTML page) and /api/*
-#    endpoints for uploading content and editing cards at runtime.
-#    Writes require a writable content directory — see README.md
-#    for volume mount options.
+# 4. Content management API at /api/* endpoints for uploading content
+#    and editing cards at runtime. Writes require a writable content
+#    directory — see README.md for volume mount options.
+#
+# 5. UI mode switch via KIOSK_UI env var ("classic" or "modern",
+#    default "classic"). Classic serves the original manage page;
+#    modern serves setup/display/stats. Toggle at runtime via
+#    PUT /api/ui-mode without restarting.
+#    CUTOVER: change default to "modern" when the new UI is approved.
 #
 # Accepts the same CLI arguments as `python3 -m http.server`:
 #   python3 serve.py 8181 --bind :: --directory /srv/faq
@@ -51,6 +56,9 @@ try:
     from qtfaststart import processor as _qs_processor
 except ImportError:
     _qs_processor = None
+
+# CUTOVER: change default to 'modern' when the new UI is approved.
+_kiosk_ui_mode = os.environ.get('KIOSK_UI', 'classic').lower()
 
 
 def _apply_faststart(path):
@@ -168,10 +176,29 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
     # ── Routing ───────────────────────────────────────────────────
 
     def do_GET(self):
+        global _kiosk_ui_mode
         p = self.path.split('?')[0]
-        if p == '/manage':
-            # Rewrite to the static file; SimpleHTTPRequestHandler serves it.
-            self.path = '/manage.html'
+        if _kiosk_ui_mode == 'modern':
+            if p == '/setup':
+                self.path = '/setup.html'
+            elif p == '/stats':
+                self.path = '/stats.html'
+            elif p == '/display':
+                self.path = '/display.html'
+            elif p == '/manage':
+                self._redirect('/setup')
+                return
+        else:
+            if p == '/manage':
+                self.path = '/manage.html'
+            elif p == '/setup':
+                self._redirect('/manage')
+                return
+            elif p == '/':
+                self.path = '/index-classic.html'
+        if p == '/api/ui-mode':
+            self._send_json({'mode': _kiosk_ui_mode})
+            return
         elif p == '/api/status':
             self._handle_status()
             return
@@ -210,7 +237,9 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_PUT(self):
         p = self.path.split('?')[0]
-        if p.startswith('/api/cards/'):
+        if p == '/api/ui-mode':
+            self._handle_set_ui_mode()
+        elif p.startswith('/api/cards/'):
             card_id = p[len('/api/cards/'):]
             self._handle_update_card(card_id)
         else:
@@ -223,6 +252,27 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_delete_card(card_id)
         else:
             self.send_error(404)
+
+    # ── UI mode toggle ─────────────────────────────────────────────
+
+    def _redirect(self, location):
+        self.send_response(302)
+        self.send_header('Location', location)
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+
+    def _handle_set_ui_mode(self):
+        global _kiosk_ui_mode
+        try:
+            data = self._read_json_body()
+        except Exception as exc:
+            return self._send_json({'error': f'Invalid JSON: {exc}'}, 400)
+        mode = data.get('mode', '').lower() if isinstance(data, dict) else ''
+        if mode not in ('classic', 'modern'):
+            return self._send_json(
+                {'error': "mode must be 'classic' or 'modern'"}, 400)
+        _kiosk_ui_mode = mode
+        self._send_json({'mode': _kiosk_ui_mode})
 
     # ── Management API handlers ───────────────────────────────────
 
@@ -266,13 +316,8 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
         if not self._is_writable():
             return self._send_json(self._not_writable_error(), 503)
 
-        # Temp dir lives inside content/ — the one directory _is_writable()
-        # already verified.  Using content/../ (/srv/faq) fails if that parent
-        # directory is not writable by the process user (WORKDIR permissions
-        # depend on the base image; only the COPY --chown files are guaranteed).
-        # Using /tmp would exhaust tmpfs in a container for large bundles.
-        # Being inside content/ means every subsequent shutil.move is an atomic
-        # rename within the same filesystem.
+        overwrite = self.headers.get('X-Overwrite', '').lower() == 'true'
+
         with tempfile.TemporaryDirectory(dir=self._content_dir) as tmp:
             zip_path = os.path.join(tmp, 'upload.zip')
             try:
@@ -291,9 +336,6 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
 
             # Find kiosk/ at any nesting depth — handles both Google Drive's
             # timestamped wrapper (kiosk-<ts>/kiosk/) and a flat kiosk/ root.
-            # Prune __MACOSX/ and hidden dirs in-place so os.walk never
-            # descends into them; macOS zips embed a kiosk/ inside __MACOSX/
-            # that would otherwise match before the real one.
             kiosk_dir = None
             for dirpath, dirs, _ in os.walk(tmp):
                 dirs[:] = [d for d in dirs
@@ -306,17 +348,17 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
                     {'error': "No 'kiosk/' directory found in zip. "
                               "Expected structure: kiosk/faqs/, kiosk/branding/, kiosk/media/"}, 400)
 
-            # Apply faststart to every MP4 in the bundle before moving to
-            # content/ — mirrors the build-time step so Firefox can play
-            # uploaded videos without making dozens of range requests.
+            # Apply faststart to every MP4 in the bundle before moving to content/.
             media_src = os.path.join(kiosk_dir, 'media')
+            media_added = []
             if os.path.isdir(media_src):
                 for fname in os.listdir(media_src):
-                    if fname.lower().endswith('.mp4'):
-                        _apply_faststart(os.path.join(media_src, fname))
+                    if not fname.startswith('.'):
+                        if fname.lower().endswith('.mp4'):
+                            _apply_faststart(os.path.join(media_src, fname))
+                        media_added.append(fname)
 
-            # Read bundle manifest if present — determines which content areas to touch.
-            # Bundles without a manifest are treated as full bundles (backwards compat).
+            # Read bundle manifest (determines content areas to touch).
             manifest_path = os.path.join(kiosk_dir, 'bundle.yaml')
             bundle_type = 'full'
             if os.path.exists(manifest_path) and yaml is not None:
@@ -327,49 +369,116 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
                 except Exception:
                     pass
 
-            # Determine which directories to replace vs skip based on bundle type.
-            # faqs/ replaced when bundle type is content or full.
-            # branding/ and media/ are always additive — overlay files from the
-            # bundle without removing existing ones, so baked-in logo assets
-            # survive an upload that only includes branding.yaml.
-            _REPLACE = set()
-            if bundle_type in ('content', 'full'):
-                _REPLACE.add('faqs')
+            summary = {'added': [], 'renamed': {}, 'media_added': media_added}
 
-            # faqs/ in _REPLACE is replaced entirely.
-            # branding/ and media/ are additive to preserve installed assets.
-            # content/index.yaml is replaced when present in the bundle.
-            # Skip dotfiles (.DS_Store, __MACOSX metadata, etc.).
-            # Wrap in OSError handler: an unhandled exception here drops the
-            # TCP connection before any HTTP response is sent, which the
-            # browser reports as "failed to fetch" with no useful message.
             try:
                 content_str = str(self._content_dir)
+
+                # ── faqs/ handling ───────────────────────────────────────────
+                faqs_src = os.path.join(kiosk_dir, 'faqs')
+                if bundle_type in ('content', 'full') and os.path.isdir(faqs_src):
+                    faqs_dst = os.path.join(content_str, 'faqs')
+
+                    if overwrite:
+                        # Overwrite: replace faqs/ entirely
+                        if os.path.isdir(faqs_dst):
+                            shutil.rmtree(faqs_dst)
+                        shutil.move(faqs_src, faqs_dst)
+                    else:
+                        # Add mode: merge, rename collisions
+                        os.makedirs(faqs_dst, exist_ok=True)
+
+                        # Collect existing card IDs
+                        existing_ids = set()
+                        if os.path.isdir(faqs_dst):
+                            for f in os.listdir(faqs_dst):
+                                if f.endswith('.yaml') and not f.startswith('_'):
+                                    try:
+                                        d = yaml.safe_load(
+                                            open(os.path.join(faqs_dst, f), encoding='utf-8').read()
+                                        ) if yaml else {}
+                                        if isinstance(d, dict) and 'id' in d:
+                                            existing_ids.add(d['id'])
+                                    except Exception:
+                                        pass
+
+                        incoming_ids = set()  # IDs already placed from this bundle
+                        for fname in sorted(os.listdir(faqs_src)):
+                            if fname.startswith('.') or not fname.endswith('.yaml'):
+                                continue
+                            src_path = os.path.join(faqs_src, fname)
+                            try:
+                                card = yaml.safe_load(
+                                    open(src_path, encoding='utf-8').read()
+                                ) if yaml else None
+                            except Exception:
+                                card = None
+
+                            original_id = card.get('id', '') if isinstance(card, dict) else ''
+                            final_id = original_id
+
+                            # Rename on collision with existing or already-placed
+                            if original_id and (original_id in existing_ids or original_id in incoming_ids):
+                                n = 2
+                                while f'{original_id}-{n}' in existing_ids or f'{original_id}-{n}' in incoming_ids:
+                                    n += 1
+                                final_id = f'{original_id}-{n}'
+                                if yaml and isinstance(card, dict):
+                                    card['id'] = final_id
+                                    open(src_path, 'w', encoding='utf-8').write(
+                                        yaml.dump(card, default_flow_style=False, allow_unicode=True)
+                                    )
+                                summary['renamed'][original_id] = final_id
+
+                            dst_path = os.path.join(faqs_dst, fname)
+                            shutil.move(src_path, dst_path)
+                            if final_id:
+                                incoming_ids.add(final_id)
+                                summary['added'].append(final_id)
+
+                # ── branding/ and media/ ─────────────────────────────────────
+                # branding bundles must not touch media/
+                for item in ('branding',) if bundle_type == 'branding' else ('branding', 'media'):
+                    item_src = os.path.join(kiosk_dir, item)
+                    if os.path.isdir(item_src):
+                        item_dst = os.path.join(content_str, item)
+                        os.makedirs(item_dst, exist_ok=True)
+                        for fname in os.listdir(item_src):
+                            if not fname.startswith('.'):
+                                shutil.move(os.path.join(item_src, fname),
+                                            os.path.join(item_dst, fname))
+
+                # ── Other top-level files (not faqs/, branding/, media/) ─────
                 for item in os.listdir(kiosk_dir):
-                    if item.startswith('.') or item == 'bundle.yaml':
+                    if item.startswith('.') or item in ('bundle.yaml', 'index.yaml', 'faqs', 'branding', 'media'):
                         continue
                     src = os.path.join(kiosk_dir, item)
                     dst = os.path.join(content_str, item)
-                    if os.path.isdir(src):
-                        if item in _REPLACE:
-                            if os.path.isdir(dst):
-                                shutil.rmtree(dst)
-                            shutil.move(src, dst)
-                        else:
-                            # Additive (media): move individual files so we
-                            # don't clobber files uploaded outside this bundle.
-                            os.makedirs(dst, exist_ok=True)
-                            for fname in os.listdir(src):
-                                if not fname.startswith('.'):
-                                    shutil.move(os.path.join(src, fname),
-                                                os.path.join(dst, fname))
-                    else:
+                    if not os.path.isdir(src):
                         shutil.move(src, dst)
 
-                # content/index.yaml: replace when present in bundle
-                index_src = os.path.join(kiosk_dir, 'content', 'index.yaml')
-                if os.path.exists(index_src):
+                # ── content/index.yaml ───────────────────────────────────────
+                index_src = os.path.join(kiosk_dir, 'index.yaml')
+                if overwrite and os.path.exists(index_src):
+                    # Overwrite: replace index.yaml from bundle
                     shutil.move(index_src, os.path.join(content_str, 'index.yaml'))
+                elif bundle_type in ('content', 'full') and summary['added']:
+                    # Add mode: merge new card IDs into existing index.yaml
+                    _bootstrap_content_index(content_str)
+                    try:
+                        existing_index = yaml.safe_load(
+                            open(os.path.join(content_str, 'index.yaml'), encoding='utf-8').read()
+                        ) if yaml else {}
+                        if not isinstance(existing_index, dict):
+                            existing_index = {'schema_version': 2, 'card_order': [], 'categories': []}
+                        card_order = existing_index.get('card_order', [])
+                        for cid in summary['added']:
+                            if cid not in card_order:
+                                card_order.append(cid)
+                        existing_index['card_order'] = card_order
+                        _write_content_index(content_str, existing_index)
+                    except Exception:
+                        pass
 
             except OSError as exc:
                 return self._send_json(
@@ -378,7 +487,11 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
         ok, output = self._rebuild()
         if not ok:
             return self._send_json({'error': 'Content extracted but rebuild failed', 'output': output}, 500)
-        self._send_json({'message': 'Bundle uploaded and content rebuilt', 'output': output})
+        self._send_json({
+            'message': 'Bundle uploaded and content rebuilt',
+            'output': output,
+            'summary': summary,
+        })
 
     def _handle_media_upload(self):
         if not self._is_writable():
@@ -724,10 +837,10 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
             yaml.dump(card, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
     def _rebuild(self):
-        """Run build-faqs.py and return (success, combined_output)."""
+        """Run build-faqs.py in lenient mode and return (success, combined_output)."""
         script = Path(self.directory) / 'build' / 'build-faqs.py'
         result = subprocess.run(
-            [sys.executable, str(script)],
+            [sys.executable, str(script), '--lenient'],
             capture_output=True, text=True, cwd=self.directory,
         )
         return result.returncode == 0, result.stdout + result.stderr

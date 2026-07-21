@@ -1,13 +1,13 @@
 id: stats-visibility
-order: 40
+family: RHEL
 title: "Statistics and card visibility"
 summary: "Track which demos visitors engage with and show or hide cards without reloading content."
 enabled: true
 demo:
   type: external-url
-  url: "#admin"
+  url: https://github.com/rhel-labs/demo-kiosk
   long_description: |
-    Click the **Statistics** link in the footer, or navigate to **/#admin**, to access the event dashboard.
+    Navigate to **/stats** on this kiosk to access the event dashboard.
 
     **View statistics:**
     - Total card views and average time spent per card
@@ -17,4 +17,6 @@ demo:
     **Show and hide cards:**
     - Toggle individual cards on or off without uploading new content
     - Changes apply instantly and are stored in the browser
-    - Use this to surface or pull a card during the event without a content rebuild
+    - Drag rows to reorder the card grid
+
+    Use **/display** to assign cards to categories and reorder the filter tabs.

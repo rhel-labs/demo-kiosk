@@ -5,12 +5,19 @@
 //
 // To add, remove, or reorder cards edit the .yaml files in content/faqs/
 // then run:  python3 build/build-faqs.py
+window.KIOSK_INDEX = {
+  categories: {{ categories | tojson }},
+};
 {% for entry in entries %}
 FAQ.register({
-  id:      {{ entry.id | tojson }},
-  title:   {{ entry.title | tojson }},
-  summary: {{ entry.summary | tojson }},
-  enabled: {{ entry.enabled | tojson }},
+  id:       {{ entry.id | tojson }},
+  title:    {{ entry.title | tojson }},
+  summary:  {{ entry.summary | tojson }},
+  enabled:  {{ entry.enabled | tojson }},
+  spotlight: {{ entry.spotlight | tojson }},
+{%- if entry.family %}
+  family:   {{ entry.family | tojson }},
+{%- endif %}
   demo: {
     type: {{ entry.demo.type | tojson }},
 {%- if 'src' in entry.demo %}

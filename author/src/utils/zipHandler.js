@@ -1,5 +1,12 @@
 import yaml from 'js-yaml';
-import { cardToYaml, brandingToYaml, sanitizeFilename } from './yamlGen.js';
+import { cardToYaml, brandingToYaml, indexToYaml, sanitizeFilename } from './yamlGen.js';
+
+export const DEFAULT_CATEGORIES = [
+  { name: 'Innovate', cards: [] },
+  { name: 'Protect', cards: [] },
+  { name: 'Simplify', cards: [] },
+  { name: 'Trust', cards: [] },
+];
 
 // ── CRC-32 (ZIP standard) ─────────────────────────────────────────
 const CRC_TABLE = (() => {
@@ -235,14 +242,14 @@ class ZipBuilder {
 
 
 // ── exportZip ─────────────────────────────────────────────────────
-export async function exportZip(cards, branding, onProgress) {
+export async function exportZip(cards, branding, categories, onProgress) {
   // Collect entries, deduplicating media files by sanitized filename.
   const addedFiles  = new Set();
   const textEntries = [];
   const fileEntries = [];
 
-  cards.forEach((card, index) => {
-    textEntries.push({ path: `kiosk/faqs/${card.id}.yaml`, content: cardToYaml(card, index) });
+  cards.forEach((card) => {
+    textEntries.push({ path: `kiosk/faqs/${card.id}.yaml`, content: cardToYaml(card) });
     const { demo } = card;
     if (!demo) return;
     const { type } = demo;
@@ -258,6 +265,8 @@ export async function exportZip(cards, branding, onProgress) {
     }
   });
 
+  textEntries.push({ path: 'kiosk/index.yaml', content: indexToYaml(cards, categories) });
+  textEntries.push({ path: 'kiosk/bundle.yaml', content: 'bundle_type: full\nschema_version: 2\n' });
   textEntries.push({ path: 'kiosk/branding/branding.yaml', content: brandingToYaml(branding) });
   const primaryFile = branding.logos.primary?._file;
   if (primaryFile) {
@@ -532,12 +541,12 @@ export async function importZip(file) {
   }
   if (!kioskPrefix) throw new Error('No kiosk/ directory found in zip');
 
-  const cards    = await importCards(entries, file, kioskPrefix);
+  const { cards, categories } = await importCards(entries, file, kioskPrefix);
   const branding = await importBranding(entries, file, kioskPrefix);
 
   const cardsWithMedia    = await Promise.all(cards.map(card => attachMediaFiles(card, entries, file, kioskPrefix)));
   const brandingWithLogos = await attachLogoFiles(branding, entries, file, kioskPrefix);
-  return { cards: cardsWithMedia, branding: brandingWithLogos };
+  return { cards: cardsWithMedia, branding: brandingWithLogos, categories };
 }
 
 async function importCards(entries, file, kioskPrefix) {
@@ -555,7 +564,23 @@ async function importCards(entries, file, kioskPrefix) {
 
   cards.sort((a, b) => (a._importOrder ?? 0) - (b._importOrder ?? 0));
   cards.forEach(c => delete c._importOrder);
-  return cards;
+
+  // Parse categories from index.yaml if present.
+  let categories = null;
+  const indexEntry = entries.get(kioskPrefix + 'index.yaml');
+  if (indexEntry) {
+    const buf  = await readZipEntry(file, indexEntry);
+    const text = new TextDecoder('utf-8').decode(buf);
+    const data = yaml.load(text);
+    if (data?.categories?.length) {
+      categories = data.categories.map(cat => ({ name: cat.name, cards: cat.cards || [] }));
+    }
+  }
+  if (!categories) {
+    categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+  }
+
+  return { cards, categories };
 }
 
 function yamlToCard(data) {

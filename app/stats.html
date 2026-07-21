@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kiosk Stats</title>
+  <link rel="stylesheet" href="patternfly.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    :root {
+      --pf-t--global--color--brand--default: #ee0000;
+      --pf-t--global--color--brand--hover:   #c00000;
+    }
+
+    body {
+      font-family: var(--pf-t--global--font--family--body, RedHatText, Overpass, overpass, helvetica, arial, sans-serif);
+      font-size: 1rem;
+      background: #f0f0f0;
+      margin: 0;
+      color: #151515;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* ── Header / nav ── */
+    .ks-header {
+      background: #151515;
+      color: #fff;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+    .ks-header h1 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+    .ks-header nav { display: flex; gap: 1.5rem; align-items: center; }
+    .ks-header a { color: #73bcf7; font-size: 1rem; font-weight: 600; text-decoration: none; display: inline-block; padding: 0.3rem 0; }
+    .ks-header a:hover { text-decoration: underline; }
+    .ks-header a[aria-current="page"] { color: #fff; border-bottom: 2px solid #73bcf7; }
+    .ks-ui-switch { margin-left: auto; font-size: 0.875rem; color: #73bcf7; cursor: pointer; background: none; border: none; font-weight: 600; padding: 0.3rem 0; }
+    .ks-ui-switch:hover { text-decoration: underline; }
+
+    /* ── Page ── */
+    .ks-main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 3rem;
+      flex: 1;
+      width: 100%;
+    }
+
+    h2.ks-section-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 2rem 0 0.75rem;
+      border-bottom: 1px solid #d2d2d2;
+      padding-bottom: 0.4rem;
+    }
+
+    /* ── Stat cards ── */
+    .ks-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: #fff;
+      border: 1px solid #d2d2d2;
+      border-radius: 4px;
+      padding: 1rem 1.25rem;
+    }
+    .stat-card .stat-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #6a6e73;
+      margin-bottom: 0.4rem;
+    }
+    .stat-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--pf-t--global--color--brand--default);
+    }
+    .stat-detail {
+      font-size: 0.875rem;
+      color: #6a6e73;
+      margin-top: 0.2rem;
+    }
+
+    /* ── Action buttons row ── */
+    .ks-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin: 1rem 0;
+      flex-wrap: wrap;
+    }
+    .ks-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 1rem;
+      border: 1px solid transparent;
+      border-radius: 3px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .ks-btn:disabled { opacity: 0.5; cursor: default; }
+    .ks-btn-primary   { background: #ee0000; color: #fff; border-color: #c9190b; }
+    .ks-btn-primary:hover:not(:disabled)   { background: #c9190b; }
+    .ks-btn-secondary { background: #fff; color: #151515; border-color: #8a8d90; }
+    .ks-btn-secondary:hover:not(:disabled) { background: #f5f5f5; }
+    .ks-btn-danger    { background: #fff; color: #c9190b; border-color: #c9190b; }
+    .ks-btn-danger:hover:not(:disabled)    { background: #fdf3f2; }
+
+    /* ── View log table ── */
+    .ks-table-wrap { overflow-x: auto; }
+    .ks-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+      background: #fff;
+      border: 1px solid #d2d2d2;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .ks-table th, .ks-table td {
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #d2d2d2;
+    }
+    .ks-table th { font-weight: 600; background: #f5f5f5; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6a6e73; }
+    .ks-empty { text-align: center; color: #6a6e73; padding: 2.5rem; }
+
+    /* ── Footer ── */
+    #ks-footer {
+      text-align: center;
+      padding: 1.2rem;
+      font-size: 0.95rem;
+      color: #6a6e73;
+      border-top: 1px solid #d2d2d2;
+    }
+    #ks-footer a {
+      display: inline-block;
+      padding: 0.4rem 0.6rem;
+      color: #151515;
+      text-decoration: none;
+    }
+    #ks-footer a[aria-current="page"] { font-weight: 600; }
+    #ks-footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header class="ks-header">
+  <h1>Stats</h1>
+  <nav>
+    <a href="/">Kiosk</a>
+    <a href="/display">Display</a>
+    <a href="/stats" aria-current="page">Stats</a>
+    <a href="/setup">Setup</a>
+  </nav>
+  <button class="ks-ui-switch" id="ui-mode-switch">← Return to classic UI</button>
+</header>
+
+<main class="ks-main">
+
+  <h2 class="ks-section-title">View Statistics</h2>
+  <div class="ks-stats-grid" id="stats-grid"></div>
+
+  <div class="ks-actions">
+    <button class="ks-btn ks-btn-secondary" id="btn-download-csv">&#8681; Download CSV</button>
+    <button class="ks-btn ks-btn-danger" id="btn-clear-log">Clear Log</button>
+  </div>
+
+  <h2 class="ks-section-title">View Log</h2>
+  <div class="ks-table-wrap">
+    <table class="ks-table" aria-label="View log">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Question</th>
+          <th>Type</th>
+          <th>Time Open</th>
+        </tr>
+      </thead>
+      <tbody id="log-tbody"></tbody>
+    </table>
+  </div>
+
+</main>
+
+<footer id="ks-footer">
+  <a href="/">Kiosk</a>
+  &nbsp;&middot;&nbsp;
+  <a href="/display">Display</a>
+  &nbsp;&middot;&nbsp;
+  <a href="/stats" aria-current="page">Stats</a>
+  &nbsp;&middot;&nbsp;
+  <a href="/setup">Setup</a>
+</footer>
+
+<script>
+'use strict';
+
+// ── localStorage keys ───────────────────────────────────────────────────
+const LOG_KEY = 'faq_view_log';
+
+// ── Log ─────────────────────────────────────────────────────────────────
+const Log = {
+  read() {
+    try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); }
+    catch { return []; }
+  },
+  clear() { localStorage.removeItem(LOG_KEY); }
+};
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Render stats cards ───────────────────────────────────────────────────
+function renderStats() {
+  const log = Log.read();
+  const grid = document.getElementById('stats-grid');
+
+  const totalViews = log.length;
+  const avgTime    = totalViews
+    ? Math.round(log.reduce((s, e) => s + (e.time_open_seconds || 0), 0) / totalViews)
+    : 0;
+
+  const counts = {};
+  log.forEach(e => { counts[e.question_title] = (counts[e.question_title] || 0) + 1; });
+  const topTitle = Object.keys(counts).sort((a,b) => counts[b]-counts[a])[0] || '—';
+  const topCount = counts[topTitle] || 0;
+
+  const types = {};
+  log.forEach(e => { types[e.demo_type] = (types[e.demo_type] || 0) + 1; });
+  const typeBreakdown = Object.entries(types).map(([t,c]) => `${t}: ${c}`).join(', ') || '—';
+
+  grid.innerHTML =
+    statCard('Total Views', `${totalViews}`) +
+    statCard('Avg. Time Open', `${avgTime}s`) +
+    statCard('Most Viewed', escHtml(topTitle), `${topCount} view${topCount !== 1 ? 's' : ''}`) +
+    statCard('By Type', escHtml(typeBreakdown));
+}
+
+function statCard(label, value, detail) {
+  return `<div class="stat-card">` +
+    `<div class="stat-label">${label}</div>` +
+    `<div class="stat-value">${value}</div>` +
+    (detail ? `<div class="stat-detail">${detail}</div>` : '') +
+  `</div>`;
+}
+
+// ── Render view log ──────────────────────────────────────────────────────
+function renderLog() {
+  const log = Log.read();
+  const tbody = document.getElementById('log-tbody');
+
+  if (log.length === 0) {
+    tbody.innerHTML = `<tr><td class="ks-empty" colspan="4">No views recorded yet.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = [...log].reverse().map(e =>
+    `<tr>` +
+      `<td>${escHtml(e.timestamp)}</td>` +
+      `<td>${escHtml(e.question_title)}</td>` +
+      `<td>${escHtml(e.demo_type)}</td>` +
+      `<td>${e.time_open_seconds}s</td>` +
+    `</tr>`
+  ).join('');
+}
+
+// ── CSV download ─────────────────────────────────────────────────────────
+function downloadCsv() {
+  const log = Log.read();
+  const header = ['Timestamp','Question ID','Question Title','Demo Type','Time Open (s)'];
+  const rows   = log.map(e => [
+    e.timestamp, e.question_id, e.question_title, e.demo_type, e.time_open_seconds
+  ].map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(','));
+  const csv  = [header.join(','), ...rows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `kiosk-views-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Button listeners ─────────────────────────────────────────────────────
+document.getElementById('btn-download-csv').addEventListener('click', downloadCsv);
+document.getElementById('btn-clear-log').addEventListener('click', () => {
+  if (confirm('Clear all view history? This cannot be undone.')) {
+    Log.clear();
+    renderStats();
+    renderLog();
+  }
+});
+
+// ── Boot: load branding.js then faqs.js ─────────────────────────────────
+(function boot() {
+  // FAQ registry (minimal — we only need register + all())
+  const _entries = [];
+  window.FAQ = {
+    register(entry) { _entries.push(entry); },
+    all() { return _entries; },
+  };
+
+  function loadFaqsAndRender() {
+    const s = document.createElement('script');
+    s.src = 'content/faqs.js';
+    s.onload  = () => { renderStats(); renderLog(); };
+    s.onerror = () => { renderStats(); renderLog(); };
+    document.head.appendChild(s);
+  }
+
+  const bs = document.createElement('script');
+  bs.src = 'content/branding.js';
+  bs.onload  = () => loadFaqsAndRender();
+  bs.onerror = () => loadFaqsAndRender();
+  document.head.appendChild(bs);
+})();
+
+document.getElementById('ui-mode-switch').addEventListener('click', async function() {
+  try {
+    await fetch('/api/ui-mode', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({mode: 'classic'})
+    });
+    window.location = '/#admin';
+  } catch (e) { /* stay on page */ }
+});
+</script>
+</body>
+</html>

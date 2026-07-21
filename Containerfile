@@ -68,6 +68,7 @@ COPY --chown=65532:65532 build/ ./build/
 COPY --chown=65532:65532 content/faqs/     ./content/faqs/
 COPY --chown=65532:65532 content/branding/ ./content/branding/
 COPY --chown=65532:65532 content/media/    ./content/media/
+COPY --chown=65532:65532 content/index.yaml ./content/
 RUN --mount=type=bind,source=.,target=/buildctx \
     ZIP=$(ls /buildctx/kiosk*.zip 2>/dev/null | head -1); \
     if [ -n "$ZIP" ]; then cp "$ZIP" ./kiosk-bundle.zip; else touch kiosk-bundle.zip; fi
@@ -157,7 +158,7 @@ COPY --from=builder --chown=65532:65532 \
 COPY --from=builder --chown=65532:65532 /tmp/build/lint-content.py ./lint-content.py
 
 # FAQ generator and its Jinja2 templates — used by serve.py to rebuild faqs.js
-# after runtime uploads via /manage. build-faqs.py resolves paths from its own
+# after runtime uploads via /setup. build-faqs.py resolves paths from its own
 # location, so it must live at ./build/build-faqs.py and templates at ./app/faqs/.
 COPY --from=builder --chown=65532:65532 /tmp/build/build-faqs.py    ./build/build-faqs.py
 COPY --from=builder --chown=65532:65532 /tmp/build/bundle-spec.yaml ./build/bundle-spec.yaml
@@ -192,6 +193,11 @@ COPY --from=builder --chown=65532:65532 /tmp/content/branding.js  ./content/
 COPY --from=builder --chown=65532:65532 /tmp/extras.tar.gz /extras/extras.tar.gz
 
 EXPOSE 8181
+
+# UI mode: "classic" (single-page manage) or "modern" (setup/display/stats).
+# Override at runtime: podman run -e KIOSK_UI=modern ...
+# CUTOVER: change to "modern" when the new UI is approved for production.
+ENV KIOSK_UI=classic
 
 # serve.py (like python3 -m http.server) does not handle SIGTERM; SIGKILL stops it immediately.
 STOPSIGNAL SIGKILL
