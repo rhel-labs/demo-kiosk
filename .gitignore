@@ -53,3 +53,12 @@ app/assets/pdf.worker.min.mjs
 # Brand/event assets — delivered via the kiosk bundle, not stored in git.
 app/assets/logo-redhat.svg
 app/assets/logo-hummingbird.png
+
+# denv-generated environment file — overwritten on container rebuild.
+AGENTS.md
+
+# Python bytecache
+app/__pycache__/
+
+# Agent working files — session-specific, not project artifacts.
+.claude/todo.md
