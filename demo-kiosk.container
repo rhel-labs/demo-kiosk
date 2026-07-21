@@ -71,7 +71,7 @@ Description=Demo Kiosk — Red Hat interactive demo platform
 After=local-fs.target
 
 [Container]
-Image=quay.io/mmicene/demo-kiosk:latest
+Image=ghcr.io/rhel-labs/demo-kiosk:latest
 Pull=newer
 
 # Run pasta in IPv4-only mode — pasta would otherwise accept IPv6 connections

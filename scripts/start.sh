@@ -79,22 +79,16 @@ success "Found ${PYTHON_VERSION}"
 
 # ── Lint YAML content before building ────────────────────────────
 info "Linting YAML content ..."
-if ! python3 "${SCRIPT_DIR}/build/lint-content.py"; then
+if ! python3 "${SCRIPT_DIR}/lint-content.py"; then
   error "lint-content.py failed — fix the errors above and try again."
   exit 1
 fi
 
 # ── Build FAQ JS from YAML sources ────────────────────────────────
 info "Building content/faqs.js from YAML sources ..."
-if ! python3 "${SCRIPT_DIR}/build/build-faqs.py"; then
-  error "build/build-faqs.py failed — fix the errors above and try again."
+if ! python3 "${SCRIPT_DIR}/build-faqs.py"; then
+  error "build-faqs.py failed — fix the errors above and try again."
   exit 1
-fi
-
-# ── Generate containerfile.html for local dev ─────────────────────
-info "Generating app/containerfile.html ..."
-if ! python3 "${SCRIPT_DIR}/build/generate-containerfile-page.py"; then
-  warn "generate-containerfile-page.py failed — containerfile.html may be stale."
 fi
 
 # ── Check the port is free ────────────────────────────────────────

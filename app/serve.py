@@ -98,8 +98,8 @@ _LOGO_EXTS = {'.svg', '.png', '.jpg', '.jpeg', '.webp'}
 
 
 def _load_spec(directory='.'):
-    """Load build/bundle-spec.yaml relative to the serving directory."""
-    spec_path = Path(directory) / 'build' / 'bundle-spec.yaml'
+    """Load scripts/bundle-spec.yaml relative to the serving directory."""
+    spec_path = Path(directory) / 'scripts' / 'bundle-spec.yaml'
     if yaml is None or not spec_path.exists():
         return None
     try:
@@ -838,7 +838,7 @@ class KioskHandler(http.server.SimpleHTTPRequestHandler):
 
     def _rebuild(self):
         """Run build-faqs.py in lenient mode and return (success, combined_output)."""
-        script = Path(self.directory) / 'build' / 'build-faqs.py'
+        script = Path(self.directory) / 'scripts' / 'build-faqs.py'
         result = subprocess.run(
             [sys.executable, str(script), '--lenient'],
             capture_output=True, text=True, cwd=self.directory,
